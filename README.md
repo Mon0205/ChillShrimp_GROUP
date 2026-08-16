@@ -3,7 +3,7 @@
 Hệ thống quản lý trại tôm/cua giống.
 
 - Frontend: Vue 3, Vuestic UI, Vite
-- Backend: Node.js, Express, JWT
+- Backend: Node.js, Express, Neon Auth session
 - ORM: Prisma
 - Database: Neon PostgreSQL (cloud)
 - Runtime thống nhất: Docker Compose
@@ -22,7 +22,7 @@ Browser
                     ▼
 ┌─────────────────────────────────────────────────────┐
 │ Backend container                                    │
-│ Express + JWT + Prisma (image: chillshrimp-backend)  │
+│ Express + Neon Auth + Prisma (image: chillshrimp-backend) │
 └───────────────────┬─────────────────────────────────┘
                     │ DATABASE_URL + SSL
                     ▼
@@ -48,8 +48,9 @@ ChillShrimp_GROUP/
 ├── BE/                              # Node.js / Express API
 │   ├── src/
 │   │   ├── config/                   # Prisma Client
-│   │   ├── controllers/              # Xử lý auth, farm, invitation
-│   │   ├── middlewares/              # JWT, phân quyền trại, error handler
+│   │   ├── auth/                     # Neon Auth: get.js, post.js, delete.js, index.js
+│   │   ├── controllers/              # Xử lý nghiệp vụ trại
+│   │   ├── middlewares/              # Session, phân quyền trại, error handler
 │   │   ├── routes/                   # Khai báo endpoint
 │   │   ├── services/                 # SMTP email
 │   │   ├── utils/                    # HTTP helper
@@ -79,7 +80,7 @@ Admin nhập email
   → middleware kiểm tra JWT và role owner/manager/staff/viewer
 ```
 
-Mật khẩu được hash bằng bcrypt. JWT secret, Neon URL và SMTP secrets chỉ ở backend.
+Neon Auth quản lý password và session cookie. Express chỉ lấy Neon Auth user ID rồi kiểm tra quyền trại qua `farm_members`.
 
 ## Chuẩn bị Neon
 
@@ -96,7 +97,8 @@ Copy-Item BE\.env.example BE\.env
 
 ```dotenv
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/neondb?sslmode=require"
-JWT_SECRET="mot-chuoi-ngau-nhien-dai-kho-doan"
+NEON_AUTH_URL="https://...neonauth.../neondb/auth"
+NEON_AUTH_COOKIE_SECRET="chuoi-random-it-nhat-32-ky-tu"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="mat-khau-admin-it-nhat-8-ky-tu"
 ```
@@ -309,8 +311,4 @@ docker compose exec backend npx prisma migrate resolve --rolled-back <timestamp>
 | GET | `/api/invitations/check-email` | Kiểm tra email trước khi mời |
 | POST | `/api/invitations` | Tạo và gửi lời mời |
 
-Trừ `login`, `accept-invitation` và `health`, API yêu cầu header:
-
-```text
-Authorization: Bearer <JWT>
-```
+Neon Auth session được giữ bằng cookie `HttpOnly`; frontend gửi request API với `credentials: include`. Không lưu JWT trong `localStorage`.
