@@ -26,11 +26,11 @@ async function logout() {
   <va-layout class="app-layout">
     <template #top>
       <va-navbar color="primary">
-        <template #left><va-navbar-item class="brand">ChillShrimp</va-navbar-item></template>
-        <template #right>
+        <va-navbar-item class="brand">ChillShrimp</va-navbar-item>
+        <div class="nav-actions">
           <va-button preset="secondary" @click="router.push('/admin/invitations')">Mời thành viên</va-button>
           <va-button preset="secondary" @click="logout">Đăng xuất</va-button>
-        </template>
+        </div>
       </va-navbar>
     </template>
 
@@ -51,3 +51,12 @@ async function logout() {
     </main>
   </va-layout>
 </template>
+
+<style scoped>
+.nav-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-left: auto;
+  padding-right: 1rem;
+}
+</style>

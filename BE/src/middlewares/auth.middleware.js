@@ -1,18 +1,13 @@
-import jwt from 'jsonwebtoken'
 import { prisma } from '../config/prisma.js'
 import { createHttpError } from '../utils/http.js'
+import { readNeonSession } from '../auth/get.js'
 
-const jwtSecret = process.env.JWT_SECRET
-
-export function requireAuth(req, _res, next) {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
-  if (!token) return next(createHttpError(401, 'Bạn cần đăng nhập để thực hiện thao tác này.'))
+export async function requireAuth(req, res, next) {
   try {
-    req.auth = jwt.verify(token, jwtSecret)
+    const session = await readNeonSession(req, res)
+    req.auth = { id: session.user.id, email: session.user.email }
     next()
-  } catch {
-    next(createHttpError(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.'))
-  }
+  } catch (error) { next(error) }
 }
 
 export async function requireFarmManager(req, _res, next) {
