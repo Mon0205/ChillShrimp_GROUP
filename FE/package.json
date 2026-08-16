@@ -9,10 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.4.1",
-    "vite": "^6.3.5",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.1",
+    "vuestic-ui": "^1.10.3"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vuestic/compiler": "^0.2.10",
+    "vite": "^6.3.5"
+  }
 }

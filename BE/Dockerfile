@@ -1,12 +1,16 @@
 FROM node:22-alpine
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev && npm cache clean --force
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
 COPY src ./src
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
-ENV NODE_ENV=production
-EXPOSE 3000
-USER node
-CMD ["npm", "start"]
-
+EXPOSE 8000
+ENTRYPOINT ["./docker-entrypoint.sh"]

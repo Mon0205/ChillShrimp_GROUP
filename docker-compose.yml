@@ -2,27 +2,33 @@ services:
   backend:
     build:
       context: ./BE
+      dockerfile: Dockerfile
+    image: chillshrimp-backend:latest
+    env_file:
+      - ./BE/.env
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      PORT: 8000
+      FRONTEND_URL: http://localhost:5173
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    restart: unless-stopped
+      - "8000:8000"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
-  web:
+  frontend:
     build:
       context: ./FE
-    ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    image: chillshrimp-frontend:latest
     depends_on:
       backend:
         condition: service_healthy
+    ports:
+      - "5173:80"
     restart: unless-stopped
-

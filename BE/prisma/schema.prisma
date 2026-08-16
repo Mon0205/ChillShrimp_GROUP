@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FarmRole {
+  owner
+  manager
+  staff
+  viewer
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  cancelled
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  username     String?      @unique
+  displayName  String?
+  passwordHash String?
+  phone        String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farmsCreated Farm[]       @relation("FarmCreator")
+  memberships  FarmMember[]
+  invitationsSent FarmInvitation[] @relation("InvitationSender")
+  invitationsReceived FarmInvitation[] @relation("InvitationRecipient")
+  @@map("users")
+}
+
+model Farm {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  address   String?
+  createdBy String       @map("created_by") @db.Uuid
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creator   User         @relation("FarmCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  members   FarmMember[]
+  invitations FarmInvitation[]
+  @@map("farms")
+}
+
+model FarmMember {
+  farmId    String   @map("farm_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      FarmRole @default(viewer)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([farmId, userId])
+  @@map("farm_members")
+}
+
+model FarmInvitation {
+  id            String           @id @default(uuid()) @db.Uuid
+  farmId        String           @map("farm_id") @db.Uuid
+  invitedUserId String           @map("invited_user_id") @db.Uuid
+  email         String
+  role          FarmRole
+  invitedBy     String           @map("invited_by") @db.Uuid
+  tokenHash     String           @unique @map("token_hash")
+  expiresAt     DateTime         @map("expires_at") @db.Timestamptz(6)
+  status        InvitationStatus @default(pending)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  acceptedAt    DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  farm          Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  invitedUser   User             @relation("InvitationRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  sender        User             @relation("InvitationSender", fields: [invitedBy], references: [id])
+  @@index([farmId, email, status])
+  @@map("farm_invitations")
+}
