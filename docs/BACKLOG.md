@@ -5,7 +5,7 @@ Quy ước ưu tiên: **P0** bắt buộc cho MVP, **P1** quan trọng, **P2** m
 ## Epic 0 — Nền tảng
 
 - [ ] **INFRA-01 · P0** Chuẩn hóa môi trường dev/prod, `.env`, Docker Compose frontend và health check Supabase.
-- [ ] **INFRA-02 · P0** Thiết lập lint, format, unit test và CI cho Vue/Vuestic UI và Supabase.
+- [ ] **INFRA-02 · P0** Thiết lập lint, format, unit test và CI cho Vue/Vuetify và Neon PostgreSQL.
 - [ ] **INFRA-03 · P0** Quy ước migration, seed, backup và rollback Supabase.
 - [ ] **INFRA-04 · P1** Logging có request ID, audit log và theo dõi lỗi.
 - [ ] **DOC-01 · P0** Chốt ERD, REST API convention, error format và OpenAPI.

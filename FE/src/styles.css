@@ -1,22 +1,8 @@
 :root {
-  font-family: var(--va-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
-  color: var(--va-text-primary);
-  background: var(--va-background-primary);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #1d2939;
+  background: #f8fafc;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-.app-layout { min-height: 100vh; }
-.brand { font-size: 1.2rem; font-weight: 700; }
-.dashboard { width: min(1100px, 100%); margin: 0 auto; padding: 2rem 1.25rem; }
-.hero-card { margin-bottom: 1.5rem; }
-.hero-card p { margin-top: 0; }
-.status-alert { margin: 1rem 0; }
-.actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 1.25rem; background: var(--va-background-primary); }
-.auth-card { width: min(460px, 100%); }
-.form-field { width: 100%; margin-bottom: 1rem; }
-.form-alert { margin-bottom: 1rem; }
-.muted { color: var(--va-text-secondary); }
-@media (max-width: 640px) { .feature-grid { grid-template-columns: 1fr; } }
+body { margin: 0; min-width: 320px; background: #f8fafc; }

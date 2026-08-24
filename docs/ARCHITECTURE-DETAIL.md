@@ -1,7 +1,7 @@
 # Chi tiết kiến trúc
 
 ```text
-Vue/Vuestic (FE) ── HTTPS REST + JWT ──> Express (BE) ── Prisma ORM ──> Neon PostgreSQL
+Vue/Vuetify (FE) ── HTTPS REST + JWT ──> Express (BE) ── Prisma ORM ──> Neon PostgreSQL
                                                │
                                                ├── SMTP: gửi lời mời
                                                └── AI_SERVICE: gọi phân tích ảnh khi cần

@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { vuestic } from '@vuestic/compiler/vite'
+import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
-  plugins: [vuestic(), vue()],
+  plugins: [vue(), vuetify({ autoImport: true })],
   server: { port: 5173 },
 })

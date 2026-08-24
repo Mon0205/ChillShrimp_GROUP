@@ -1,6 +1,6 @@
 # Kiến trúc hiện tại
 
-Frontend `FE/` là Vue 3, Vite và Vuestic UI. Frontend chỉ gọi REST API tại `VITE_API_URL`; không chứa secret database hoặc JWT secret.
+Frontend `FE/` là Vue 3, Vite và Vuetify. Frontend chỉ gọi REST API tại `VITE_API_URL`; không chứa secret database hoặc JWT secret.
 
 Backend `BE/` là Node.js/Express. Prisma ORM kết nối Neon PostgreSQL bằng `DATABASE_URL`. Backend giữ JWT secret, SMTP và mọi logic phân quyền.
 

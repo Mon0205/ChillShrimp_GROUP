@@ -2,7 +2,7 @@
 
 Hệ thống quản lý trại tôm/cua giống.
 
-- Frontend: Vue 3, Vuestic UI, Vite
+- Frontend: Vue 3, Vuetify, Vite
 - Backend: Node.js, Express, Neon Auth session
 - ORM: Prisma
 - Database: Neon PostgreSQL (cloud)
@@ -16,7 +16,7 @@ Browser
   ▼
 ┌─────────────────────────────────────────────────────┐
 │ Frontend container                                   │
-│ Nginx + Vue 3 + Vuestic (image: chillshrimp-frontend)│
+│ Nginx + Vue 3 + Vuetify (image: chillshrimp-frontend)│
 └───────────────────┬─────────────────────────────────┘
                     │ /api  (Nginx reverse proxy)
                     ▼
@@ -37,7 +37,7 @@ Neon là database cloud nên Docker Compose **không chạy PostgreSQL local**. 
 
 ```text
 ChillShrimp_GROUP/
-├── FE/                              # Vue 3 + Vuestic UI
+├── FE/                              # Vue 3 + Vuetify
 │   ├── src/
 │   │   ├── views/                    # Login, dashboard, lời mời, đặt mật khẩu
 │   │   ├── services/                 # API client và farm service
