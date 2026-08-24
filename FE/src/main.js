@@ -1,8 +1,9 @@
 import { createApp } from 'vue'
-import { createVuestic } from 'vuestic-ui'
-import 'vuestic-ui/css'
+import 'vuetify/styles'
+import { createVuetify } from 'vuetify'
 import App from './App.vue'
-import router from './router/index.js'
 import './styles.css'
 
-createApp(App).use(createVuestic()).use(router).mount('#app')
+const vuetify = createVuetify({ theme: { defaultTheme: 'light' } })
+
+createApp(App).use(vuetify).mount('#app')
