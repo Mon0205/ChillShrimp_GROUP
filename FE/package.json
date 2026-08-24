@@ -9,13 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "vite-plugin-vuetify": "^2.1.3",
     "vue": "^3.5.0",
     "vue-router": "^4.5.1",
-    "vuestic-ui": "^1.10.3"
+    "vuetify": "^4.1.11"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vuestic/compiler": "^0.2.10",
     "vite": "^6.3.5"
   }
 }
