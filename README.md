@@ -3,7 +3,7 @@
 Hệ thống quản lý trại tôm/cua giống.
 
 - Frontend: Vue 3, Vuetify, Vite
-- Backend: Node.js, Express, JWT
+- Backend: Node.js, Express, Neon Auth session
 - ORM: Prisma
 - Database: Neon PostgreSQL (cloud)
 - Runtime thống nhất: Docker Compose
@@ -22,7 +22,7 @@ Browser
                     ▼
 ┌─────────────────────────────────────────────────────┐
 │ Backend container                                    │
-│ Express + JWT + Prisma (image: chillshrimp-backend)  │
+│ Express + Neon Auth + Prisma (image: chillshrimp-backend) │
 └───────────────────┬─────────────────────────────────┘
                     │ DATABASE_URL + SSL
                     ▼
@@ -48,8 +48,9 @@ ChillShrimp_GROUP/
 ├── BE/                              # Node.js / Express API
 │   ├── src/
 │   │   ├── config/                   # Prisma Client
-│   │   ├── controllers/              # Xử lý auth, farm, invitation
-│   │   ├── middlewares/              # JWT, phân quyền trại, error handler
+│   │   ├── auth/                     # Neon Auth: get.js, post.js, delete.js, index.js
+│   │   ├── controllers/              # Xử lý nghiệp vụ trại
+│   │   ├── middlewares/              # Session, phân quyền trại, error handler
 │   │   ├── routes/                   # Khai báo endpoint
 │   │   ├── services/                 # SMTP email
 │   │   ├── utils/                    # HTTP helper
@@ -79,7 +80,7 @@ Admin nhập email
   → middleware kiểm tra JWT và role owner/manager/staff/viewer
 ```
 
-Mật khẩu được hash bằng bcrypt. JWT secret, Neon URL và SMTP secrets chỉ ở backend.
+Neon Auth quản lý password và session cookie. Express chỉ lấy Neon Auth user ID rồi kiểm tra quyền trại qua `farm_members`.
 
 ## Chuẩn bị Neon
 
@@ -96,7 +97,8 @@ Copy-Item BE\.env.example BE\.env
 
 ```dotenv
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/neondb?sslmode=require"
-JWT_SECRET="mot-chuoi-ngau-nhien-dai-kho-doan"
+NEON_AUTH_URL="https://...neonauth.../neondb/auth"
+NEON_AUTH_COOKIE_SECRET="chuoi-random-it-nhat-32-ky-tu"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="mat-khau-admin-it-nhat-8-ky-tu"
 ```
@@ -224,6 +226,14 @@ Mặc định `FE/.env` dùng `VITE_API_URL=http://localhost:8000/api`. Khi ch�
 
 ## Database migration
 
+### Quy ước tên migration
+
+Migration mới phải đặt tên theo dạng `ddmmyyyy_STT_ten_migration`. `STT` gồm ba chữ số, bắt đầu từ `001` và tăng theo thứ tự tạo trong cùng ngày.
+
+Ví dụ: `02092026_001_add_farm_code`, `02092026_002_area_scoped_roles`.
+
+Dạng ngày `dd/mm/yyyy` được viết liền thành `ddmmyyyy` vì dấu `/` không hợp lệ trong tên thư mục migration. Không đổi tên migration đã áp dụng lên Neon để tránh sai lệch lịch sử trong `_prisma_migrations`.
+
 Schema Prisma nằm tại `BE/prisma/schema.prisma`; migration nằm tại `BE/prisma/migrations/`.
 
 Khi thêm trường `phone` vào `User`:
@@ -309,8 +319,4 @@ docker compose exec backend npx prisma migrate resolve --rolled-back <timestamp>
 | GET | `/api/invitations/check-email` | Kiểm tra email trước khi mời |
 | POST | `/api/invitations` | Tạo và gửi lời mời |
 
-Trừ `login`, `accept-invitation` và `health`, API yêu cầu header:
-
-```text
-Authorization: Bearer <JWT>
-```
+Neon Auth session được giữ bằng cookie `HttpOnly`; frontend gửi request API với `credentials: include`. Không lưu JWT trong `localStorage`.
