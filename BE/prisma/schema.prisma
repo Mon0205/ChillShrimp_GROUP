@@ -9,9 +9,9 @@ datasource db {
 
 enum FarmRole {
   owner
-  manager
-  staff
-  viewer
+  area_manager
+  technician
+  warehouse_staff
 }
 
 enum InvitationStatus {
@@ -32,11 +32,27 @@ model User {
   memberships  FarmMember[]
   invitationsSent FarmInvitation[] @relation("InvitationSender")
   invitationsReceived FarmInvitation[] @relation("InvitationRecipient")
+  accessSessions AccessSession[]
   @@map("users")
+}
+
+model AccessSession {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id")
+  tokenHash    String   @unique @map("token_hash")
+  lastActivity DateTime @default(now()) @map("last_activity") @db.Timestamptz(6)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("access_sessions")
 }
 
 model Farm {
   id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique
   name      String
   address   String?
   createdBy String       @map("created_by")
@@ -45,16 +61,39 @@ model Farm {
   creator   User         @relation("FarmCreator", fields: [createdBy], references: [id], onDelete: Cascade)
   members   FarmMember[]
   invitations FarmInvitation[]
+  areas     Area[]
   @@map("farms")
+}
+
+enum MembershipStatus {
+  active
+  suspended
+}
+
+model Area {
+  id          String           @id @default(uuid()) @db.Uuid
+  farmId      String           @map("farm_id") @db.Uuid
+  code        String
+  name        String
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farm        Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  members     FarmMember[]
+  invitations FarmInvitation[]
+  @@unique([farmId, code])
+  @@map("areas")
 }
 
 model FarmMember {
   farmId    String   @map("farm_id") @db.Uuid
   userId    String   @map("user_id")
-  role      FarmRole @default(viewer)
+  role      FarmRole @default(technician)
+  status    MembershipStatus @default(active)
+  areaId    String?  @map("area_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area      Area?    @relation(fields: [areaId], references: [id], onDelete: Restrict)
   @@id([farmId, userId])
   @@map("farm_members")
 }
@@ -65,6 +104,7 @@ model FarmInvitation {
   invitedUserId String?          @map("invited_user_id")
   email         String
   role          FarmRole
+  areaId        String?          @map("area_id") @db.Uuid
   invitedBy     String           @map("invited_by")
   tokenHash     String           @unique @map("token_hash")
   expiresAt     DateTime         @map("expires_at") @db.Timestamptz(6)
@@ -74,6 +114,16 @@ model FarmInvitation {
   farm          Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
   invitedUser   User?            @relation("InvitationRecipient", fields: [invitedUserId], references: [id], onDelete: SetNull)
   sender        User             @relation("InvitationSender", fields: [invitedBy], references: [id])
+  area          Area?            @relation(fields: [areaId], references: [id], onDelete: Restrict)
   @@index([farmId, email, status])
   @@map("farm_invitations")
+}
+
+model PasswordResetOtpWindow {
+  email     String   @id
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("password_reset_otp_windows")
 }

@@ -15,7 +15,8 @@ export async function sendInvitationEmail({ to, farmName, token }) {
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
-    subject: `Lời mời vào trại ${farmName}`,
-    text: `Mở link để thiết lập mật khẩu (hết hạn sau 7 ngày): ${url}`,
+    subject: `Lời mời tham gia trại ${farmName}`,
+    text: `Bạn được mời tham gia trại ${farmName}. Mở liên kết để đặt mật khẩu (hết hạn sau 1 ngày): ${url}`,
+    html: `<p>Bạn được mời tham gia trại <strong>${farmName}</strong>.</p><p><a href="${url}">Đặt mật khẩu và chấp nhận lời mời</a></p><p>Liên kết hết hạn sau 1 ngày.</p>`,
   })
 }

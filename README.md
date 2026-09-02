@@ -226,6 +226,14 @@ Mặc định `FE/.env` dùng `VITE_API_URL=http://localhost:8000/api`. Khi ch�
 
 ## Database migration
 
+### Quy ước tên migration
+
+Migration mới phải đặt tên theo dạng `ddmmyyyy_STT_ten_migration`. `STT` gồm ba chữ số, bắt đầu từ `001` và tăng theo thứ tự tạo trong cùng ngày.
+
+Ví dụ: `02092026_001_add_farm_code`, `02092026_002_area_scoped_roles`.
+
+Dạng ngày `dd/mm/yyyy` được viết liền thành `ddmmyyyy` vì dấu `/` không hợp lệ trong tên thư mục migration. Không đổi tên migration đã áp dụng lên Neon để tránh sai lệch lịch sử trong `_prisma_migrations`.
+
 Schema Prisma nằm tại `BE/prisma/schema.prisma`; migration nằm tại `BE/prisma/migrations/`.
 
 Khi thêm trường `phone` vào `User`:

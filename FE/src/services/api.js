@@ -4,12 +4,16 @@ export async function api(path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers: { 'Content-Type': 'application/json', ...options.headers },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.message || 'Không thể kết nối tới máy chủ')
+  if (!response.ok) {
+    if (response.status === 401 && localStorage.getItem('authSessionActive') === 'true' && path !== '/auth/login') {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'))
+    }
+    const error = new Error(body.message || 'Không thể kết nối tới máy chủ')
+    error.status = response.status
+    throw error
+  }
   return body
 }
