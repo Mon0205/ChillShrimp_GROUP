@@ -6,7 +6,7 @@ Vercel / Netlify (FE) ──> Render / Railway / VPS (BE) ──> Neon PostgreSQ
 
 Frontend đặt `VITE_API_URL=https://api.ten-mien-cua-ban/api` khi build.
 
-Backend đặt `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL` và SMTP secrets tại môi trường deploy. Trước mỗi deploy backend chạy:
+Backend đặt `DATABASE_URL`, `NEON_AUTH_URL`, `NEON_AUTH_COOKIE_SECRET`, `FRONTEND_URL` và SMTP secrets tại môi trường deploy. Trước mỗi deploy backend chạy:
 
 ```powershell
 npm run prisma:generate
