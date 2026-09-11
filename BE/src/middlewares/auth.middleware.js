@@ -21,6 +21,35 @@ async function loadMembership(req) {
   return membership
 }
 
+export async function requireFarmMember(req, _res, next) {
+  try {
+    req.membership = await loadMembership(req)
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requirePondTankViewer(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền xem ao/bể.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requirePondTankManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager'].includes(membership.role)) {
+      throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực mới có quyền quản lý ao/bể.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
 export async function requireFarmManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)

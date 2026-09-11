@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { loadUser, useAuth } from '../composables/auth.js'
+import DashboardPage from '../pages/dashboard/DashboardPage.vue'
+import FarmsPage from '../pages/farms/FarmsPage.vue'
+import PondsTanksPage from '../pages/ponds-tanks/PondsTanksPage.vue'
 import UsersPage from '../pages/users/UsersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
 import SetPasswordPage from '../pages/set-password/SetPasswordPage.vue'
@@ -11,7 +14,10 @@ const router = createRouter({
     { path: '/', redirect: '/dashboard' },
     { path: '/login', component: LoginPage, meta: { guest: true } },
     { path: '/set-password', component: SetPasswordPage, meta: { public: true } },
-    { path: '/dashboard', component: UsersPage, meta: { auth: true } },
+    { path: '/dashboard', component: DashboardPage, meta: { auth: true } },
+    { path: '/users', component: UsersPage, meta: { auth: true } },
+    { path: '/farms', component: FarmsPage, meta: { auth: true } },
+    { path: '/ponds-tanks', component: PondsTanksPage, meta: { auth: true } },
     { path: '/profile', component: ProfilePage, meta: { auth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
