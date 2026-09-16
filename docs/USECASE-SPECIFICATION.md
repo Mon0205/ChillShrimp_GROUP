@@ -604,321 +604,298 @@ Các nội dung trong tài liệu tổng hợp quy chuẩn được coi là lu�
 
 ---
 
-## 7. Đặc tả chuyên sâu 5 use case trọng tâm
+## 7. Đặc tả chi tiết 5 use case trọng tâm
 
-Phần này đặc tả luồng đầu-cuối của năm use case cấp 1 quan trọng nhất. Mã use case tuân theo mô hình hai cấp của tài liệu này; các use case con ở mục 3 vẫn là đơn vị triển khai và kiểm thử chi tiết. Các luồng mô tả kiến trúc đích, còn các điểm G2–G5 là khoảng cách hiện thực cần được xử lý sau.
+Năm use case dưới đây được chọn từ danh sách `UC03.1–UC09.4` vì đại diện cho các điểm quan trọng nhất của hệ thống:
 
-Sơ đồ tương ứng: [Activity Diagram](./ACTIVITY-DIAGRAMS.md) và [Sequence Diagram](./SEQUENCE-DIAGRAMS.md).
+| Thứ tự | Mã | Use case | Lý do lựa chọn |
+|---|---|---|---|
+| 1 | UC04.2 | CRUD ao hoặc bể | Là nền tảng để gắn khu vực, lô giống và các nhật ký vận hành. |
+| 2 | UC05.1 | CRUD lô giống | Là đối tượng trung tâm của quy trình ương và truy xuất tôm giống. |
+| 3 | UC06.1 | Thực hiện AI Inspection | Là chức năng khác biệt của đề tài, hỗ trợ phân tích ảnh mẫu. |
+| 4 | UC08.5 | Xuất bán con giống | Kết thúc chuỗi nghiệp vụ và tạo doanh thu cho trang trại. |
+| 5 | UC09.1 | Xem Dashboard theo phạm vi quyền | Tổng hợp dữ liệu để hỗ trợ giám sát và ra quyết định. |
 
-### 7.1. UC04 — Quản lý trang trại
+### 7.1. UC04.2 — CRUD ao hoặc bể
 
-| **Use case: UC04 — Quản lý trang trại** | **Nội dung** |
+| **Use case: UC04.2 — CRUD ao hoặc bể** | **Nội dung** |
 |---|---|
-| Mục đích | Cho phép quản lý hồ sơ trang trại, khu vực, danh sách ao/bể và trạng thái vận hành trong đúng phạm vi được phân quyền. |
-| Mô tả | Use case bao quát việc xem/cập nhật trang trại, tạo và cập nhật ao/bể, tra cứu ao/bể theo khu vực và điều khiển vòng đời `empty → active → cleaning → empty`. |
-| Tác nhân chính | `OWNER`, `AREA_MANAGER`. |
-| Tác nhân phụ | `TECHNICIAN` xem ao/bể thuộc khu vực; `WAREHOUSE_STAFF` chỉ xem thông tin chung của farm. |
-| Kích hoạt | Người dùng chọn một farm và mở chức năng “Quản lý trang trại”. |
-| Điều kiện trước | 1. Người dùng đã đăng nhập và có phiên ứng dụng hợp lệ.<br>2. Có membership `active` tại farm đang chọn.<br>3. `AREA_MANAGER` và `TECHNICIAN` đã được gán khu vực khi truy cập dữ liệu theo khu vực.<br>4. Để quản lý ao/bể đầy đủ, module `ponds_tanks` và quan hệ khu vực phải được hiện thực. |
-| Điều kiện sau | 1. Thông tin farm hoặc ao/bể được lưu đúng tenant.<br>2. Trạng thái ao/bể phản ánh trạng thái vận hành thực tế.<br>3. Không thay đổi dữ liệu của farm/khu vực khác.<br>4. Dữ liệu mới có thời gian tạo/cập nhật và người thực hiện được truy vết ở lớp ứng dụng/audit khi có. |
-| Use case con | UC04.1 — Xem/cập nhật farm; UC04.2 — CRUD ao/bể; UC04.3 — Cập nhật trạng thái ao/bể. |
+| Mục đích | Cho phép người dùng xem, tạo, cập nhật và quản lý thông tin ao/bể trong trang trại. |
+| Mô tả | Người dùng chọn trang trại, tra cứu danh sách ao/bể, nhập thông tin ao/bể mới hoặc cập nhật ao/bể đã có trong phạm vi được phân quyền. |
+| Tác nhân | `OWNER`, `AREA_MANAGER`; `TECHNICIAN` chỉ được xem trong khu vực phụ trách. |
+| Điều kiện trước | Người dùng đã đăng nhập; có membership `active`; khu vực và trang trại hợp lệ; actor có quyền ghi nếu thực hiện tạo/cập nhật. |
+| Điều kiện sau | Ao/bể được lưu đúng `farm_id`; mã ao/bể không trùng trong farm; ao/bể mới có trạng thái `empty`; dữ liệu ngoài phạm vi không bị truy cập. |
 | Bảng dữ liệu | `farms`, `areas`, `farm_members`, `ponds_tanks`, `seed_batches`. |
-| Mức ưu tiên | Rất cao — là cấu trúc nền cho toàn bộ dữ liệu sản xuất. |
 
 #### Luồng sự kiện chính (Basic flow)
 
 | **Actor** | **System** |
 |---|---|
-| 1. Chọn trang trại cần làm việc. | 2. Kiểm tra phiên đăng nhập; tải `farm_members` theo `(farm_id, user_id)` và kiểm tra `status`, `role`, `area_id`. |
-| 3. Mở màn hình quản lý trang trại. | 4. Trả hồ sơ farm, khu vực và danh sách ao/bể đã lọc theo phạm vi quyền. |
-| 5. Chọn tạo ao/bể mới hoặc cập nhật một ao/bể hiện có. | 6. Hiển thị biểu mẫu gồm mã, tên, khu vực, loại, thể tích, mô tả và trạng thái hiện tại. |
-| 7. Nhập hoặc điều chỉnh thông tin ao/bể. | 8. Kiểm tra trường bắt buộc, `volume_m3 > 0`, mã ao/bể không trùng trong farm và khu vực thuộc đúng farm. |
-| 9. Xác nhận lưu. | 10. Tạo/cập nhật `ponds_tanks`; ao/bể mới mặc định `status = empty`; trả dữ liệu vừa lưu. |
-| 11. Khi vận hành thay đổi, chọn trạng thái mới cho ao/bể. | 12. Kiểm tra chuyển trạng thái và kiểm tra lô `active` hoặc `ready_for_sale` đang chiếm dụng ao/bể. |
-| 13. Xác nhận cập nhật trạng thái. | 14. Cập nhật trạng thái, thời gian sửa và hiển thị lại chi tiết ao/bể cùng lô hiện tại nếu có. |
+| 1. Chọn trang trại cần làm việc. | |
+| | 2. Kiểm tra phiên đăng nhập, membership, role và `area_id`. |
+| 3. Mở chức năng quản lý ao/bể. | |
+| | 4. Hiển thị danh sách ao/bể đã lọc theo farm và phạm vi khu vực. |
+| 5. Chọn tạo mới hoặc cập nhật một ao/bể. | |
+| | 6. Hiển thị biểu mẫu mã, tên, loại, khu vực, thể tích và mô tả. |
+| 7. Nhập hoặc điều chỉnh thông tin ao/bể. | |
+| | 8. Kiểm tra trường bắt buộc, `volume_m3 > 0`, mã không trùng và khu vực cùng farm. |
+| 9. Nhấn “Lưu”. | |
+| | 10. Tạo hoặc cập nhật bản ghi `ponds_tanks` và trả kết quả mới. |
 
 #### Luồng sự kiện thay thế (Alternate flow)
 
-| **Mã** | **Điều kiện** | **Xử lý** |
-|---|---|---|
-| AF04.1 | Actor chỉ có quyền xem. | Hệ thống ẩn/khóa thao tác ghi và chỉ trả dữ liệu trong phạm vi membership. |
-| AF04.2 | Owner cập nhật hồ sơ farm. | Hệ thống cho sửa `code`, `name`, `address`; kiểm tra mã farm duy nhất rồi cập nhật `farms`. |
-| AF04.3 | Area Manager truy cập. | Hệ thống chỉ trả và cho thao tác ao/bể thuộc `area_id` của membership. |
-| AF04.4 | Người dùng lọc hoặc tìm kiếm. | Hệ thống lọc theo mã, tên, khu vực, loại hoặc trạng thái mà không làm thay đổi dữ liệu. |
-| AF04.5 | Ao/bể kết thúc một chu kỳ nuôi. | Sau khi lô được kết thúc hợp lệ, hệ thống cho chuyển `active → cleaning`, sau đó `cleaning → empty`. |
+**AF04.2.1.** Nếu actor chỉ có quyền xem → Hệ thống khóa thao tác thêm, sửa, xóa và chỉ hiển thị dữ liệu trong phạm vi membership → quay lại bước 4.
+
+**AF04.2.2.** Nếu người dùng nhập từ khóa hoặc bộ lọc → Hệ thống lọc theo mã, tên, loại, khu vực hoặc trạng thái → quay lại bước 4.
+
+**AF04.2.3.** Nếu Owner cập nhật thông tin farm từ màn hình liên quan → Hệ thống kiểm tra mã farm duy nhất, lưu `code`, `name`, `address` và quay lại bước 3.
+
+**AF04.2.4.** Nếu người dùng yêu cầu xóa ao/bể → Hệ thống chỉ cho xóa mềm hoặc chuyển `inactive` khi ao/bể không còn lô và không có dữ liệu lịch sử cần bảo toàn → quay lại bước 4.
 
 #### Luồng ngoại lệ
 
-| **Mã** | **Tình huống và phản hồi hệ thống** |
+| Mã | Tình huống và xử lý |
 |---|---|
-| EX04.1 | Không có membership hoặc membership bị `suspended` → trả 403 và không lộ dữ liệu farm. |
-| EX04.2 | Farm/ao-bể không tồn tại hoặc không thuộc phạm vi → trả 404 hoặc 403 theo chính sách API. |
-| EX04.3 | Mã farm hoặc mã ao/bể bị trùng → trả 409, giữ nguyên biểu mẫu để người dùng sửa. |
-| EX04.4 | Dữ liệu thiếu hoặc thể tích không hợp lệ → trả 400 kèm lỗi tại trường tương ứng. |
-| EX04.5 | Chuyển `active → empty` khi còn lô hoạt động → trả 409 và yêu cầu kết thúc/chuyển lô trước. |
-| EX04.6 | Lỗi database hoặc mất kết nối → rollback thao tác và hiển thị thông báo thử lại; không tạo bản ghi dở dang. |
+| EX04.2.1 | Không có membership hoặc membership bị `suspended` → trả `403`. |
+| EX04.2.2 | Ao/bể hoặc khu vực không thuộc farm đang chọn → trả `403` hoặc `404`. |
+| EX04.2.3 | Mã ao/bể bị trùng → trả `409` và yêu cầu nhập lại. |
+| EX04.2.4 | Thể tích không hợp lệ hoặc thiếu dữ liệu bắt buộc → trả `400`. |
+| EX04.2.5 | Ao/bể đang có lô hoạt động → không cho xóa hoặc chuyển trực tiếp sang `empty`. |
 
-#### Dữ liệu và quy tắc nghiệp vụ
+#### Input, output và quy tắc
 
-| **Nhóm** | **Chi tiết** |
+| Nhóm | Nội dung |
 |---|---|
-| Input chính | `farm_id`, `area_id`, `code`, `name`, `tank_type`, `volume_m3`, `description`, trạng thái mới. |
-| Output chính | Hồ sơ farm; danh sách/chi tiết ao-bể; lô hiện tại; trạng thái và thời gian cập nhật. |
-| Phân quyền | Owner quản lý toàn farm; Area Manager chỉ quản lý khu vực; Technician xem khu vực; Warehouse Staff chỉ xem thông tin farm. |
-| Toàn vẹn tenant | `areas.farm_id` và `ponds_tanks.farm_id` phải trùng farm đang chọn; không nhận `area_id` của farm khác. |
-| Trạng thái | Luồng chuẩn là `empty → active → cleaning → empty`; `inactive` dùng khi ngừng sử dụng. |
-| Bội số lô | Một ao/bể có nhiều lô theo lịch sử nhưng tối đa một lô đang hoạt động tại một thời điểm. |
-| Business rules | BR02, BR03, BR07, BR08 và khoảng cách dữ liệu G2. |
+| Input | `farm_id`, `area_id`, `code`, `name`, `tank_type`, `volume_m3`, `description`. |
+| Output | Danh sách/chi tiết ao-bể, trạng thái, khu vực và lô hiện tại nếu có. |
+| Quy tắc | Owner quản lý toàn farm; Area Manager quản lý khu vực; Technician chỉ xem. Một ao/bể không được có nhiều lô hoạt động đồng thời. |
 
-### 7.2. UC05 — Quản lý lô giống và chăm sóc
+### 7.2. UC05.1 — CRUD lô giống
 
-| **Use case: UC05 — Quản lý lô giống và chăm sóc** | **Nội dung** |
+| **Use case: UC05.1 — CRUD lô giống** | **Nội dung** |
 |---|---|
-| Mục đích | Quản lý toàn bộ vòng đời lô tôm giống từ tiếp nhận, thả vào ao/bể, chăm sóc, lấy mẫu đến khi sẵn sàng bán hoặc kết thúc. |
-| Mô tả | Use case kết nối hồ sơ lô với nhật ký môi trường, cho ăn, thay nước, thuốc/chế phẩm, biến động số lượng, kiểm tra chất lượng và lấy mẫu tăng trưởng. |
-| Tác nhân | `OWNER`, `AREA_MANAGER`, `TECHNICIAN`. |
-| Kích hoạt | Người dùng mở một ao/bể hoặc chọn chức năng “Quản lý lô giống và chăm sóc”. |
-| Điều kiện trước | 1. Có membership `active` trong đúng farm.<br>2. Actor thuộc đúng khu vực của ao/bể nếu bị giới hạn theo area.<br>3. Khi tạo lô mới, ao/bể phải `empty` và chưa có lô hoạt động.<br>4. Nhà cung cấp/cấu hình kỹ thuật có thể chưa có trong MVP nhưng không được làm mất dữ liệu đầu vào bắt buộc. |
-| Điều kiện sau | 1. Lô và nhật ký được lưu đúng ao/bể/farm.<br>2. Số lượng hiện tại không âm và có thể truy vết từ sự kiện.<br>3. Giao dịch sử dụng vật tư được tạo nếu nhật ký liên kết kho.<br>4. Cảnh báo có thể được sinh khi dữ liệu vượt ngưỡng.<br>5. Trạng thái lô và ao/bể được đồng bộ theo quy tắc. |
-| Use case con | UC05.1–UC05.6: CRUD lô, trạng thái lô, môi trường, cho ăn, thay nước, thuốc/chế phẩm. |
-| Bảng dữ liệu | `seed_batches`, `ponds_tanks`, `seed_suppliers`, `seed_quality_checks`, `batch_quantity_events`, `growth_sampling_logs`, `water_parameter_logs`, `feeding_logs`, `water_change_logs`, `treatment_logs`, `inventory_supplies`, `inventory_transactions`, `environment_thresholds`, `feed_guidelines`, `alerts_notifications`. |
-| Mức ưu tiên | Rất cao — là nghiệp vụ vận hành hằng ngày của trại giống. |
+| Mục đích | Quản lý hồ sơ lô tôm giống từ khi tiếp nhận, gán vào ao/bể đến khi theo dõi và truy xuất thông tin lô. |
+| Mô tả | Người dùng tạo lô, ghi nguồn giống, loài, giai đoạn PL, số lượng và ao/bể; có thể xem hoặc cập nhật thông tin được phép. Việc đổi trạng thái lô thuộc UC05.2. |
+| Tác nhân | `OWNER`, `AREA_MANAGER`; `TECHNICIAN` được xem và cập nhật dữ liệu kỹ thuật được cấp quyền. |
+| Điều kiện trước | Người dùng có membership `active`; ao/bể tồn tại cùng farm; khi tạo mới, ao/bể phải sẵn sàng và chưa có lô hoạt động. |
+| Điều kiện sau | Lô được lưu đúng `farm_id` và `tank_id`; số lượng ban đầu được ghi nhận; lịch sử lô có thể truy xuất; không tạo lô trùng hoặc số lượng âm. |
+| Bảng dữ liệu | `seed_batches`, `ponds_tanks`, `seed_suppliers`, `seed_quality_checks`, `batch_quantity_events`, `growth_sampling_logs`. |
 
 #### Luồng sự kiện chính (Basic flow)
 
 | **Actor** | **System** |
 |---|---|
-| 1. Chọn farm, khu vực và ao/bể tiếp nhận lô. | 2. Kiểm tra membership, phạm vi khu vực, trạng thái ao/bể và lô đang hoạt động. |
-| 3. Chọn “Tạo lô giống”. | 4. Hiển thị biểu mẫu nguồn giống, mã lô, loài, giai đoạn PL, số lượng chứng từ/thực tế, ngày tiếp nhận/thả và chứng nhận. |
-| 5. Nhập dữ liệu tiếp nhận và kết quả kiểm tra đầu vào nếu có. | 6. Kiểm tra mã lô duy nhất, số lượng dương, loài/giai đoạn hợp lệ, nhà cung cấp và ao/bể cùng farm. |
-| 7. Xác nhận tiếp nhận lô. | 8. Trong một transaction: tạo `seed_batches`, ghi sự kiện số lượng ban đầu, đặt `current_estimated_quantity = initial_quantity` và chuyển ao/bể sang `active`. |
-| 9. Trong quá trình nuôi, chọn loại nhật ký cần ghi. | 10. Tải lô hiện tại, ngưỡng môi trường, định mức thức ăn và vật tư phù hợp. |
-| 11. Nhập chỉ số đo hoặc thông tin chăm sóc, thời gian và ghi chú. | 12. Kiểm tra miền giá trị, thời gian, đơn vị, quyền khu vực và lượng tồn nếu có `supply_id`. |
-| 13. Xác nhận ghi nhật ký. | 14. Lưu nhật ký theo `tank_id`; nếu dùng vật tư thì tạo giao dịch `usage`; nếu vượt ngưỡng thì chuẩn bị/sinh cảnh báo theo cấu hình. |
-| 15. Ghi nhận lần lấy mẫu hoặc biến động số lượng. | 16. Lưu `growth_sampling_logs` hoặc `batch_quantity_events`; tính lại số lượng ước tính, tỷ lệ sống, mật độ và sinh khối khi đủ dữ liệu. |
-| 17. Chọn trạng thái mới khi lô đạt điều kiện bán hoặc kết thúc. | 18. Kiểm tra chuyển trạng thái hợp lệ, cập nhật `seed_batches.status` và trả hồ sơ tổng hợp của lô. |
+| 1. Chọn farm và ao/bể tiếp nhận lô. | |
+| | 2. Kiểm tra membership, phạm vi khu vực, trạng thái ao/bể và lô đang chiếm dụng. |
+| 3. Chọn “Tạo lô giống”. | |
+| | 4. Hiển thị biểu mẫu mã lô, loài, giai đoạn PL, nhà cung cấp, số lượng và ngày tiếp nhận. |
+| 5. Nhập thông tin lô và kết quả kiểm tra đầu vào nếu có. | |
+| | 6. Kiểm tra mã lô duy nhất, số lượng dương, loài/giai đoạn hợp lệ và các quan hệ cùng farm. |
+| 7. Xác nhận lưu lô. | |
+| | 8. Trong một transaction, tạo `seed_batches` và ghi sự kiện số lượng ban đầu. |
+| 9. Chọn một lô đã có để xem hoặc cập nhật. | |
+| | 10. Hiển thị chi tiết, lịch sử chất lượng, biến động số lượng và mẫu tăng trưởng. |
+| 11. Cập nhật các trường được phép. | |
+| | 12. Kiểm tra dữ liệu và lưu thay đổi, không ghi đè lịch sử đã phát sinh. |
 
 #### Luồng sự kiện thay thế (Alternate flow)
 
-| **Mã** | **Điều kiện** | **Xử lý** |
-|---|---|---|
-| AF05.1 | Chỉ xem lịch sử. | Hệ thống tổng hợp lô, bốn loại nhật ký, mẫu tăng trưởng, AI, chi phí và bán hàng theo thời gian. |
-| AF05.2 | Nhật ký không liên kết kho. | Cho phép lưu `supply_id = NULL`; không tạo `inventory_transactions`. |
-| AF05.3 | Chưa có ngưỡng hoặc định mức được phê duyệt. | Vẫn lưu dữ liệu thực tế nhưng không tự đưa khuyến nghị/cảnh báo chính thức; hiển thị thiếu cấu hình. |
-| AF05.4 | Technician cập nhật. | Chỉ cho sửa dữ liệu kỹ thuật và ghi nhật ký trong khu vực; không cho đổi các thuộc tính quản trị/trạng thái bị giới hạn. |
-| AF05.5 | Xử lý ao/bể khi chưa có lô. | Cho phép ghi môi trường hoặc thuốc/chế phẩm phục vụ vệ sinh ao/bể; không cho ghi nhật ký cho ăn cho lô không tồn tại. |
-| AF05.6 | Lô được bán một phần. | Ghi sự kiện giảm số lượng nhưng giữ trạng thái `ready_for_sale` nếu số lượng còn lại lớn hơn 0. |
+**AF05.1.1.** Nếu người dùng chỉ xem lô → Hệ thống trả danh sách/chi tiết theo farm, khu vực, ao/bể và trạng thái → quay lại bước 9.
+
+**AF05.1.2.** Nếu ao/bể chưa có lô hoạt động → Hệ thống cho phép tiếp nhận lô mới, đặt số lượng hiện tại bằng số lượng thực tế sau kiểm đếm → tiếp tục bước 7.
+
+**AF05.1.3.** Nếu có hồ sơ chất lượng hoặc kiểm dịch → Hệ thống lưu thêm `seed_quality_checks` và tệp bằng chứng nếu có → quay lại bước 9.
+
+**AF05.1.4.** Nếu Technician cập nhật → Hệ thống chỉ cho sửa thông tin kỹ thuật hoặc ghi nhận dữ liệu mẫu; các trường quản trị bị khóa → quay lại bước 11.
+
+**AF05.1.5.** Nếu người dùng yêu cầu xóa lô đã có lịch sử → Hệ thống không xóa cứng mà yêu cầu chuyển trạng thái phù hợp hoặc lưu dấu vết hủy → quay lại bước 9.
 
 #### Luồng ngoại lệ
 
-| **Mã** | **Tình huống và phản hồi hệ thống** |
+| Mã | Tình huống và xử lý |
 |---|---|
-| EX05.1 | Ao/bể đang `cleaning`, `inactive` hoặc đã có lô hoạt động → trả 409. |
-| EX05.2 | `batch_code` trùng, số lượng không dương hoặc dữ liệu PL không hợp lệ → trả 400/409. |
-| EX05.3 | Actor thao tác ngoài farm/khu vực → trả 403. |
-| EX05.4 | Lượng vật tư sử dụng vượt tồn kho → trả 409; không lưu nhật ký và giao dịch kho nửa chừng. |
-| EX05.5 | Biến động làm số lượng hiện tại âm → trả 409 và yêu cầu kiểm tra lại số lượng. |
-| EX05.6 | Sửa lô `sold`, `failed` hoặc `cancelled` trái quy tắc → trả 409. |
-| EX05.7 | Một phần transaction thất bại → rollback toàn bộ thay đổi liên quan lô, ao/bể và kho. |
+| EX05.1.1 | Ao/bể không tồn tại, khác farm hoặc đã có lô hoạt động → trả `409`. |
+| EX05.1.2 | Mã lô bị trùng hoặc số lượng không dương → trả `400/409`. |
+| EX05.1.3 | Actor thao tác ngoài khu vực → trả `403`. |
+| EX05.1.4 | Lỗi transaction khi tạo lô → rollback cả lô và sự kiện số lượng. |
+| EX05.1.5 | Lô đã kết thúc và không được phép sửa → trả `409`. |
 
-#### Dữ liệu, công thức và quy tắc nghiệp vụ
+#### Input, output và quy tắc
 
-| **Nhóm** | **Chi tiết** |
+| Nhóm | Nội dung |
 |---|---|
-| Input tiếp nhận | Mã lô, nhà cung cấp, loài, giai đoạn, số lượng chứng từ, số lượng thực tế, ngày sản xuất/nhận/thả, chứng nhận và ao/bể. |
-| Input chăm sóc | Chỉ số môi trường; thức ăn; tỷ lệ thay nước; thuốc/chế phẩm; thời gian; người thực hiện; phương pháp đo; vật tư sử dụng. |
-| Output | Hồ sơ lô, lịch sử chăm sóc, số lượng hiện tại, tỷ lệ sống, mật độ, sinh khối, cảnh báo và trạng thái lô. |
-| Số lượng hiện tại | `current_quantity = initial_quantity - mortality - sale - transfer_out + transfer_in + adjustment`. `adjustment` là phần điều chỉnh có dấu; mỗi thay đổi phải có sự kiện để truy vết và không được làm số lượng âm. |
-| Tỷ lệ sống | `survival_rate = current_estimated_quantity / initial_quantity × 100`; chỉ tính khi `initial_quantity > 0`. |
-| Mật độ | `density = current_estimated_quantity / volume_m3`; đơn vị con/m³ và chỉ tính khi thể tích dương. |
-| Sinh khối | `biomass_kg = current_estimated_quantity × average_weight_g / 1000`. |
-| Thức ăn khuyến nghị | `recommended_feed_kg = biomass_kg × feeding_rate_percent / 100`; định mức phải chọn theo loài/giai đoạn và có nguồn. |
-| Business rules | BR04, BR08, BR09, BR12, BR13, BR18–BR23 và G2. |
+| Input | Mã lô, nhà cung cấp, loài, giai đoạn PL, số lượng chứng từ/thực tế, ngày tiếp nhận, `tank_id`, chứng nhận. |
+| Output | Hồ sơ lô, số lượng hiện tại, ao/bể, lịch sử chất lượng, biến động số lượng và mẫu tăng trưởng. |
+| Quy tắc | `current_estimated_quantity` không được âm; mọi biến động phải tạo `batch_quantity_events`; một ao/bể chỉ có tối đa một lô hoạt động. |
 
-### 7.3. UC06 — Kiểm tra và phân tích AI
+### 7.3. UC06.1 — Thực hiện AI Inspection
 
-| **Use case: UC06 — Kiểm tra và phân tích AI** | **Nội dung** |
+| **Use case: UC06.1 — Thực hiện AI Inspection** | **Nội dung** |
 |---|---|
-| Mục đích | Hỗ trợ đếm tôm giống, ước tính mật độ mẫu và đánh giá sơ bộ kích thước/độ đồng đều từ ảnh trong điều kiện lấy mẫu chuẩn hóa. |
-| Mô tả | Người dùng chọn lô, chụp hoặc tải ảnh mẫu; Backend lưu yêu cầu, chuyển ảnh cho AI Service, nhận detections/confidence, tính chỉ số và cho phép xác nhận thủ công mà vẫn giữ kết quả gốc. |
-| Tác nhân chính | `OWNER`, `AREA_MANAGER`, `TECHNICIAN`. |
-| Tác nhân phụ | `AI_SERVICE`; object storage khi được cấu hình. |
-| Kích hoạt | Người dùng chọn “Kiểm tra bằng AI” từ chi tiết lô giống. |
-| Điều kiện trước | 1. Lô tồn tại và thuộc phạm vi farm/khu vực của actor.<br>2. Lô không ở trạng thái kết thúc (`sold`, `failed`, `cancelled`); với lô đã kết thúc, hệ thống chỉ cho xem lịch sử kiểm tra.<br>3. Có ảnh hợp lệ; ảnh chụp theo quy trình lấy mẫu tương đối chuẩn hóa.<br>4. Có `sample_volume_ml` nếu cần tính mật độ trên ml. |
-| Điều kiện sau | 1. Khi yêu cầu đã được chấp nhận và tạo inspection, bản ghi kết thúc ở `completed` hoặc `failed`; ảnh không hợp lệ bị từ chối trước khi tạo bản ghi.<br>2. Kết quả gốc, phiên bản model và ảnh nguồn không bị ghi đè bởi hiệu chỉnh thủ công.<br>3. Kết quả thuộc đúng `batch_id` và phạm vi tenant.<br>4. Dấu hiệu bất thường chỉ tạo cảnh báo hỗ trợ, không tự chẩn đoán bệnh. |
-| Use case con | UC06.1 — Thực hiện inspection; UC06.2 — Xem kết quả và lịch sử. |
+| Mục đích | Hỗ trợ đếm tôm giống và tính mật độ mẫu từ ảnh kiểm tra. |
+| Mô tả | Người dùng chọn lô, tải ảnh mẫu, nhập thông tin lấy mẫu, gửi yêu cầu đến AI Service và nhận kết quả detection/confidence. |
+| Tác nhân | `OWNER`, `AREA_MANAGER`, `TECHNICIAN`, `AI_SERVICE`. |
+| Điều kiện trước | Lô tồn tại và thuộc phạm vi quyền; ảnh hợp lệ; có thể tích mẫu nếu cần tính mật độ; AI Service sẵn sàng trong kiến trúc triển khai. |
+| Điều kiện sau | `ai_inspections` được lưu ở trạng thái `completed` hoặc `failed`; ảnh gốc, kết quả gốc và phiên bản model được bảo toàn. |
 | Bảng dữ liệu | `ai_inspections`, `seed_batches`, `growth_sampling_logs`, `alerts_notifications`. |
-| Mức ưu tiên | Rất cao — là điểm khác biệt nghiên cứu của đề tài. |
 
 #### Luồng sự kiện chính (Basic flow)
 
 | **Actor** | **System** |
 |---|---|
-| 1. Mở chi tiết lô và chọn “Kiểm tra bằng AI”. | 2. Kiểm tra membership, khu vực, trạng thái lô và tải hướng dẫn/metadata lần kiểm tra. |
-| 3. Lấy mẫu, đặt mẫu vào khay/đĩa và chụp hoặc tải ảnh. | 4. Kiểm tra MIME type, dung lượng, kích thước, khả năng đọc ảnh và lưu ảnh gốc vào storage. |
-| 5. Nhập phương pháp lấy mẫu, thể tích mẫu và ghi chú. | 6. Tạo `ai_inspections` với `status = pending`, `batch_id`, `created_by`, `media_url` và dữ liệu mẫu. |
-| 7. Xác nhận gửi phân tích. | 8. Chuyển trạng thái sang `processing`, gửi ảnh và request ID tới AI Service. |
-| — | 9. AI Service trả danh sách detections, bounding box, confidence và phiên bản model. |
-| — | 10. Kiểm tra response, tính số lượng phát hiện, confidence trung bình và mật độ nếu đủ thể tích; tạo ảnh chú thích và cập nhật `status = completed`. |
-| 11. Xem ảnh gốc, ảnh đánh dấu và các chỉ số. | 12. Hiển thị kết quả cùng cảnh báo rõ ràng rằng AI chỉ hỗ trợ đánh giá. |
-| 13. Nếu cần, nhập số đếm thủ công hoặc hệ số hiệu chỉnh. | 14. Lưu hiệu chỉnh riêng, giữ nguyên detections/kết quả AI gốc và cập nhật kết quả sử dụng cho báo cáo. |
+| 1. Mở chi tiết lô và chọn “Thực hiện AI Inspection”. | |
+| | 2. Kiểm tra membership, khu vực và trạng thái lô. |
+| 3. Lấy mẫu, đặt mẫu vào khay/đĩa và chụp hoặc tải ảnh. | |
+| | 4. Kiểm tra định dạng, kích thước, dung lượng và lưu ảnh gốc. |
+| 5. Nhập phương pháp lấy mẫu, thể tích mẫu và ghi chú. | |
+| | 6. Tạo bản ghi `ai_inspections` với trạng thái `pending`. |
+| 7. Xác nhận gửi phân tích. | |
+| | 8. Chuyển trạng thái sang `processing` và gửi ảnh đến AI Service. |
+| | 9. AI Service trả detections, bounding box, confidence và model version. |
+| | 10. Backend tính `detected_count`, `average_confidence`, `density_per_ml` và lưu kết quả. |
+| 11. Xem kết quả phân tích. | |
+| | 12. Hiển thị ảnh gốc, ảnh chú thích và thông báo AI chỉ hỗ trợ đánh giá. |
+| 13. Nhập số đếm thủ công nếu cần. | |
+| | 14. Lưu hiệu chỉnh riêng, không ghi đè kết quả AI ban đầu. |
 
 #### Luồng sự kiện thay thế (Alternate flow)
 
-| **Mã** | **Điều kiện** | **Xử lý** |
-|---|---|---|
-| AF06.1 | Không nhập thể tích mẫu. | Vẫn đếm và lưu confidence nhưng để `density_per_ml = NULL`; giao diện nêu lý do không tính được mật độ. |
-| AF06.2 | Confidence thấp. | Lưu kết quả, gắn trạng thái/cảnh báo cần kiểm tra thủ công và không tự kết luận chất lượng lô. |
-| AF06.3 | Người dùng nhập `manual_count`. | Dùng số thủ công làm kết quả đã xác nhận cho báo cáo; vẫn hiển thị số AI để đối chiếu. |
-| AF06.4 | Inspection trước đó `failed`. | Actor chọn thử lại; hệ thống tạo lần xử lý mới hoặc tăng attempt theo thiết kế job, không xóa lịch sử lỗi. |
-| AF06.5 | Chỉ xem lịch sử. | Trả danh sách theo `batch_id`, sắp xếp thời gian giảm dần và không gọi lại AI Service. |
+**AF06.1.1.** Nếu không nhập thể tích mẫu → Hệ thống vẫn lưu số lượng và confidence, đặt `density_per_ml = NULL` và thông báo không thể tính mật độ → quay lại bước 11.
+
+**AF06.1.2.** Nếu confidence thấp → Hệ thống hiển thị cảnh báo cần kiểm tra thủ công, không tự kết luận chất lượng lô → chuyển đến bước 13.
+
+**AF06.1.3.** Nếu inspection trước đó bị `failed` → Người dùng chọn thử lại; hệ thống tạo lần xử lý mới và giữ lịch sử lỗi → quay lại bước 7.
+
+**AF06.1.4.** Nếu người dùng nhập `manual_count` → Hệ thống dùng số đếm thủ công cho kết quả xác nhận nhưng vẫn giữ kết quả AI để đối chiếu → quay lại bước 11.
 
 #### Luồng ngoại lệ
 
-| **Mã** | **Tình huống và phản hồi hệ thống** |
+| Mã | Tình huống và xử lý |
 |---|---|
-| EX06.1 | Ảnh sai định dạng, quá dung lượng hoặc không đọc được → trả 400 trước khi gửi AI. |
-| EX06.2 | Không có quyền với lô → trả 403; không trả URL ảnh hoặc metadata của farm khác. |
-| EX06.3 | Upload storage thất bại → không tạo inspection hoàn tất; thông báo thử lại. |
-| EX06.4 | AI Service timeout/lỗi response → cập nhật `status = failed`, lưu mã lỗi an toàn và cho phép retry. |
-| EX06.5 | Detections thiếu trường hoặc confidence ngoài 0–1 → từ chối response, đánh dấu `failed`. |
-| EX06.6 | Lưu kết quả database thất bại → giữ request có thể đối soát bằng request ID, không hiển thị kết quả chưa được commit. |
+| EX06.1.1 | Ảnh sai định dạng hoặc quá dung lượng → trả `400` trước khi gửi AI. |
+| EX06.1.2 | Actor không có quyền trên lô → trả `403`. |
+| EX06.1.3 | AI Service timeout hoặc trả response không hợp lệ → cập nhật `status = failed`. |
+| EX06.1.4 | Confidence ngoài khoảng 0–1 hoặc thiếu detection bắt buộc → từ chối kết quả. |
+| EX06.1.5 | Lưu kết quả thất bại → không hiển thị kết quả chưa được commit. |
 
-#### Dữ liệu, công thức và quy tắc nghiệp vụ
+#### Input, output và quy tắc
 
-| **Nhóm** | **Chi tiết** |
+| Nhóm | Nội dung |
 |---|---|
-| Input | `batch_id`, ảnh nguồn, `sampling_method`, `sample_volume_ml`, thời gian, ghi chú. |
-| Output | `detected_count`, `density_per_ml`, `average_confidence`, `detections`, `annotated_image_url`, `model_version`, `manual_count`, trạng thái. |
-| Confidence trung bình | `average_confidence = tổng confidence / số detection`; để `NULL` khi không có detection. |
-| Số lượng hiệu lực | Ưu tiên `manual_count` khi đã xác nhận; nếu không thì dùng số AI sau hệ số hiệu chỉnh đã được lưu và giải thích. |
-| Mật độ mẫu | `density_per_ml = effective_count / sample_volume_ml`; chỉ tính khi thể tích lớn hơn 0. |
-| Bảo toàn dữ liệu | Không ghi đè ảnh gốc, detections, model version hoặc số AI sau khi người dùng hiệu chỉnh. |
-| Giới hạn chuyên môn | AI không tự kết luận bệnh, không tự quyết định dùng thuốc và không thay thế kiểm tra chuyên môn/PCR. |
-| Business rules | BR10, BR11, BR20, BR24. |
+| Input | `batch_id`, ảnh mẫu, `sampling_method`, `sample_volume_ml`, thời gian và ghi chú. |
+| Output | `detected_count`, `density_per_ml`, `average_confidence`, detections, ảnh chú thích, model version và trạng thái. |
+| Công thức | `density_per_ml = effective_count / sample_volume_ml` khi thể tích lớn hơn 0. |
+| Quy tắc | AI không tự chẩn đoán bệnh, không tự chỉ định thuốc và không thay thế đánh giá chuyên môn. |
 
-### 7.4. UC08 — Quản lý tài chính và bán giống
+### 7.4. UC08.5 — Xuất bán con giống
 
-| **Use case: UC08 — Quản lý tài chính và bán giống** | **Nội dung** |
+| **Use case: UC08.5 — Xuất bán con giống** | **Nội dung** |
 |---|---|
-| Mục đích | Theo dõi chi phí, khách hàng, giá bán, giao dịch xuất bán và doanh thu để đánh giá hiệu quả từng lô và toàn farm. |
-| Mô tả | Use case tập hợp chi phí trực tiếp/chung, cho phép Owner quản lý khách hàng và bán tôm giống theo đơn vị nghìn con, đồng thời cập nhật số lượng lô trong một transaction. |
-| Tác nhân chính | `OWNER`. |
-| Tác nhân phụ | `TECHNICIAN` ghi chi phí phát sinh; `AREA_MANAGER` xem chi phí thuộc khu vực. |
-| Kích hoạt | Người dùng mở chức năng tài chính hoặc Owner chọn “Xuất bán” trên một lô `ready_for_sale`. |
-| Điều kiện trước | 1. Có membership `active` trong farm.<br>2. Khi bán: khách hàng tồn tại trong cùng farm, lô hợp lệ và còn đủ số lượng.<br>3. Khi ghi chi phí theo lô: lô thuộc đúng farm/khu vực của actor.<br>4. Giá trị tiền và số lượng phải lớn hơn hoặc bằng 0 theo loại trường. |
-| Điều kiện sau | 1. Chi phí/giao dịch bán được lưu đúng farm.<br>2. Số lượng lô giảm đúng bằng lượng bán và không âm.<br>3. Thành phần giá được lưu snapshot để báo cáo lịch sử không thay đổi theo bảng giá mới.<br>4. Doanh thu, giá vốn và lợi nhuận có thể tái lập từ dữ liệu nguồn. |
-| Use case con | UC08.1–UC08.6: chi phí, chi phí phát sinh, chi phí khu vực, khách hàng, xuất bán và doanh thu. |
-| Bảng dữ liệu | `expense_records`, `customers`, `seed_sales`, `seed_batches`, `price_lists`, `batch_quantity_events`, `users`. |
-| Mức ưu tiên | Rất cao — hoàn tất đầu ra thương mại của quy trình nuôi giống. |
+| Mục đích | Cho phép Owner tạo giao dịch bán tôm giống và cập nhật số lượng còn lại của lô. |
+| Mô tả | Owner chọn khách hàng, lô giống đủ điều kiện, số lượng bán, đơn giá và các khoản phụ phí để xác nhận giao dịch. |
+| Tác nhân | `OWNER`. |
+| Điều kiện trước | Owner có membership `active`; khách hàng và lô cùng farm; lô ở trạng thái `ready_for_sale`; số lượng bán không vượt số lượng hiện tại. |
+| Điều kiện sau | Giao dịch `seed_sales` được lưu; số lượng lô giảm đúng lượng bán; giao dịch lưu snapshot giá; lô chuyển `sold` nếu hết số lượng. |
+| Bảng dữ liệu | `seed_sales`, `customers`, `seed_batches`, `price_lists`, `batch_quantity_events`, `expense_records`. |
 
 #### Luồng sự kiện chính (Basic flow)
 
 | **Actor** | **System** |
 |---|---|
-| 1. Chọn farm và mở màn hình tài chính. | 2. Kiểm tra membership; tải chi phí, doanh thu và bộ lọc đúng phạm vi role. |
-| 3. Nhập một khoản chi phí phát sinh, chọn loại và lô nếu có. | 4. Kiểm tra số tiền, ngày, lô cùng farm/khu vực; tạo `expense_records`. |
-| 5. Owner mở chức năng xuất bán. | 6. Hiển thị các lô đủ điều kiện, số lượng còn lại, khách hàng và bảng giá phù hợp. |
-| 7. Chọn lô, khách hàng; nhập số lượng bán, giá, phụ phí, chiết khấu, vận chuyển và ngày bán. | 8. Kiểm tra số lượng, trạng thái lô, khách hàng cùng farm và tính trước doanh thu, tỷ lệ sống, giá vốn ước tính. |
-| 9. Xem lại bản tóm tắt và xác nhận bán. | 10. Trong một transaction: tạo `seed_sales`, tạo sự kiện `sale`, giảm `current_estimated_quantity`; chuyển lô sang `sold` nếu số lượng còn lại bằng 0. |
-| 11. Mở báo cáo doanh thu/chi phí. | 12. Tổng hợp theo thời gian, lô, khách hàng và loại chi phí; trả doanh thu, giá vốn và lợi nhuận nếu đủ dữ liệu. |
+| 1. Owner mở chức năng “Xuất bán con giống”. | |
+| | 2. Kiểm tra membership Owner và tải danh sách khách hàng, bảng giá và lô đủ điều kiện. |
+| 3. Chọn khách hàng và lô giống. | |
+| | 4. Hiển thị số lượng hiện tại, đơn giá phù hợp và thông tin chất lượng lô. |
+| 5. Nhập số lượng bán, đơn giá, vận chuyển, phụ phí và chiết khấu. | |
+| | 6. Kiểm tra khách hàng/lô cùng farm, số lượng hợp lệ và tính doanh thu tạm tính. |
+| 7. Xem lại và xác nhận giao dịch. | |
+| | 8. Trong một transaction, tạo `seed_sales`, tạo sự kiện `sale` và giảm số lượng lô. |
+| | 9. Nếu số lượng còn lại bằng 0, chuyển lô sang `sold`; trả thông tin giao dịch thành công. |
+| 10. Mở lịch sử bán hoặc báo cáo doanh thu. | |
+| | 11. Hiển thị giao dịch, doanh thu, giá snapshot và số lượng còn lại. |
 
 #### Luồng sự kiện thay thế (Alternate flow)
 
-| **Mã** | **Điều kiện** | **Xử lý** |
-|---|---|---|
-| AF08.1 | Chi phí chung không thuộc riêng một lô. | Lưu `batch_id = NULL`; khi báo cáo phải chọn và lưu phương pháp phân bổ. |
-| AF08.2 | Không có bảng giá phù hợp. | Owner nhập giá thủ công; hệ thống vẫn lưu snapshot giá và đánh dấu nguồn giá nhập tay. |
-| AF08.3 | Bán một phần lô. | Giảm số lượng, giữ lô `ready_for_sale` khi còn giống; cho phép giao dịch tiếp theo. |
-| AF08.4 | Area Manager xem chi phí. | Chỉ tổng hợp chi phí gắn với lô/ao-bể trong khu vực; không hiển thị chi phí chung toàn farm nếu chưa phân bổ. |
-| AF08.5 | Technician ghi chi phí. | Cho tạo bản ghi trong khu vực, không được sửa/xóa chi phí đã duyệt hoặc xem doanh thu. |
-| AF08.6 | Chưa có giao dịch trong kỳ. | Trả các chỉ số bằng 0 và trạng thái rỗng, không coi là lỗi. |
+**AF08.5.1.** Nếu không có bảng giá phù hợp → Owner nhập đơn giá thủ công; hệ thống lưu snapshot và đánh dấu nguồn giá nhập tay → quay lại bước 6.
+
+**AF08.5.2.** Nếu chỉ bán một phần lô → Hệ thống giảm số lượng, giữ trạng thái `ready_for_sale` khi còn giống và hoàn tất giao dịch → quay lại bước 10.
+
+**AF08.5.3.** Nếu không có phụ phí, phí vận chuyển hoặc chiết khấu → Hệ thống mặc định giá trị bằng 0 và tiếp tục tính doanh thu → quay lại bước 7.
+
+**AF08.5.4.** Nếu Owner hủy trước khi xác nhận → Hệ thống không tạo `seed_sales` và quay lại bước 3.
 
 #### Luồng ngoại lệ
 
-| **Mã** | **Tình huống và phản hồi hệ thống** |
+| Mã | Tình huống và xử lý |
 |---|---|
-| EX08.1 | Số lượng bán lớn hơn số lượng hiện tại → trả 409 và hiển thị số lượng tối đa có thể bán. |
-| EX08.2 | Lô `sold`, `failed` hoặc `cancelled` → trả 409, không tạo giao dịch. |
-| EX08.3 | Khách hàng/lô thuộc farm khác → trả 403 hoặc 400; không liên kết chéo tenant. |
-| EX08.4 | Số tiền, số lượng, phụ phí hoặc chiết khấu không hợp lệ → trả 400 tại trường tương ứng. |
-| EX08.5 | Hai giao dịch đồng thời làm vượt số lượng → khóa/transaction phát hiện xung đột; chỉ một giao dịch được commit. |
-| EX08.6 | Cập nhật số lượng lô thất bại → rollback cả `seed_sales` và `batch_quantity_events`. |
+| EX08.5.1 | Số lượng bán lớn hơn số lượng hiện tại → trả `409`. |
+| EX08.5.2 | Lô chưa `ready_for_sale`, đã `sold`, `failed` hoặc `cancelled` → từ chối giao dịch. |
+| EX08.5.3 | Khách hàng hoặc lô thuộc farm khác → trả `403/400`. |
+| EX08.5.4 | Số tiền, số lượng hoặc chiết khấu không hợp lệ → trả `400`. |
+| EX08.5.5 | Giao dịch đồng thời làm vượt số lượng → rollback transaction và yêu cầu tải lại dữ liệu. |
 
-#### Dữ liệu, công thức và quy tắc nghiệp vụ
+#### Input, output và quy tắc
 
-| **Nhóm** | **Chi tiết** |
+| Nhóm | Nội dung |
 |---|---|
-| Input chi phí | `farm_id`, `batch_id` nullable, `expense_type`, `amount`, `expense_date`, mô tả và phương pháp phân bổ khi cần. |
-| Input bán hàng | `batch_id`, `customer_id`, `quantity_sold`, `price_per_thousand`, phụ phí, phí vận chuyển, chiết khấu, ngày bán. |
-| Output | Giao dịch bán, số lượng còn lại, doanh thu, chi phí, giá vốn, lợi nhuận và báo cáo theo kỳ. |
+| Input | `batch_id`, `customer_id`, `quantity_sold`, `price_per_thousand`, phí vận chuyển, phụ phí, chiết khấu và ngày bán. |
 | Doanh thu gộp | `gross_revenue = quantity_sold / 1000 × price_per_thousand`. |
-| Doanh thu cuối | `total_revenue = gross_revenue + transport_fee - discount_amount`; các thành phần phải lưu snapshot. |
-| Tổng giá vốn lô | Tổng chi phí trực tiếp cộng phần chi phí chung được phân bổ bằng phương pháp đã lưu. |
-| Giá vốn mỗi con bán được | `cost_per_saleable_seed = total_batch_cost / saleable_quantity`; chỉ tính khi mẫu số dương. |
-| Lợi nhuận | `profit = total_revenue - allocated_cost_of_goods_sold`; không đồng nhất doanh thu với lợi nhuận. |
-| Tính nguyên tử | Tạo giao dịch bán, sự kiện số lượng và cập nhật lô phải nằm trong cùng transaction. |
-| Business rules | BR02–BR04, BR14–BR16, BR18, BR21, BR25, BR26 và G2. |
+| Doanh thu cuối | `total_revenue = gross_revenue + transport_fee - discount_amount`. |
+| Output | Giao dịch bán, số lượng còn lại, doanh thu và trạng thái lô. |
+| Quy tắc | Tạo giao dịch bán, sự kiện số lượng và cập nhật lô phải nằm trong cùng transaction. |
 
-### 7.5. UC09 — Quản lý thống kê và cảnh báo
+### 7.5. UC09.1 — Xem Dashboard theo phạm vi quyền
 
-| **Use case: UC09 — Quản lý thống kê và cảnh báo** | **Nội dung** |
+| **Use case: UC09.1 — Xem Dashboard theo phạm vi quyền** | **Nội dung** |
 |---|---|
-| Mục đích | Cung cấp cái nhìn tổng quan đúng phạm vi và giúp người dùng phát hiện sớm vấn đề môi trường, AI hoặc tồn kho. |
-| Mô tả | Hệ thống tổng hợp dữ liệu vận hành thành KPI/dashboard và hiển thị cảnh báo do tiến trình nền tạo; mỗi role chỉ thấy nội dung thuộc farm, khu vực hoặc kho được phân công. |
+| Mục đích | Cung cấp thông tin tổng quan về hoạt động trang trại theo đúng role và phạm vi dữ liệu của người dùng. |
+| Mô tả | Người dùng chọn farm, khoảng thời gian và bộ lọc; hệ thống tổng hợp dữ liệu ao/bể, lô giống, cảnh báo, kho, chi phí hoặc doanh thu theo quyền. |
 | Tác nhân | `OWNER`, `AREA_MANAGER`, `TECHNICIAN`, `WAREHOUSE_STAFF`. |
-| Tác nhân nền | Scheduler/worker sinh cảnh báo; không phải actor người dùng và không tạo use case riêng. |
-| Kích hoạt | Người dùng đăng nhập, chọn farm và mở Dashboard hoặc danh sách cảnh báo. |
-| Điều kiện trước | 1. Phiên đăng nhập và membership `active` hợp lệ.<br>2. Dữ liệu nguồn thuộc cùng farm.<br>3. Ngưỡng môi trường/AI/tồn kho đã được cấu hình nếu cần sinh cảnh báo chính thức.<br>4. Job tổng hợp hoặc API aggregate hoạt động. |
-| Điều kiện sau | 1. Dashboard phản ánh dữ liệu trong phạm vi và khoảng thời gian đã chọn.<br>2. Người dùng có thể mở cảnh báo và đánh dấu đã đọc theo khả năng schema.<br>3. Không lộ KPI hoặc cảnh báo của farm/khu vực khác.<br>4. Việc xem dashboard không thay đổi dữ liệu nghiệp vụ nguồn. |
-| Use case con | UC09.1 — Dashboard; UC09.2 — Cảnh báo toàn farm; UC09.3 — Cảnh báo khu vực; UC09.4 — Cảnh báo tồn kho. |
-| Bảng dữ liệu | `ponds_tanks`, `seed_batches`, `water_parameter_logs`, `ai_inspections`, `inventory_supplies`, `expense_records`, `seed_sales`, `alerts_notifications`, `environment_thresholds`. |
-| Mức ưu tiên | Cao — chuyển dữ liệu vận hành thành thông tin hỗ trợ quyết định. |
+| Điều kiện trước | Người dùng đã đăng nhập; membership `active`; farm đang chọn hợp lệ; dữ liệu nguồn có thể truy vấn. |
+| Điều kiện sau | Dashboard hiển thị KPI và dữ liệu đúng phạm vi; thao tác xem không làm thay đổi dữ liệu nghiệp vụ. |
+| Bảng dữ liệu | `farms`, `farm_members`, `ponds_tanks`, `seed_batches`, các bảng nhật ký, `inventory_supplies`, `expense_records`, `seed_sales`, `alerts_notifications`. |
 
 #### Luồng sự kiện chính (Basic flow)
 
 | **Actor** | **System** |
 |---|---|
-| 1. Chọn farm và mở Dashboard. | 2. Kiểm tra membership; xác định phạm vi toàn farm, khu vực hoặc kho dựa trên role. |
-| 3. Chọn khoảng thời gian hoặc bộ lọc. | 4. Truy vấn các bảng nguồn trong đúng `farm_id` và `area_id`; tính KPI theo cùng múi giờ/kỳ báo cáo. |
-| — | 5. Trả số ao/bể theo trạng thái, lô đang hoạt động, thông số gần nhất, cảnh báo chưa đọc, tồn kho thấp, chi phí và doanh thu theo quyền. |
-| 6. Chọn một KPI hoặc biểu đồ. | 7. Mở danh sách chi tiết đã áp dụng cùng bộ lọc và phạm vi, cho phép truy ngược bản ghi nguồn. |
-| 8. Mở danh sách cảnh báo. | 9. Lọc cảnh báo theo role: Owner toàn farm; Area Manager/Technician theo khu vực; Warehouse Staff chỉ cảnh báo kho. |
-| 10. Chọn một cảnh báo. | 11. Hiển thị loại, mức độ, nội dung, thời gian, ao/bể hoặc lô liên quan và liên kết tới dữ liệu nguồn. |
-| 12. Chọn đánh dấu đã đọc. | 13. Cập nhật trạng thái đọc theo thiết kế hiện có và trả danh sách mới. |
+| 1. Người dùng chọn farm và mở Dashboard. | |
+| | 2. Kiểm tra phiên, membership, role và phạm vi `area_id`. |
+| 3. Chọn khoảng thời gian hoặc bộ lọc. | |
+| | 4. Truy vấn dữ liệu trong đúng `farm_id` và `area_id`. |
+| | 5. Tính số ao/bể, lô hoạt động, cảnh báo, tồn kho, chi phí và doanh thu theo quyền. |
+| | 6. Trả KPI, biểu đồ và thời điểm cập nhật gần nhất. |
+| 7. Chọn một KPI hoặc biểu đồ. | |
+| | 8. Hiển thị danh sách chi tiết và cho phép truy ngược bản ghi nguồn. |
 
 #### Luồng sự kiện thay thế (Alternate flow)
 
-| **Mã** | **Điều kiện** | **Xử lý** |
-|---|---|---|
-| AF09.1 | Owner xem dashboard. | Tổng hợp toàn farm, bao gồm vận hành, cảnh báo, kho, chi phí và doanh thu. |
-| AF09.2 | Area Manager hoặc Technician xem. | Chỉ tổng hợp ao/bể, lô, nhật ký, AI và cảnh báo thuộc khu vực membership. |
-| AF09.3 | Warehouse Staff xem. | Chỉ hiển thị danh mục kho, tồn thấp, nhập/xuất và cảnh báo kho; không hiển thị doanh thu. |
-| AF09.4 | Không có dữ liệu trong khoảng thời gian. | Hiển thị trạng thái rỗng và KPI bằng 0/không xác định phù hợp, không dùng dữ liệu farm khác để lấp chỗ trống. |
-| AF09.5 | Thiếu cấu hình ngưỡng. | Hiển thị dữ liệu thô và cảnh báo cấu hình thiếu; không tự gán mức nguy cấp bằng hằng số không được phê duyệt. |
-| AF09.6 | Người dùng đổi farm. | Xóa kết quả/bộ nhớ đệm của farm trước, tải lại membership và toàn bộ KPI theo farm mới. |
+**AF09.1.1.** Nếu người dùng là Owner → Hệ thống tổng hợp toàn farm, gồm vận hành, kho, cảnh báo, chi phí và doanh thu → tiếp tục bước 6.
+
+**AF09.1.2.** Nếu người dùng là Area Manager hoặc Technician → Hệ thống chỉ tổng hợp dữ liệu thuộc `area_id` được phân công → tiếp tục bước 6.
+
+**AF09.1.3.** Nếu người dùng là Warehouse Staff → Hệ thống chỉ hiển thị dữ liệu vật tư, tồn kho và cảnh báo kho → tiếp tục bước 6.
+
+**AF09.1.4.** Nếu không có dữ liệu trong khoảng thời gian → Hệ thống hiển thị trạng thái rỗng và KPI bằng 0 hoặc không xác định, không dùng dữ liệu farm khác → quay lại bước 3.
+
+**AF09.1.5.** Nếu người dùng đổi farm → Hệ thống xóa dữ liệu dashboard cũ, tải lại membership và KPI theo farm mới → quay lại bước 2.
 
 #### Luồng ngoại lệ
 
-| **Mã** | **Tình huống và phản hồi hệ thống** |
+| Mã | Tình huống và xử lý |
 |---|---|
-| EX09.1 | Membership bị suspend sau khi mở trang → request kế tiếp trả 403 và xóa dữ liệu dashboard đang hiển thị. |
-| EX09.2 | Tham số thời gian/bộ lọc không hợp lệ → trả 400 và giữ bộ lọc hợp lệ gần nhất. |
-| EX09.3 | Một nguồn tổng hợp lỗi → hiển thị trạng thái lỗi rõ ràng; không trình bày dữ liệu cũ như dữ liệu hiện tại nếu không có timestamp. |
-| EX09.4 | Cảnh báo trỏ tới bản ghi đã xóa/không còn quyền → không trả dữ liệu chi tiết nhạy cảm; hiển thị cảnh báo không còn khả dụng. |
-| EX09.5 | Job sinh cảnh báo chạy lặp → áp dụng khóa chống trùng/idempotency để tránh nhiều cảnh báo giống nhau cho cùng sự kiện. |
-| EX09.6 | Query vượt thời gian → trả lỗi có thể thử lại và ghi log kỹ thuật, không mở rộng phạm vi query để lấy dữ liệu nhanh hơn. |
+| EX09.1.1 | Membership bị `suspended` → request tiếp theo trả `403` và loại bỏ dữ liệu không còn quyền. |
+| EX09.1.2 | Khoảng thời gian hoặc bộ lọc không hợp lệ → trả `400`. |
+| EX09.1.3 | Một nguồn tổng hợp lỗi → hiển thị trạng thái lỗi, không trình bày dữ liệu cũ như dữ liệu hiện tại. |
+| EX09.1.4 | Query vượt thời gian → cho phép thử lại và ghi log kỹ thuật. |
 
-#### Dữ liệu, công thức và quy tắc nghiệp vụ
+#### Input, output và quy tắc
 
-| **Nhóm** | **Chi tiết** |
+| Nhóm | Nội dung |
 |---|---|
-| Input | `farm_id`, khoảng thời gian, loại KPI, loại/mức cảnh báo, trạng thái đọc và bộ lọc khu vực. |
-| Output | KPI, biểu đồ xu hướng, danh sách cảnh báo, dữ liệu chi tiết và thời điểm cập nhật gần nhất. |
-| Lô hoạt động | Đếm `seed_batches.status` thuộc `active` hoặc `ready_for_sale` trong phạm vi. |
-| Tồn kho thấp | Vật tư có `quantity <= min_threshold`; đánh giá sau giao dịch kho và theo job kiểm tra định kỳ. |
-| Cảnh báo chưa đọc | Đếm bản ghi cảnh báo phù hợp phạm vi có `is_read = false`. |
-| Doanh thu/chi phí | Tổng `seed_sales.total_revenue` và `expense_records.amount` trong cùng kỳ, farm và phạm vi cho phép. |
-| Tính nhất quán | Mọi KPI phải dùng cùng timezone, mốc đầu/cuối kỳ, điều kiện trạng thái và timestamp dữ liệu. |
-| Hạn chế schema hiện tại | `alerts_notifications.is_read` là trạng thái chung. Nếu cần trạng thái đọc riêng cho từng user, phải thiết kế bảng đọc cảnh báo riêng trong giai đoạn sau. |
-| Business rules | BR02–BR05, BR11–BR13, BR17, BR18, BR22 và G2. |
+| Input | `farm_id`, khoảng thời gian, bộ lọc khu vực và loại KPI. |
+| Output | KPI, biểu đồ, số liệu vận hành, tồn kho, chi phí, doanh thu và thời điểm cập nhật. |
+| Phạm vi Owner | Toàn bộ farm đang có membership Owner `active`. |
+| Phạm vi Area Manager/Technician | Chỉ dữ liệu thuộc khu vực được phân công. |
+| Phạm vi Warehouse Staff | Chỉ dữ liệu kho và cảnh báo tồn kho. |
+| Quy tắc | Mọi KPI phải dùng cùng farm, timezone, khoảng thời gian và điều kiện lọc; không truy cập chéo tenant. |

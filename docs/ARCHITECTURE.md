@@ -1,5 +1,87 @@
 # Kiến trúc hiện tại
 
+## Sơ đồ kiến trúc hệ thống
+
+Sơ đồ dưới đây mô tả kiến trúc Client–Server đang được sử dụng. Nét liền là thành phần/kết nối đã có trong codebase; nét đứt là thành phần được quy hoạch nhưng chưa tích hợp vào phiên bản hiện tại.
+
+```mermaid
+flowchart LR
+    user["Người dùng\nOWNER · AREA_MANAGER\nTECHNICIAN · WAREHOUSE_STAFF"]
+    browser["Web Browser"]
+
+    subgraph compose["Docker Compose"]
+        subgraph frontend["Frontend container"]
+            nginx["Nginx\nStatic files + reverse proxy /api"]
+        end
+
+        subgraph backend["Backend container"]
+            express["Node.js 22 + Express.js\nREST API"]
+            authz["Auth + Session + RBAC\nNeon Auth + HttpOnly cookie"]
+            prisma["Prisma ORM\nPrisma Migrate"]
+        end
+    end
+
+    subgraph external["Dịch vụ và dữ liệu bên ngoài"]
+        neonAuth["Neon Auth\nDanh tính email/mật khẩu"]
+        postgres["Neon PostgreSQL\nusers · farms · areas · memberships"]
+        smtp["Gmail SMTP\nGửi email lời mời"]
+        ai["AI Service\nPhân tích ảnh (dự kiến)"]
+        storage["Object Storage\nLưu ảnh private (dự kiến)"]
+    end
+
+    user --> browser
+    browser -->|HTTPS / HTTP| nginx
+    nginx -->|REST /api| express
+    express --> authz
+    authz -->|Xác thực danh tính| neonAuth
+    authz -->|Đọc session, membership và RBAC| prisma
+    prisma -->|SQL| postgres
+    express -->|Gửi lời mời| smtp
+    express -.->|Analysis job| ai
+    express -.->|Signed URL / media| storage
+
+    classDef client fill:#E8F4FB,stroke:#2479A8,color:#163B52,stroke-width:1px;
+    classDef runtime fill:#E8F5F0,stroke:#087F6E,color:#174B43,stroke-width:1px;
+    classDef data fill:#FFF4DD,stroke:#B7791F,color:#5B4215,stroke-width:1px;
+    classDef planned fill:#F2F3F4,stroke:#7B8583,color:#4D5654,stroke-dasharray:5 5;
+
+    class user,browser client;
+    class nginx,express,authz,prisma runtime;
+    class neonAuth,postgres,smtp data;
+    class ai,storage planned;
+```
+
+### Luồng xử lý chính
+
+1. Người dùng truy cập giao diện web thông qua trình duyệt.
+2. Nginx phục vụ frontend và chuyển các request `/api` đến Express.
+3. Express xác thực danh tính qua Neon Auth, sau đó kiểm tra session ứng dụng trong `access_sessions`.
+4. Middleware tải membership theo `(farm_id, user_id)` để kiểm tra role, trạng thái và phạm vi khu vực.
+5. Prisma thực hiện truy vấn đến Neon PostgreSQL; mọi dữ liệu nghiệp vụ phải được giới hạn theo farm/khu vực.
+6. Express sử dụng Gmail SMTP để gửi lời mời thành viên.
+7. AI Service và Object Storage mới là hướng tích hợp tiếp theo, chưa phải thành phần đang chạy trong MVP.
+
+### Sơ đồ triển khai tối giản
+
+```mermaid
+flowchart TB
+    browser["Browser"]
+    subgraph docker["Docker Compose"]
+        fe["frontend\nNginx :80"]
+        be["backend\nExpress :8000\nhealthcheck /api/health"]
+    end
+    db["Neon PostgreSQL"]
+    auth["Neon Auth"]
+    mail["SMTP"]
+
+    browser -->|localhost:5173| fe
+    fe -->|/api| be
+    be --> db
+    be --> auth
+    be --> mail
+    fe -.depends_on: service_healthy.-> be
+```
+
 > Đây là quyết định kiến trúc chuẩn của ChillShrimp: hệ thống vận hành theo mô hình **multi-farm**; danh tính nằm ở `users`, còn role và trạng thái truy cập nằm ở `farm_members` theo từng trang trại.
 
 ## 1. Các lớp hệ thống
