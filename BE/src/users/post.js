@@ -21,8 +21,8 @@ export async function createInvitation(req, res) {
   if (['area_manager', 'technician'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
   if (['owner', 'warehouse_staff'].includes(role)) areaId = null
   if (areaId) {
-    const area = await prisma.area.findFirst({ where: { id: areaId, farmId } })
-    if (!area) throw createHttpError(400, 'Khu vực không hợp lệ hoặc không thuộc trại.')
+    const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' } })
+    if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trại.')
   }
   const [user, pending, farm] = await Promise.all([
     prisma.user.findUnique({ where: { email } }),

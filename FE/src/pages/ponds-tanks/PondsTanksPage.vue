@@ -14,8 +14,11 @@ const tanksLoading = ref(false)
 const error = ref('')
 const farmDialog = ref(false)
 const statusDialog = ref(false)
+const deleteDialog = ref(false)
 const saving = ref(false)
 const changingStatus = ref(false)
+const deleting = ref(false)
+const restoringTankId = ref('')
 const editing = ref(false)
 const editingTank = ref(null)
 const form = ref({ code: '', name: '', areaId: '', tankType: 'nursery_tank', volumeM3: '', description: '' })
@@ -23,6 +26,7 @@ const statusForm = ref('empty')
 const search = ref('')
 const statusFilter = ref('')
 const typeFilter = ref('')
+const showDeleted = ref(false)
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
@@ -51,6 +55,7 @@ function queryString() {
   if (search.value.trim()) params.set('q', search.value.trim())
   if (statusFilter.value) params.set('status', statusFilter.value)
   if (typeFilter.value) params.set('tankType', typeFilter.value)
+  if (showDeleted.value) params.set('includeDeleted', 'true')
   return params.toString()
 }
 
@@ -142,12 +147,30 @@ async function saveStatus() {
 }
 
 async function removeTank(tank) {
-  if (!window.confirm(`Xóa ao/bể ${tank.code} - ${tank.name}?`)) return
+  editingTank.value = tank
+  deleteDialog.value = true
+}
+
+async function confirmRemoveTank() {
+  if (!editingTank.value) return
+  deleting.value = true
   try {
-    await api(`/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/${encodeURIComponent(tank.id)}`, { method: 'DELETE' })
+    await api(`/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/${encodeURIComponent(editingTank.value.id)}`, { method: 'DELETE' })
+    deleteDialog.value = false
     showToast('Đã xóa ao/bể.', 'success')
     await loadTanks()
   } catch (err) { showToast(err.message, 'error') }
+  finally { deleting.value = false }
+}
+
+async function restoreTank(tank) {
+  restoringTankId.value = tank.id
+  try {
+    await api(`/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/${encodeURIComponent(tank.id)}/restore`, { method: 'PATCH' })
+    showToast('Đã khôi phục ao/bể.', 'success')
+    await loadTanks()
+  } catch (err) { showToast(err.message, 'error') }
+  finally { restoringTankId.value = '' }
 }
 
 function formatVolume(value) {
@@ -158,7 +181,7 @@ watch(farmId, async () => {
   error.value = ''
   await Promise.all([loadAreas(), loadTanks()])
 })
-watch([search, statusFilter, typeFilter], loadTanks)
+watch([search, statusFilter, typeFilter, showDeleted], loadTanks)
 onMounted(loadPage)
 </script>
 
@@ -184,6 +207,7 @@ onMounted(loadPage)
         <div class="toolbar-field"><label>Tìm kiếm</label><v-text-field v-model="search" placeholder="Mã hoặc tên ao/bể" hide-details clearable /></div>
         <div class="toolbar-field"><label>Trạng thái</label><v-select v-model="statusFilter" :items="[{ title: 'Tất cả', value: '' }, ...statusOptions]" hide-details /></div>
         <div class="toolbar-field"><label>Loại</label><v-select v-model="typeFilter" :items="[{ title: 'Tất cả', value: '' }, ...typeOptions]" hide-details /></div>
+        <div v-if="canManage" class="toolbar-field deleted-toggle"><label>Dữ liệu đã xóa</label><v-switch v-model="showDeleted" color="primary" label="Hiển thị" hide-details density="compact" /></div>
       </v-card>
 
       <v-card class="list-card" elevation="0">
@@ -192,7 +216,7 @@ onMounted(loadPage)
         <div v-else-if="!tanks.length" class="empty-state"><div>0</div><strong>Chưa có ao/bể phù hợp</strong><p>Thêm ao/bể mới hoặc điều chỉnh bộ lọc.</p></div>
         <div v-else class="table-wrap">
           <table><thead><tr><th>Mã</th><th>Ao/bể</th><th>Khu vực</th><th>Loại</th><th>Thể tích</th><th>Trạng thái</th><th></th></tr></thead>
-            <tbody><tr v-for="tank in tanks" :key="tank.id"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><button class="icon-btn" type="button" title="Đổi trạng thái" @click="openStatus(tank)">↻</button><button class="icon-btn" type="button" title="Chỉnh sửa" @click="openEdit(tank)">✎</button><button class="icon-btn danger" type="button" title="Xóa" @click="removeTank(tank)">×</button></div></td></tr></tbody>
+            <tbody><tr v-for="tank in tanks" :key="tank.id" :class="{ 'deleted-row': tank.deletedAt }"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span v-if="tank.deletedAt" class="status-tag deleted">Đã xóa</span><span v-else class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><v-btn v-if="tank.deletedAt" size="x-small" variant="text" color="primary" :loading="restoringTankId === tank.id" @click="restoreTank(tank)">Khôi phục</v-btn><template v-else><button class="icon-btn" type="button" title="Đổi trạng thái" @click="openStatus(tank)">↻</button><button class="icon-btn" type="button" title="Chỉnh sửa" @click="openEdit(tank)">✎</button><button class="icon-btn danger" type="button" title="Xóa" @click="removeTank(tank)">×</button></template></div></td></tr></tbody>
           </table>
         </div>
       </v-card>
@@ -200,10 +224,11 @@ onMounted(loadPage)
 
     <v-dialog v-model="farmDialog" max-width="560"><v-card class="dialog-card"><span class="eyebrow">{{ editing ? 'CẬP NHẬT AO/BỂ' : 'AO/BỂ MỚI' }}</span><h2>{{ editing ? 'Chỉnh sửa thông tin' : 'Thêm ao/bể' }}</h2><v-form class="dialog-form" @submit.prevent="saveTank"><div class="field-grid"><div><label>Mã ao/bể</label><v-text-field v-model="form.code" placeholder="B01" required hide-details="auto" /></div><div><label>Tên ao/bể</label><v-text-field v-model="form.name" placeholder="Bể ương số 01" required hide-details="auto" /></div></div><div class="field-grid"><div><label>Loại</label><v-select v-model="form.tankType" :items="typeOptions" hide-details="auto" /></div><div><label>Thể tích (m³)</label><v-text-field v-model="form.volumeM3" type="number" min="0.001" step="0.001" required hide-details="auto" /></div></div><label>Khu vực</label><v-select v-model="form.areaId" :items="areaOptions" clearable :disabled="isAreaManager" :placeholder="areaRequired ? 'Chọn khu vực' : 'Không bắt buộc'" hide-details="auto" /><label>Mô tả</label><v-textarea v-model="form.description" rows="3" auto-grow hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="farmDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">{{ editing ? 'Lưu thay đổi' : 'Tạo ao/bể' }}</v-btn></div></v-form></v-card></v-dialog>
     <v-dialog v-model="statusDialog" max-width="440"><v-card class="dialog-card"><span class="eyebrow">VÒNG ĐỜI AO/BỂ</span><h2>{{ editingTank?.code }} · {{ editingTank?.name }}</h2><v-form class="dialog-form" @submit.prevent="saveStatus"><label>Trạng thái mới</label><v-select v-model="statusForm" :items="statusOptions" hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="statusDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="changingStatus">Cập nhật</v-btn></div></v-form></v-card></v-dialog>
+    <v-dialog v-model="deleteDialog" max-width="480"><v-card class="dialog-card"><span class="eyebrow danger-text">XÓA MỀM AO/BỂ</span><h2>Xóa {{ editingTank?.code }} · {{ editingTank?.name }}?</h2><p class="dialog-copy">Ao/bể sẽ bị ẩn khỏi danh sách vận hành nhưng dữ liệu vẫn được giữ và có thể khôi phục. Chỉ ao/bể trống hoặc đã ngừng sử dụng mới được xóa.</p><div class="dialog-actions"><v-btn variant="text" @click="deleteDialog = false">Hủy</v-btn><v-btn color="error" :loading="deleting" @click="confirmRemoveTank">Xóa ao/bể</v-btn></div></v-card></v-dialog>
   </AppShell>
 </template>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-*{box-sizing:border-box}h1,h2,p{margin-top:0}h1{margin-bottom:9px;color:#134e4a;font-size:clamp(1.85rem,3vw,2.55rem)}h2{margin-bottom:7px;color:#134e4a;font-size:1.25rem}.eyebrow{display:block;margin-bottom:8px;color:#087f6e;font-size:10px;font-weight:800;letter-spacing:.13em}.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px}.page-header p,.list-heading p{margin-bottom:0;color:#70817e;font-size:13px}.toolbar-card{display:grid;grid-template-columns:1.25fr 1.5fr 1fr 1fr;gap:14px;padding:18px 22px;margin-bottom:20px;border:1px solid #dce7e4;border-radius:16px;background:white}.toolbar-field{min-width:0}.toolbar-field label,.dialog-form label{display:block;margin-bottom:6px;color:#48625e;font-size:11px;font-weight:700}.list-card{padding:26px;border:1px solid #dce7e4!important;border-radius:18px!important}.list-heading{display:flex;justify-content:space-between;gap:20px;padding-bottom:20px;border-bottom:1px solid #e5ecea}.count-badge{min-width:34px;height:30px;display:grid;place-items:center;border-radius:9px;color:#087f6e;background:#e7f4f1;font-size:11px;font-weight:800}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th{padding:14px 10px;color:#82908d;border-bottom:1px solid #e8eeec;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}td{padding:15px 10px;color:#687b77;border-bottom:1px solid #edf1f0;font-size:11px;white-space:nowrap}td strong,td small{display:block}td strong{color:#294c47;font-size:11px}td small{max-width:220px;margin-top:4px;overflow:hidden;color:#83918e;text-overflow:ellipsis;font-size:9px}.tank-code{color:#087f6e!important}.status-tag{display:inline-block;padding:5px 8px;border-radius:7px;font-size:9px;font-weight:700}.status-tag.empty{color:#087f6e;background:#e7f4f1}.status-tag.active{color:#1e6d9b;background:#e7f2fb}.status-tag.cleaning{color:#9a6519;background:#fff1d9}.status-tag.inactive{color:#7b8583;background:#eef1f0}.row-actions{display:flex;justify-content:flex-end;gap:5px}.icon-btn{width:30px;height:30px;border:0;border-radius:8px;color:#087f6e;background:#e7f4f1;font-size:17px;line-height:1;cursor:pointer}.icon-btn:hover{background:#d6eee8}.icon-btn.danger{color:#b94a48;background:#fff0ef}.icon-btn.danger:hover{background:#ffe1df}.empty-state,.empty-card{color:#70817e;text-align:center}.empty-state{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center}.empty-state>div,.empty-icon{width:44px;height:44px;display:grid;place-items:center;margin-bottom:12px;border-radius:13px;color:#087f6e;background:#e7f4f1;font-weight:800}.empty-state strong,.empty-card h2{color:#365751;font-size:12px}.empty-state p,.empty-card p{margin:5px 0 0;font-size:10px}.empty-card{padding:46px;border:1px solid #dce7e4!important;border-radius:18px!important;background:white!important}.empty-card .empty-icon{margin:0 auto 14px;font-size:25px}.empty-card p{margin:8px 0 20px;font-size:13px}.notice{padding:16px;border-radius:12px;font-size:13px}.error-notice{color:#9b3e3e;background:#fff0ef}.dialog-card{padding:30px;border-radius:20px!important}.dialog-form{display:grid;gap:9px;margin-top:23px}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}@media(max-width:900px){.toolbar-card{grid-template-columns:1fr 1fr}}@media(max-width:650px){.page-header{align-items:stretch;flex-direction:column}.toolbar-card,.field-grid{grid-template-columns:1fr}.list-card{padding:20px}.dialog-card{padding:22px}}
+*{box-sizing:border-box}h1,h2,p{margin-top:0}h1{margin-bottom:9px;color:#134e4a;font-size:clamp(1.85rem,3vw,2.55rem)}h2{margin-bottom:7px;color:#134e4a;font-size:1.25rem}.eyebrow{display:block;margin-bottom:8px;color:#087f6e;font-size:10px;font-weight:800;letter-spacing:.13em}.danger-text{color:#b42318}.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px}.page-header p,.list-heading p{margin-bottom:0;color:#70817e;font-size:13px}.toolbar-card{display:grid;grid-template-columns:1.25fr 1.5fr 1fr 1fr .8fr;gap:14px;padding:18px 22px;margin-bottom:20px;border:1px solid #dce7e4;border-radius:16px;background:white}.toolbar-field{min-width:0}.toolbar-field label,.dialog-form label{display:block;margin-bottom:6px;color:#48625e;font-size:11px;font-weight:700}.deleted-toggle :deep(.v-switch){height:40px}.list-card{padding:26px;border:1px solid #dce7e4!important;border-radius:18px!important}.list-heading{display:flex;justify-content:space-between;gap:20px;padding-bottom:20px;border-bottom:1px solid #e5ecea}.count-badge{min-width:34px;height:30px;display:grid;place-items:center;border-radius:9px;color:#087f6e;background:#e7f4f1;font-size:11px;font-weight:800}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th{padding:14px 10px;color:#82908d;border-bottom:1px solid #e8eeec;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}td{padding:15px 10px;color:#687b77;border-bottom:1px solid #edf1f0;font-size:11px;white-space:nowrap}td strong,td small{display:block}td strong{color:#294c47;font-size:11px}td small{max-width:220px;margin-top:4px;overflow:hidden;color:#83918e;text-overflow:ellipsis;font-size:9px}.deleted-row{background:#fafafa;opacity:.78}.tank-code{color:#087f6e!important}.status-tag{display:inline-block;padding:5px 8px;border-radius:7px;font-size:9px;font-weight:700}.status-tag.empty{color:#087f6e;background:#e7f4f1}.status-tag.active{color:#1e6d9b;background:#e7f2fb}.status-tag.cleaning{color:#9a6519;background:#fff1d9}.status-tag.inactive,.status-tag.deleted{color:#7b8583;background:#eef1f0}.row-actions{display:flex;justify-content:flex-end;gap:5px}.icon-btn{width:30px;height:30px;border:0;border-radius:8px;color:#087f6e;background:#e7f4f1;font-size:17px;line-height:1;cursor:pointer}.icon-btn:hover{background:#d6eee8}.icon-btn.danger{color:#b94a48;background:#fff0ef}.icon-btn.danger:hover{background:#ffe1df}.empty-state,.empty-card{color:#70817e;text-align:center}.empty-state{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center}.empty-state>div,.empty-icon{width:44px;height:44px;display:grid;place-items:center;margin-bottom:12px;border-radius:13px;color:#087f6e;background:#e7f4f1;font-weight:800}.empty-state strong,.empty-card h2{color:#365751;font-size:12px}.empty-state p,.empty-card p{margin:5px 0 0;font-size:10px}.empty-card{padding:46px;border:1px solid #dce7e4!important;border-radius:18px!important;background:white!important}.empty-card .empty-icon{margin:0 auto 14px;font-size:25px}.empty-card p{margin:8px 0 20px;font-size:13px}.notice{padding:16px;border-radius:12px;font-size:13px}.error-notice{color:#9b3e3e;background:#fff0ef}.dialog-card{padding:30px;border-radius:20px!important}.dialog-copy{margin:14px 0 0;color:#667085;font-size:12px;line-height:1.7}.dialog-form{display:grid;gap:9px;margin-top:23px}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}@media(max-width:1050px){.toolbar-card{grid-template-columns:1fr 1fr}}@media(max-width:650px){.page-header{align-items:stretch;flex-direction:column}.toolbar-card,.field-grid{grid-template-columns:1fr}.list-card{padding:20px}.dialog-card{padding:22px}}
 </style>

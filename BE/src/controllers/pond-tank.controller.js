@@ -42,8 +42,8 @@ function ensureAreaId(req, areaId, { required = false } = {}) {
 
 async function assertAreaBelongsToFarm(farmId, areaId) {
   if (!areaId) return
-  const area = await prisma.area.findFirst({ where: { id: areaId, farmId }, select: { id: true } })
-  if (!area) throw createHttpError(400, 'Khu vực không thuộc trang trại đang quản lý.')
+  const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' }, select: { id: true } })
+  if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trang trại đang quản lý.')
 }
 
 function requireScopedArea(req) {
@@ -70,8 +70,17 @@ export async function listPondTanks(req, res) {
   const q = req.query.q?.trim()
   const status = req.query.status
   const tankType = req.query.tankType
+  const includeDeleted = req.query.includeDeleted === 'true'
+
+  if (req.query.includeDeleted !== undefined && !['true', 'false'].includes(req.query.includeDeleted)) {
+    throw createHttpError(400, 'Tham số includeDeleted không hợp lệ.')
+  }
+  if (includeDeleted && !['owner', 'area_manager'].includes(req.membership.role)) {
+    throw createHttpError(403, 'Bạn không có quyền xem ao/bể đã xóa.')
+  }
 
   if (q) where.OR = [{ code: { contains: q, mode: 'insensitive' } }, { name: { contains: q, mode: 'insensitive' } }]
+  if (!includeDeleted) where.deletedAt = null
   if (status) {
     if (!TANK_STATUSES.includes(status)) throw createHttpError(400, 'Trạng thái ao/bể không hợp lệ.')
     where.status = status
@@ -93,7 +102,7 @@ export async function listPondTanks(req, res) {
 
 export async function getPondTank(req, res) {
   const tank = await prisma.pondTank.findFirst({
-    where: scopedWhere(req, { id: req.params.tankId }),
+    where: scopedWhere(req, { id: req.params.tankId, deletedAt: null }),
     include: { area: { select: { id: true, code: true, name: true } } },
   })
   if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
@@ -125,7 +134,7 @@ export async function createPondTank(req, res) {
 }
 
 export async function updatePondTank(req, res) {
-  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId }) })
+  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId, deletedAt: null }) })
   if (!existing) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
 
   const data = {}
@@ -166,7 +175,7 @@ export async function updatePondTank(req, res) {
 export async function updatePondTankStatus(req, res) {
   const status = req.body.status
   if (!TANK_STATUSES.includes(status)) throw createHttpError(400, 'Trạng thái ao/bể không hợp lệ.')
-  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId }) })
+  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId, deletedAt: null }) })
   if (!existing) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
   if (!STATUS_TRANSITIONS[existing.status]?.includes(status)) {
     throw createHttpError(409, `Không thể chuyển ao/bể từ trạng thái ${existing.status} sang ${status}.`)
@@ -181,9 +190,27 @@ export async function updatePondTankStatus(req, res) {
 }
 
 export async function deletePondTank(req, res) {
-  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId }) })
+  const existing = await prisma.pondTank.findFirst({ where: scopedWhere(req, { id: req.params.tankId, deletedAt: null }) })
   if (!existing) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
   if (!['empty', 'inactive'].includes(existing.status)) throw createHttpError(409, 'Chỉ được xóa ao/bể đang trống hoặc ngừng sử dụng.')
-  await prisma.pondTank.delete({ where: { id: existing.id } })
+  await prisma.pondTank.update({
+    where: { id: existing.id },
+    data: { deletedAt: new Date(), deletedBy: req.auth.id },
+  })
   return res.status(204).end()
+}
+
+export async function restorePondTank(req, res) {
+  const existing = await prisma.pondTank.findFirst({
+    where: scopedWhere(req, { id: req.params.tankId, deletedAt: { not: null } }),
+  })
+  if (!existing) throw createHttpError(404, 'Không tìm thấy ao/bể đã xóa trong phạm vi được cấp quyền.')
+  await assertAreaBelongsToFarm(req.params.farmId, existing.areaId)
+
+  const tank = await prisma.pondTank.update({
+    where: { id: existing.id },
+    data: { deletedAt: null, deletedBy: null },
+    include: { area: { select: { id: true, code: true, name: true } } },
+  })
+  return sendData(res, serializeTank(tank))
 }

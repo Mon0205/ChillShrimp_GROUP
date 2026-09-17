@@ -65,8 +65,8 @@ export async function updateManagedUser(req, res) {
     if (['area_manager', 'technician'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
     if (['owner', 'warehouse_staff'].includes(role)) areaId = null
     if (areaId) {
-      const area = await prisma.area.findFirst({ where: { id: areaId, farmId }, select: { id: true } })
-      if (!area) throw createHttpError(400, 'Khu vực không thuộc trại đang quản lý.')
+      const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' }, select: { id: true } })
+      if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trại đang quản lý.')
     }
   }
 
