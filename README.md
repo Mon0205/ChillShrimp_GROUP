@@ -3,7 +3,7 @@
 Hệ thống quản lý trại tôm/cua giống.
 
 - Frontend: Vue 3, Vuetify, Vite
-- Backend: Node.js, Express, JWT
+- Backend: Node.js, Express, Neon Auth session
 - ORM: Prisma
 - Database: Neon PostgreSQL (cloud)
 - Runtime thống nhất: Docker Compose
@@ -22,7 +22,7 @@ Browser
                     ▼
 ┌─────────────────────────────────────────────────────┐
 │ Backend container                                    │
-│ Express + JWT + Prisma (image: chillshrimp-backend)  │
+│ Express + Neon Auth + Prisma (image: chillshrimp-backend) │
 └───────────────────┬─────────────────────────────────┘
                     │ DATABASE_URL + SSL
                     ▼
@@ -31,7 +31,7 @@ Browser
           └──────────────────────┘
 ```
 
-Neon là database cloud nên Docker Compose **không chạy PostgreSQL local**. Connection string Neon chỉ nằm trong `BE/.env`; frontend không được chứa database URL, JWT secret hoặc SMTP password.
+Neon là database cloud nên Docker Compose **không chạy PostgreSQL local**. Connection string Neon chỉ nằm trong `BE/.env`; frontend không được chứa database URL, bí mật Neon Auth hoặc SMTP password.
 
 ## Cấu trúc project
 
@@ -39,17 +39,18 @@ Neon là database cloud nên Docker Compose **không chạy PostgreSQL local**. 
 ChillShrimp_GROUP/
 ├── FE/                              # Vue 3 + Vuetify
 │   ├── src/
-│   │   ├── views/                    # Login, dashboard, lời mời, đặt mật khẩu
-│   │   ├── services/                 # API client và farm service
-│   │   ├── composables/              # Auth state phía giao diện
+│   │   ├── pages/                    # Login, dashboard, hồ sơ, đặt mật khẩu
+│   │   ├── services/                 # API client
+│   │   ├── composables/              # Auth, farm context và toast state
 │   │   └── router/                   # Vue Router + route guard
 │   ├── Dockerfile                    # Build Vite → Nginx image
 │   └── nginx.conf                    # Proxy /api sang backend
 ├── BE/                              # Node.js / Express API
 │   ├── src/
 │   │   ├── config/                   # Prisma Client
-│   │   ├── controllers/              # Xử lý auth, farm, invitation
-│   │   ├── middlewares/              # JWT, phân quyền trại, error handler
+│   │   ├── auth/                     # Neon Auth và phiên ứng dụng
+│   │   ├── controllers/              # Xử lý nghiệp vụ trại
+│   │   ├── middlewares/              # Session, phân quyền trại, error handler
 │   │   ├── routes/                   # Khai báo endpoint
 │   │   ├── services/                 # SMTP email
 │   │   ├── utils/                    # HTTP helper
@@ -58,7 +59,7 @@ ChillShrimp_GROUP/
 │   ├── prisma/
 │   │   ├── schema.prisma             # Prisma models
 │   │   ├── migrations/               # Version schema Neon
-│   │   └── seed-admin.js             # Tạo admin đầu tiên
+│   │   └── seed-admin.js             # Tạo tài khoản bootstrap đầu tiên
 │   ├── Dockerfile                    # Express + Prisma image
 │   └── .env.example                  # Mẫu cấu hình bí mật
 ├── AI_SERVICE/                       # Chỗ tích hợp AI sau này
@@ -69,17 +70,18 @@ ChillShrimp_GROUP/
 ## Luồng xác thực và phân quyền
 
 ```text
-Admin nhập email
-  → Express kiểm tra users.email và lời mời pending
-  → tạo user chưa có mật khẩu + membership + invitation token
-  → gửi email link đặt mật khẩu (hoặc in link ra terminal khi chưa có SMTP)
-  → người dùng đặt mật khẩu
-  → đăng nhập email/mật khẩu
-  → Express trả JWT
-  → middleware kiểm tra JWT và role owner/manager/staff/viewer
+Người dùng đăng nhập email/mật khẩu qua Neon Auth
+  → Neon Auth duy trì cookie HttpOnly
+  → Express kiểm tra phiên ứng dụng trong access_sessions
+  → người dùng chọn farm đang làm việc
+  → middleware tải farm_members theo (farm_id, user_id)
+  → kiểm tra status, role và area_id
+  → chỉ đọc/ghi dữ liệu thuộc farm được phép
 ```
 
-Mật khẩu được hash bằng bcrypt. JWT secret, Neon URL và SMTP secrets chỉ ở backend.
+Neon Auth quản lý password và cookie xác thực. `users` chỉ lưu danh tính dùng chung; role và trạng thái nằm trong `farm_members`. Một tài khoản được thiết kế để tham gia nhiều farm và có thể giữ role khác nhau ở từng farm.
+
+Bốn role nghiệp vụ là `owner`, `area_manager`, `technician`, `warehouse_staff`. `ADMIN_EMAIL` chỉ dùng để bootstrap tài khoản đầu tiên và không tạo ra role `admin`. Xem quyết định chuẩn và các khoảng cách hiện thực còn lại tại [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Chuẩn bị Neon
 
@@ -96,7 +98,8 @@ Copy-Item BE\.env.example BE\.env
 
 ```dotenv
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/neondb?sslmode=require"
-JWT_SECRET="mot-chuoi-ngau-nhien-dai-kho-doan"
+NEON_AUTH_URL="https://...neonauth.../neondb/auth"
+NEON_AUTH_COOKIE_SECRET="chuoi-random-it-nhat-32-ky-tu"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="mat-khau-admin-it-nhat-8-ky-tu"
 ```
@@ -121,7 +124,7 @@ docker compose ps
 docker compose logs -f
 ```
 
-Tạo tài khoản admin đầu tiên (chạy một lần sau khi backend đã `healthy`):
+Tạo tài khoản bootstrap đầu tiên (chạy một lần sau khi backend đã `healthy`):
 
 ```powershell
 docker compose exec backend npm run seed:admin
@@ -163,7 +166,7 @@ docker compose down --rmi local      # dừng và xóa image local của project
 | Kiểm tra API health | `Invoke-WebRequest http://localhost:8000/api/health` |
 | Kiểm tra migration trên Neon | `docker compose exec backend npm run migrate:status` |
 | Chạy migration chờ (bình thường tự chạy lúc start) | `docker compose exec backend npm run migrate:deploy` |
-| Tạo/cập nhật admin | `docker compose exec backend npm run seed:admin` |
+| Tạo/cập nhật tài khoản bootstrap | `docker compose exec backend npm run seed:admin` |
 | Dừng stack | `docker compose down` |
 | Dừng và xóa image project | `docker compose down --rmi local` |
 
@@ -214,7 +217,7 @@ Mặc định `FE/.env` dùng `VITE_API_URL=http://localhost:8000/api`. Khi ch�
 | `BE/` | Kiểm tra schema Prisma | `npx prisma validate` |
 | `BE/` | Kiểm tra trạng thái migration | `npm run migrate:status` |
 | `BE/` | Áp dụng migration Neon | `npm run migrate:deploy` |
-| `BE/` | Tạo/cập nhật admin | `npm run seed:admin` |
+| `BE/` | Tạo/cập nhật tài khoản bootstrap | `npm run seed:admin` |
 | `BE/` | Chạy Express có tự reload | `npm run dev` |
 | `BE/` | Chạy Express production | `npm start` |
 | `FE/` | Cài frontend | `npm install` |
@@ -223,6 +226,14 @@ Mặc định `FE/.env` dùng `VITE_API_URL=http://localhost:8000/api`. Khi ch�
 | `FE/` | Xem thử bản build | `npm run preview` |
 
 ## Database migration
+
+### Quy ước tên migration
+
+Migration mới phải đặt tên theo dạng `yyyymmdd_STT_ten_migration`. `STT` gồm ba chữ số, bắt đầu từ `001` và tăng theo thứ tự tạo trong cùng ngày.
+
+Ví dụ: `20260902_001_add_farm_code`, `20260902_002_area_scoped_roles`.
+
+Dạng ngày dùng thứ tự năm-tháng-ngày để Prisma sắp xếp migration đúng theo thời gian. Không đổi tên hoặc sửa nội dung migration đã áp dụng lên Neon để tránh sai lệch lịch sử trong `_prisma_migrations`.
 
 Schema Prisma nằm tại `BE/prisma/schema.prisma`; migration nằm tại `BE/prisma/migrations/`.
 
@@ -301,16 +312,17 @@ docker compose exec backend npx prisma migrate resolve --rolled-back <timestamp>
 
 | Method | Endpoint | Mục đích |
 | --- | --- | --- |
-| POST | `/api/auth/login` | Đăng nhập, trả JWT |
+| POST | `/api/auth/login` | Đăng nhập và tạo phiên ứng dụng |
+| POST | `/api/auth/logout` | Đăng xuất và hủy phiên |
 | GET | `/api/auth/me` | Lấy user hiện tại |
-| POST | `/api/auth/accept-invitation` | Đặt mật khẩu qua token mời |
+| GET/PATCH | `/api/users/me` | Xem/cập nhật hồ sơ cá nhân |
+| GET | `/api/users/invitation/:token` | Xem thông tin lời mời |
+| POST | `/api/users/accept-invitation` | Đặt mật khẩu và nhận lời mời |
 | GET/POST | `/api/farms` | Xem/tạo trại |
 | PATCH/DELETE | `/api/farms/:farmId` | Sửa/xóa trại |
-| GET | `/api/invitations/check-email` | Kiểm tra email trước khi mời |
-| POST | `/api/invitations` | Tạo và gửi lời mời |
+| GET/POST | `/api/farms/:farmId/areas` | Xem/tạo khu vực theo quyền |
+| GET | `/api/users?farmId=:farmId` | Xem thành viên của farm |
+| GET | `/api/users/invitations/check-email?farmId=:farmId` | Kiểm tra email trước khi mời |
+| GET/POST | `/api/users/invitations` | Xem hoặc tạo lời mời; `farmId` nằm ở query khi GET và body khi POST |
 
-Trừ `login`, `accept-invitation` và `health`, API yêu cầu header:
-
-```text
-Authorization: Bearer <JWT>
-```
+Neon Auth session được giữ bằng cookie `HttpOnly`; frontend gửi request API với `credentials: include`. Không lưu JWT trong `localStorage`.

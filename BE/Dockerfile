@@ -3,7 +3,9 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Neon Auth beta currently has peer-dependency ranges that npm 10 resolves
+# differently across environments. The lock file remains authoritative.
+RUN npm ci --legacy-peer-deps
 
 COPY prisma ./prisma
 RUN npx prisma generate
