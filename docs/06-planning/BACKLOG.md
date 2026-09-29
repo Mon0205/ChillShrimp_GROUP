@@ -4,19 +4,20 @@ Quy ước ưu tiên: **P0** bắt buộc cho MVP, **P1** quan trọng, **P2** m
 
 ## Epic 0 — Nền tảng
 
-- [ ] **INFRA-01 · P0** Chuẩn hóa môi trường dev/prod, `.env`, Docker Compose frontend và health check Supabase.
+- [ ] **INFRA-01 · P0** Chuẩn hóa môi trường dev/prod, `.env`, Docker Compose frontend và health check Neon/Backend.
 - [ ] **INFRA-02 · P0** Thiết lập lint, format, unit test và CI cho Vue/Vuetify và Neon PostgreSQL.
-- [ ] **INFRA-03 · P0** Quy ước migration, seed, backup và rollback Supabase.
+- [ ] **INFRA-03 · P0** Quy ước Prisma migration, seed, backup và rollback Neon PostgreSQL.
 - [ ] **INFRA-04 · P1** Logging có request ID, audit log và theo dõi lỗi.
 - [ ] **DOC-01 · P0** Chốt ERD, REST API convention, error format và OpenAPI.
 
 ## Epic 1 — Tài khoản và phân quyền
 
-- [ ] **AUTH-01 · P0** Đăng ký, đăng nhập, đăng xuất và quên mật khẩu bằng Supabase Auth.
+- [ ] **AUTH-01 · P0** Đăng ký qua lời mời, đăng nhập, đăng xuất và quên mật khẩu bằng Neon Auth.
 - [ ] **AUTH-02 · P0** Hồ sơ người dùng và cập nhật thông tin cá nhân.
-- [ ] **AUTH-03 · P0** Thành viên trại và vai trò Owner/Manager/Staff/Viewer.
-- [ ] **AUTH-04 · P0** RLS policy và kiểm thử chống truy cập chéo giữa các trại.
+- [ ] **AUTH-03 · P0** Thành viên theo farm và bốn role `OWNER`, `AREA_MANAGER`, `TECHNICIAN`, `WAREHOUSE_STAFF` trong `farm_members`.
+- [ ] **AUTH-04 · P0** Middleware, query scope và kiểm thử chống truy cập chéo giữa các farm/khu vực.
 - [ ] **AUTH-05 · P1** Mời thành viên bằng email/link có hạn sử dụng.
+- [ ] **AUTH-06 · P0** Hoàn thiện multi-farm cho mọi role: user hiện hữu nhận thêm farm, bỏ giới hạn một-farm bằng migration hiệu chỉnh mới và kiểm thử role khác nhau giữa các farm.
 
 ## Epic 2 — Trại, ao/bể và đàn giống
 
@@ -40,7 +41,7 @@ Quy ước ưu tiên: **P0** bắt buộc cho MVP, **P1** quan trọng, **P2** m
 
 ## Epic 4 — Hình ảnh và AI
 
-- [ ] **MEDIA-01 · P0** Upload ảnh vào private Supabase Storage, validate định dạng/dung lượng.
+- [ ] **MEDIA-01 · P0** Upload ảnh vào private object storage (S3/R2/Cloudinary), validate định dạng/dung lượng.
 - [ ] **MEDIA-02 · P1** Upload video ngắn, thumbnail và metadata.
 - [ ] **AI-01 · P0** Khảo sát dữ liệu, chọn ngôn ngữ/framework và chốt contract microservice.
 - [ ] **AI-02 · P0** Xây dựng bộ dữ liệu, quy tắc gán nhãn, consent và version dataset.

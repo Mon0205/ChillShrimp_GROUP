@@ -1,5 +1,23 @@
 # Backend – Express + Prisma + Neon
 
+## Quy ước đặt tên migration
+
+Migration mới sử dụng định dạng `ddmmyyyy_STT_ten_migration`.
+
+- `ddmmyyyy`: ngày tạo migration; ngày 02/09/2026 được viết là `02092026`.
+- `STT`: số thứ tự tạo trong ngày, gồm ba chữ số, bắt đầu từ `001`.
+- `ten_migration`: mô tả ngắn bằng tiếng Anh, viết thường và ngăn cách bằng dấu gạch dưới.
+
+Ví dụ:
+
+```text
+02092026_001_add_farm_code
+02092026_002_area_scoped_roles
+02092026_003_enforce_single_area_scope
+```
+
+Không dùng dấu `/` trong tên thư mục vì hệ điều hành hiểu đó là ký tự phân tách thư mục. Không đổi tên migration đã deploy lên Neon vì tên đã được lưu trong bảng `_prisma_migrations`; quy ước này áp dụng cho các migration mới.
+
 ## Lệnh dùng hằng ngày
 
 ```powershell
