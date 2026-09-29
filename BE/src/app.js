@@ -5,6 +5,7 @@ import { farmRouter } from './routes/farm.routes.js'
 import { userRouter } from './users/index.js'
 import { areaRouter } from './routes/area.routes.js'
 import { pondTankRouter } from './routes/pond-tank.routes.js'
+import { seedSupplierRouter } from './routes/seed-supplier.routes.js'
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js'
 
 export const app = express()
@@ -15,6 +16,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/users', userRouter)
 app.use('/api/farms/:farmId/areas', areaRouter)
 app.use('/api/farms/:farmId/ponds-tanks', pondTankRouter)
+app.use('/api/farms/:farmId/seed-suppliers', seedSupplierRouter)
 app.use('/api/farms', farmRouter)
 app.use(notFoundHandler)
 app.use(errorHandler)

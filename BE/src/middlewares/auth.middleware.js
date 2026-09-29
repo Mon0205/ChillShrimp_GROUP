@@ -65,6 +65,28 @@ export async function requireFarmManager(req, _res, next) {
   } catch (error) { next(error) }
 }
 
+export async function requireSeedSupplierViewer(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager'].includes(membership.role)) {
+      throw createHttpError(403, 'Chá»‰ Owner hoáº·c Quáº£n lÃ½ khu vá»±c Ä‘Æ°á»£c xem nhÃ  cung cáº¥p giá»‘ng.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requireSeedSupplierManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (membership.role !== 'owner') {
+      throw createHttpError(403, 'Chá»‰ Owner má»›i Ä‘Æ°á»£c quáº£n lÃ½ nhÃ  cung cáº¥p giá»‘ng.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
 export async function requireFarmOwner(req, _res, next) {
   try {
     const membership = await loadMembership(req)

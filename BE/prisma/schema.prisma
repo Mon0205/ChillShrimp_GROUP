@@ -21,20 +21,21 @@ enum InvitationStatus {
 }
 
 model User {
-  id           String       @id
-  email        String       @unique
-  username     String?      @unique
-  displayName  String?
-  phone        String?
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  farmsCreated Farm[]       @relation("FarmCreator")
-  farmsArchived Farm[]      @relation("FarmArchiver")
-  pondsTanksDeleted PondTank[] @relation("PondTankDeleter")
-  memberships  FarmMember[]
-  invitationsSent FarmInvitation[] @relation("InvitationSender")
+  id                  String           @id
+  email               String           @unique
+  username            String?          @unique
+  displayName         String?
+  phone               String?
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farmsCreated        Farm[]           @relation("FarmCreator")
+  farmsArchived       Farm[]           @relation("FarmArchiver")
+  pondsTanksDeleted   PondTank[]       @relation("PondTankDeleter")
+  memberships         FarmMember[]
+  invitationsSent     FarmInvitation[] @relation("InvitationSender")
   invitationsReceived FarmInvitation[] @relation("InvitationRecipient")
-  accessSessions AccessSession[]
+  accessSessions      AccessSession[]
+
   @@map("users")
 }
 
@@ -53,22 +54,24 @@ model AccessSession {
 }
 
 model Farm {
-  id         String       @id @default(uuid()) @db.Uuid
-  code       String       @unique
-  name       String
-  address    String?
-  status     String       @default("active") @db.VarChar(20)
-  createdBy  String       @map("created_by")
-  archivedBy String?      @map("archived_by")
-  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(6)
-  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  creator    User         @relation("FarmCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  archiver   User?        @relation("FarmArchiver", fields: [archivedBy], references: [id], onDelete: SetNull)
-  members   FarmMember[]
-  invitations FarmInvitation[]
-  areas     Area[]
-  pondsTanks PondTank[]
+  id            String           @id @default(uuid()) @db.Uuid
+  code          String           @unique
+  name          String
+  address       String?
+  status        String           @default("active") @db.VarChar(20)
+  createdBy     String           @map("created_by")
+  archivedBy    String?          @map("archived_by")
+  archivedAt    DateTime?        @map("archived_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creator       User             @relation("FarmCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  archiver      User?            @relation("FarmArchiver", fields: [archivedBy], references: [id], onDelete: SetNull)
+  members       FarmMember[]
+  invitations   FarmInvitation[]
+  areas         Area[]
+  pondsTanks    PondTank[]
+  seedSuppliers SeedSupplier[]
+
   @@index([status])
   @@map("farms")
 }
@@ -90,29 +93,31 @@ model Area {
   members     FarmMember[]
   invitations FarmInvitation[]
   pondsTanks  PondTank[]
+
   @@unique([farmId, code])
   @@index([farmId, status])
   @@map("areas")
 }
 
 model PondTank {
-  id          String   @id @default(uuid()) @db.Uuid
-  farmId      String   @map("farm_id") @db.Uuid
-  areaId      String?  @map("area_id") @db.Uuid
-  code        String   @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  tankType    String   @default("nursery_tank") @map("tank_type") @db.VarChar(30)
-  volumeM3    Decimal  @map("volume_m3") @db.Decimal(12, 3)
-  status      String   @default("empty") @db.VarChar(20)
+  id          String    @id @default(uuid()) @db.Uuid
+  farmId      String    @map("farm_id") @db.Uuid
+  areaId      String?   @map("area_id") @db.Uuid
+  code        String    @db.VarChar(50)
+  name        String    @db.VarChar(100)
+  tankType    String    @default("nursery_tank") @map("tank_type") @db.VarChar(30)
+  volumeM3    Decimal   @map("volume_m3") @db.Decimal(12, 3)
+  status      String    @default("empty") @db.VarChar(20)
   description String?
-  deletedBy   String?  @map("deleted_by")
+  deletedBy   String?   @map("deleted_by")
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  farm Farm  @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  area Area? @relation(fields: [areaId], references: [id], onDelete: Restrict)
-  deleter User? @relation("PondTankDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
+  farm        Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  area        Area?       @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  deleter     User?       @relation("PondTankDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
+  seedBatches SeedBatch[]
 
   @@unique([farmId, code])
   @@index([farmId, areaId])
@@ -121,16 +126,70 @@ model PondTank {
   @@map("ponds_tanks")
 }
 
+model SeedSupplier {
+  id                    String   @id @default(uuid()) @db.Uuid
+  farmId                String   @map("farm_id") @db.Uuid
+  name                  String   @db.VarChar(150)
+  licenseNo             String?  @map("license_no") @db.VarChar(80)
+  phone                 String?  @db.VarChar(20)
+  address               String?
+  broodstockInformation String?  @map("broodstock_information")
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  farm        Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  seedBatches SeedBatch[]
+
+  @@index([farmId, name])
+  @@map("seed_suppliers")
+}
+
+model SeedBatch {
+  id                       String    @id @default(uuid()) @db.Uuid
+  tankId                   String    @map("tank_id") @db.Uuid
+  supplierId               String?   @map("supplier_id") @db.Uuid
+  batchCode                String    @unique @map("batch_code") @db.VarChar(50)
+  supplierLotCode          String    @map("supplier_lot_code") @db.VarChar(80)
+  species                  String    @db.VarChar(50)
+  developmentStage         String    @map("development_stage") @db.VarChar(50)
+  broodstockLine           String?   @map("broodstock_line") @db.VarChar(100)
+  broodstockStatus         String    @default("unknown") @map("broodstock_status") @db.VarChar(20)
+  source                   String    @db.VarChar(150)
+  documentedQuantity       Int       @map("documented_quantity")
+  initialQuantity          Int       @map("initial_quantity")
+  currentEstimatedQuantity Int       @map("current_estimated_quantity")
+  productionDate           DateTime? @map("production_date") @db.Date
+  receivedAt               DateTime? @map("received_at") @db.Timestamptz(6)
+  transportDurationMinutes Int?      @map("transport_duration_minutes")
+  healthCertificateUrl     String?   @map("health_certificate_url")
+  stockedDate              DateTime  @map("stocked_date") @db.Date
+  expectedSaleDate         DateTime  @map("expected_sale_date") @db.Date
+  status                   String    @default("active") @db.VarChar(30)
+  notes                    String?
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tank     PondTank      @relation(fields: [tankId], references: [id], onDelete: Restrict)
+  supplier SeedSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([tankId, status])
+  @@index([supplierId])
+  @@index([status])
+  @@map("seed_batches")
+}
+
 model FarmMember {
-  farmId    String   @map("farm_id") @db.Uuid
-  userId    String   @map("user_id")
-  role      FarmRole @default(technician)
+  farmId    String           @map("farm_id") @db.Uuid
+  userId    String           @map("user_id")
+  role      FarmRole         @default(technician)
   status    MembershipStatus @default(active)
-  areaId    String?  @map("area_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  area      Area?    @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  areaId    String?          @map("area_id") @db.Uuid
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  farm      Farm             @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area      Area?            @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
   @@id([farmId, userId])
   @@map("farm_members")
 }
@@ -152,6 +211,7 @@ model FarmInvitation {
   invitedUser   User?            @relation("InvitationRecipient", fields: [invitedUserId], references: [id], onDelete: SetNull)
   sender        User             @relation("InvitationSender", fields: [invitedBy], references: [id])
   area          Area?            @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
   @@index([farmId, email, status])
   @@map("farm_invitations")
 }
