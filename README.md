@@ -81,7 +81,7 @@ Người dùng đăng nhập email/mật khẩu qua Neon Auth
 
 Neon Auth quản lý password và cookie xác thực. `users` chỉ lưu danh tính dùng chung; role và trạng thái nằm trong `farm_members`. Một tài khoản được thiết kế để tham gia nhiều farm và có thể giữ role khác nhau ở từng farm.
 
-Bốn role nghiệp vụ là `owner`, `area_manager`, `technician`, `warehouse_staff`. `ADMIN_EMAIL` chỉ dùng để bootstrap tài khoản đầu tiên và không tạo ra role `admin`. Xem quyết định chuẩn và các khoảng cách hiện thực còn lại tại [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+Bốn role nghiệp vụ là `owner`, `area_manager`, `technician`, `warehouse_staff`. `ADMIN_EMAIL` chỉ dùng để bootstrap tài khoản đầu tiên và không tạo ra role `admin`. Xem quyết định chuẩn và các khoảng cách hiện thực còn lại tại [ARCHITECTURE.md](./docs/02-architecture/ARCHITECTURE.md).
 
 ## Chuẩn bị Neon
 

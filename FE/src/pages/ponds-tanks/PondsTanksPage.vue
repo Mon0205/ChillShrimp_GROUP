@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AppShell from '../../components/app-shell/AppShell.vue'
 import { selectFarm, useFarmContext } from '../../composables/farm-context.js'
 import { showToast } from '../../composables/toast.js'
@@ -19,6 +19,8 @@ const saving = ref(false)
 const changingStatus = ref(false)
 const deleting = ref(false)
 const restoringTankId = ref('')
+const tankFormRef = ref(null)
+const codeApiError = ref('')
 const editing = ref(false)
 const editingTank = ref(null)
 const form = ref({ code: '', name: '', areaId: '', tankType: 'nursery_tank', volumeM3: '', description: '' })
@@ -49,6 +51,32 @@ const statusNames = Object.fromEntries(statusOptions.map((item) => [item.value, 
 const typeNames = Object.fromEntries(typeOptions.map((item) => [item.value, item.title]))
 const areaOptions = computed(() => areas.value.map((area) => ({ title: `${area.code} · ${area.name}`, value: area.id })))
 const areaRequired = computed(() => isAreaManager.value)
+const validTankTypes = typeOptions.map((item) => item.value)
+const requiredRule = (label) => (value) => String(value ?? '').trim().length > 0 || `${label} là bắt buộc.`
+const codeRules = [
+  requiredRule('Mã ao/bể'),
+  (value) => String(value ?? '').trim().length >= 2 || 'Mã ao/bể phải có ít nhất 2 ký tự.',
+  (value) => String(value ?? '').trim().length <= 50 || 'Mã ao/bể không được vượt quá 50 ký tự.',
+  (value) => /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(String(value ?? '').trim()) || 'Mã chỉ gồm chữ, số, dấu gạch ngang hoặc gạch dưới.',
+]
+const nameRules = [
+  requiredRule('Tên ao/bể'),
+  (value) => String(value ?? '').trim().length <= 100 || 'Tên ao/bể không được vượt quá 100 ký tự.',
+]
+const typeRules = [
+  requiredRule('Loại ao/bể'),
+  (value) => validTankTypes.includes(value) || 'Loại ao/bể không hợp lệ.',
+]
+const volumeRules = [
+  requiredRule('Thể tích'),
+  (value) => Number.isFinite(Number(value)) || 'Thể tích phải là một số hợp lệ.',
+  (value) => Number(value) > 0 || 'Thể tích phải lớn hơn 0 m³.',
+  (value) => Number(value) <= 1000000 || 'Thể tích không được vượt quá 1.000.000 m³.',
+]
+const areaRules = computed(() => areaRequired.value ? [requiredRule('Khu vực')] : [])
+const descriptionRules = [
+  (value) => String(value ?? '').length <= 2000 || 'Mô tả không được vượt quá 2.000 ký tự.',
+]
 
 function queryString() {
   const params = new URLSearchParams()
@@ -98,26 +126,33 @@ function resetForm() {
   form.value = { code: '', name: '', areaId: isAreaManager.value ? selectedFarm.value?.area?.id || '' : '', tankType: 'nursery_tank', volumeM3: '', description: '' }
 }
 
-function openCreate() {
+async function openCreate() {
   editing.value = false
   editingTank.value = null
+  codeApiError.value = ''
   resetForm()
   farmDialog.value = true
+  await nextTick()
+  tankFormRef.value?.resetValidation()
 }
 
-function openEdit(tank) {
+async function openEdit(tank) {
   editing.value = true
   editingTank.value = tank
+  codeApiError.value = ''
   form.value = { code: tank.code, name: tank.name, areaId: tank.area?.id || '', tankType: tank.tankType, volumeM3: tank.volumeM3, description: tank.description || '' }
   farmDialog.value = true
+  await nextTick()
+  tankFormRef.value?.resetValidation()
 }
 
 async function saveTank() {
-  const payload = { ...form.value, code: form.value.code.trim().toUpperCase(), name: form.value.name.trim(), volumeM3: form.value.volumeM3 === '' ? '' : Number(form.value.volumeM3), areaId: form.value.areaId || null }
-  if (!payload.code || !payload.name || !payload.volumeM3 || (areaRequired.value && !payload.areaId)) {
-    showToast('Vui lòng nhập mã, tên, thể tích và khu vực bắt buộc.', 'error')
+  const validation = await tankFormRef.value?.validate()
+  if (!validation?.valid) {
+    showToast('Vui lòng kiểm tra lại các trường chưa hợp lệ.', 'error')
     return
   }
+  const payload = { ...form.value, code: form.value.code.trim().toUpperCase(), name: form.value.name.trim(), volumeM3: form.value.volumeM3 === '' ? '' : Number(form.value.volumeM3), areaId: form.value.areaId || null }
   saving.value = true
   try {
     const path = editing.value ? `/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/${encodeURIComponent(editingTank.value.id)}` : `/farms/${encodeURIComponent(farmId.value)}/ponds-tanks`
@@ -125,7 +160,10 @@ async function saveTank() {
     farmDialog.value = false
     showToast(editing.value ? 'Đã cập nhật ao/bể.' : 'Đã tạo ao/bể.', 'success')
     await loadTanks()
-  } catch (err) { showToast(err.message, 'error') }
+  } catch (err) {
+    if (err.status === 409 && err.message.toLowerCase().includes('mã ao/bể')) codeApiError.value = err.message
+    showToast(err.message, 'error')
+  }
   finally { saving.value = false }
 }
 
@@ -181,6 +219,7 @@ watch(farmId, async () => {
   error.value = ''
   await Promise.all([loadAreas(), loadTanks()])
 })
+watch(() => form.value.code, () => { codeApiError.value = '' })
 watch([search, statusFilter, typeFilter, showDeleted], loadTanks)
 onMounted(loadPage)
 </script>
@@ -222,7 +261,83 @@ onMounted(loadPage)
       </v-card>
     </template>
 
-    <v-dialog v-model="farmDialog" max-width="560"><v-card class="dialog-card"><span class="eyebrow">{{ editing ? 'CẬP NHẬT AO/BỂ' : 'AO/BỂ MỚI' }}</span><h2>{{ editing ? 'Chỉnh sửa thông tin' : 'Thêm ao/bể' }}</h2><v-form class="dialog-form" @submit.prevent="saveTank"><div class="field-grid"><div><label>Mã ao/bể</label><v-text-field v-model="form.code" placeholder="B01" required hide-details="auto" /></div><div><label>Tên ao/bể</label><v-text-field v-model="form.name" placeholder="Bể ương số 01" required hide-details="auto" /></div></div><div class="field-grid"><div><label>Loại</label><v-select v-model="form.tankType" :items="typeOptions" hide-details="auto" /></div><div><label>Thể tích (m³)</label><v-text-field v-model="form.volumeM3" type="number" min="0.001" step="0.001" required hide-details="auto" /></div></div><label>Khu vực</label><v-select v-model="form.areaId" :items="areaOptions" clearable :disabled="isAreaManager" :placeholder="areaRequired ? 'Chọn khu vực' : 'Không bắt buộc'" hide-details="auto" /><label>Mô tả</label><v-textarea v-model="form.description" rows="3" auto-grow hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="farmDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">{{ editing ? 'Lưu thay đổi' : 'Tạo ao/bể' }}</v-btn></div></v-form></v-card></v-dialog>
+    <v-dialog v-model="farmDialog" max-width="560">
+      <v-card class="dialog-card">
+        <span class="eyebrow">{{ editing ? 'CẬP NHẬT AO/BỂ' : 'AO/BỂ MỚI' }}</span>
+        <h2>{{ editing ? 'Chỉnh sửa thông tin' : 'Thêm ao/bể' }}</h2>
+        <v-form ref="tankFormRef" class="dialog-form" validate-on="blur" @submit.prevent="saveTank">
+          <div class="field-grid">
+            <div>
+              <label>Mã ao/bể</label>
+              <v-text-field
+                v-model="form.code"
+                placeholder="B01"
+                maxlength="50"
+                counter="50"
+                :rules="codeRules"
+                :error-messages="codeApiError"
+                autocomplete="off"
+                hide-details="auto"
+                @update:model-value="form.code = String(form.code || '').toUpperCase()"
+              />
+            </div>
+            <div>
+              <label>Tên ao/bể</label>
+              <v-text-field
+                v-model="form.name"
+                placeholder="Bể ương số 01"
+                maxlength="100"
+                counter="100"
+                :rules="nameRules"
+                hide-details="auto"
+              />
+            </div>
+          </div>
+          <div class="field-grid">
+            <div>
+              <label>Loại</label>
+              <v-select v-model="form.tankType" :items="typeOptions" :rules="typeRules" hide-details="auto" />
+            </div>
+            <div>
+              <label>Thể tích (m³)</label>
+              <v-text-field
+                v-model="form.volumeM3"
+                type="number"
+                min="0.001"
+                max="1000000"
+                step="0.001"
+                :rules="volumeRules"
+                hide-details="auto"
+              />
+            </div>
+          </div>
+          <label>Khu vực</label>
+          <v-select
+            v-model="form.areaId"
+            :items="areaOptions"
+            :rules="areaRules"
+            clearable
+            :disabled="isAreaManager"
+            :placeholder="areaRequired ? 'Chọn khu vực' : 'Không bắt buộc'"
+            hide-details="auto"
+          />
+          <label>Mô tả</label>
+          <v-textarea
+            v-model="form.description"
+            rows="3"
+            auto-grow
+            maxlength="2000"
+            counter="2000"
+            :rules="descriptionRules"
+            hide-details="auto"
+          />
+          <div class="dialog-actions">
+            <v-btn variant="text" @click="farmDialog = false">Hủy</v-btn>
+            <v-btn type="submit" color="primary" :loading="saving">{{ editing ? 'Lưu thay đổi' : 'Tạo ao/bể' }}</v-btn>
+          </div>
+        </v-form>
+      </v-card>
+    </v-dialog>
     <v-dialog v-model="statusDialog" max-width="440"><v-card class="dialog-card"><span class="eyebrow">VÒNG ĐỜI AO/BỂ</span><h2>{{ editingTank?.code }} · {{ editingTank?.name }}</h2><v-form class="dialog-form" @submit.prevent="saveStatus"><label>Trạng thái mới</label><v-select v-model="statusForm" :items="statusOptions" hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="statusDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="changingStatus">Cập nhật</v-btn></div></v-form></v-card></v-dialog>
     <v-dialog v-model="deleteDialog" max-width="480"><v-card class="dialog-card"><span class="eyebrow danger-text">XÓA MỀM AO/BỂ</span><h2>Xóa {{ editingTank?.code }} · {{ editingTank?.name }}?</h2><p class="dialog-copy">Ao/bể sẽ bị ẩn khỏi danh sách vận hành nhưng dữ liệu vẫn được giữ và có thể khôi phục. Chỉ ao/bể trống hoặc đã ngừng sử dụng mới được xóa.</p><div class="dialog-actions"><v-btn variant="text" @click="deleteDialog = false">Hủy</v-btn><v-btn color="error" :loading="deleting" @click="confirmRemoveTank">Xóa ao/bể</v-btn></div></v-card></v-dialog>
   </AppShell>

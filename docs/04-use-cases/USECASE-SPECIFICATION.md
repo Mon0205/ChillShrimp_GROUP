@@ -1,7 +1,7 @@
 # Đặc tả chi tiết Use Case — ChillShrimp
 
-> Nguồn tham chiếu: [SRS.md](./SRS.md), [USECASE.md](./USECASE.md), [DATABASE.md](./DATABASE.md), [ERD.md](./ERD.md).
-> Mô hình 2 cấp (khớp [USECASE-DIAGRAM.drawio](./USECASE-DIAGRAM.drawio)): **cấp 1** là 7 use case nhóm chức năng (UC03–UC09), actor kết nối trực tiếp vào cấp 1, mỗi use case cấp 1 `<<Include>>` **UC01 — Đăng nhập**. **Cấp 2** là use case nghiệp vụ cụ thể (`UCxx.n`), `<<Extend>>` ra từ đúng một use case cấp 1 — đây là nơi mô tả luồng hoạt động thật. UC01, UC02 đứng độc lập, không thuộc nhóm nào.
+> Nguồn tham chiếu: [SRS.md](../01-requirements/SRS.md), [USECASE.md](./USECASE.md), [DATABASE.md](../03-database/DATABASE.md), [ERD.md](../03-database/ERD.md).
+> Mô hình 2 cấp (theo sơ đồ `USECASE-DIAGRAM.drawio`, hiện chưa được lưu trong repository): **cấp 1** là 7 use case nhóm chức năng (UC03–UC09), actor kết nối trực tiếp vào cấp 1, mỗi use case cấp 1 `<<Include>>` **UC01 — Đăng nhập**. **Cấp 2** là use case nghiệp vụ cụ thể (`UCxx.n`), `<<Extend>>` ra từ đúng một use case cấp 1 — đây là nơi mô tả luồng hoạt động thật. UC01, UC02 đứng độc lập, không thuộc nhóm nào.
 
 ---
 

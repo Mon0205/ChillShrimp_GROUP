@@ -30,7 +30,7 @@ Trong phạm vi hiện tại, hệ thống quản lý hoạt động tiếp nh�
 
 ## 1.2. Bối cảnh và cơ sở nghiệp vụ
 
-Phần cơ sở nghiệp vụ của SRS được tổng hợp từ [Tổng hợp quy chuẩn kỹ thuật và công thức quản lý trại tôm giống — v2](./tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md). Tài liệu này cung cấp dữ liệu tham khảo về nhận diện lô giống, kiểm tra chất lượng, môi trường ao/bể, công thức quản lý và quy trình vận hành. Khi chuyển hóa thành yêu cầu phần mềm, ChillShrimp chỉ tiếp nhận những nội dung phù hợp với phạm vi **tiếp nhận, ương, chăm sóc và xuất bán tôm giống**; không mặc nhiên coi mọi con số trong tài liệu tham khảo là ngưỡng pháp lý hoặc ngưỡng áp dụng chung.
+Phần cơ sở nghiệp vụ của SRS được tổng hợp từ [Tổng hợp quy chuẩn kỹ thuật và công thức quản lý trại tôm giống — v2](../05-business-domain/tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md). Tài liệu này cung cấp dữ liệu tham khảo về nhận diện lô giống, kiểm tra chất lượng, môi trường ao/bể, công thức quản lý và quy trình vận hành. Khi chuyển hóa thành yêu cầu phần mềm, ChillShrimp chỉ tiếp nhận những nội dung phù hợp với phạm vi **tiếp nhận, ương, chăm sóc và xuất bán tôm giống**; không mặc nhiên coi mọi con số trong tài liệu tham khảo là ngưỡng pháp lý hoặc ngưỡng áp dụng chung.
 
 ### 1.2.1. Bài toán nghiệp vụ cần giải quyết
 
@@ -1074,7 +1074,7 @@ minimum_price_per_thousand = minimum_price_per_seed * 1000
 
 # 5. DANH SÁCH USE CASE TỔNG HỢP
 
-Danh sách dưới đây sử dụng mô hình hai cấp đã chốt tại [USECASE-SPECIFICATION.md](./USECASE-SPECIFICATION.md#2-bảng-phân-rã-tổng-hợp):
+Danh sách dưới đây sử dụng mô hình hai cấp đã chốt tại [USECASE-SPECIFICATION.md](../04-use-cases/USECASE-SPECIFICATION.md#2-bảng-phân-rã-tổng-hợp):
 
 - `UC01` và `UC02` là hai use case độc lập, không thuộc nhóm chức năng nào.
 - `UC03` đến `UC09` là bảy use case cấp 1, dùng để gom nhóm chức năng trên sơ đồ tổng quát và đều `<<include>>` UC01 — Đăng nhập.

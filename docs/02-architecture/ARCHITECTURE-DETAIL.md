@@ -32,4 +32,4 @@ users
 
 Storage/media chưa được cấu hình. Khi cần, thêm S3/R2/Cloudinary qua Express; không cho frontend cầm khóa ghi private storage.
 
-Chi tiết bảng và quyền được định nghĩa tại [DATABASE.md](./DATABASE.md), [ERD.md](./ERD.md), [SRS.md](./SRS.md) và [USECASE.md](./USECASE.md). Các hạn chế hiện thực multi-farm được theo dõi tại [ARCHITECTURE.md](./ARCHITECTURE.md#5-trạng-thái-hiện-thực-và-khoảng-cách-còn-lại).
+Chi tiết bảng và quyền được định nghĩa tại [DATABASE.md](../03-database/DATABASE.md), [ERD.md](../03-database/ERD.md), [SRS.md](../01-requirements/SRS.md) và [USECASE.md](../04-use-cases/USECASE.md). Các hạn chế hiện thực multi-farm được theo dõi tại [ARCHITECTURE.md](./ARCHITECTURE.md#5-trạng-thái-hiện-thực-và-khoảng-cách-còn-lại).
