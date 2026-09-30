@@ -18,6 +18,8 @@ const isOwner = computed(() => farmContext.farms.some((farm) => farm.role === 'o
 const canViewPondTanks = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(selectedFarm.value?.role))
 const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewFeeding = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewInventorySupplies = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 onMounted(() => loadFarmContext(true))
 
 function setSidebarMode(mode) {
@@ -99,6 +101,22 @@ async function signOut() {
             </svg>
           </span>
           <span class="nav-label">Lô giống</span>
+        </RouterLink>
+        <RouterLink v-if="canViewFeeding" class="nav-item" :class="{ active: route.path === '/feeding-logs' }" to="/feeding-logs">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19c0-2 2-3 4-3s4 1 4 3-2 3-4 3-4-1-4-3Z"/><path d="M12 19c0-2 2-3 4-3s4 1 4 3-2 3-4 3-4-1-4-3Z"/><path d="M8 16V7m8 9V7M5 7h14M8 7l2-4m6 4-2-4"/>
+            </svg>
+          </span>
+          <span class="nav-label">Nhật ký cho ăn</span>
+        </RouterLink>
+        <RouterLink v-if="canViewInventorySupplies" class="nav-item" :class="{ active: route.path === '/inventory-supplies' }" to="/inventory-supplies">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7h18l-1.5 13h-15L3 7Z"/><path d="M8 7a4 4 0 0 1 8 0M8 12h8M8 16h5"/>
+            </svg>
+          </span>
+          <span class="nav-label">Danh mục vật tư</span>
         </RouterLink>
       </nav>
       <v-menu v-model="modeMenu" location="top start" :offset="10">

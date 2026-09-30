@@ -109,6 +109,45 @@ export async function requireSeedBatchManager(req, _res, next) {
   } catch (error) { next(error) }
 }
 
+export async function requireFeedingAccess(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền ghi hoặc xem nhật ký cho ăn.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function requireInventorySupplyViewer(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền xem danh mục vật tư.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function requireInventorySupplyManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'warehouse_staff'].includes(membership.role)) {
+      throw createHttpError(403, 'Chỉ Owner hoặc Nhân viên kho mới được quản lý danh mục vật tư.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function requireFarmOwner(req, _res, next) {
   try {
     const membership = await loadMembership(req)

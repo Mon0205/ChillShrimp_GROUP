@@ -31,6 +31,7 @@ model User {
   farmsCreated        Farm[]           @relation("FarmCreator")
   farmsArchived       Farm[]           @relation("FarmArchiver")
   pondsTanksDeleted   PondTank[]       @relation("PondTankDeleter")
+  feedingLogs         FeedingLog[]
   seedQualityChecksCreated  SeedQualityCheck[] @relation("SeedQualityCheckChecker")
   seedQualityChecksReviewed SeedQualityCheck[] @relation("SeedQualityCheckReviewer")
   batchQuantityEvents BatchQuantityEvent[]
@@ -75,6 +76,7 @@ model Farm {
   areas         Area[]
   pondsTanks    PondTank[]
   seedSuppliers SeedSupplier[]
+  inventorySupplies InventorySupply[]
 
   @@index([status])
   @@map("farms")
@@ -122,6 +124,7 @@ model PondTank {
   area        Area?       @relation(fields: [areaId], references: [id], onDelete: Restrict)
   deleter     User?       @relation("PondTankDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
   seedBatches SeedBatch[]
+  feedingLogs FeedingLog[]
   quantityEventsFrom BatchQuantityEvent[] @relation("QuantityEventFromTank")
   quantityEventsTo   BatchQuantityEvent[] @relation("QuantityEventToTank")
 
@@ -130,6 +133,48 @@ model PondTank {
   @@index([farmId, status])
   @@index([farmId, deletedAt])
   @@map("ponds_tanks")
+}
+
+model FeedingLog {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tankId             String   @map("tank_id") @db.Uuid
+  performedBy        String   @map("performed_by")
+  feedName           String   @map("feed_name") @db.VarChar(150)
+  amount             Decimal  @db.Decimal(12, 3)
+  unit               String   @db.VarChar(20)
+  biomassSnapshotKg  Decimal? @map("biomass_snapshot_kg") @db.Decimal(12, 3)
+  feedingRatePercent Decimal? @map("feeding_rate_percent") @db.Decimal(7, 3)
+  recommendedAmount  Decimal? @map("recommended_amount") @db.Decimal(12, 3)
+  feedCheckStatus    String?  @map("feed_check_status") @db.VarChar(20)
+  feedingTime        DateTime @map("feeding_time") @db.Timestamptz(6)
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tank      PondTank @relation(fields: [tankId], references: [id], onDelete: Restrict)
+  performer User     @relation(fields: [performedBy], references: [id], onDelete: Restrict)
+
+  @@index([tankId, feedingTime])
+  @@index([performedBy, feedingTime])
+  @@map("feeding_logs")
+}
+
+model InventorySupply {
+  id           String   @id @default(uuid()) @db.Uuid
+  farmId       String   @map("farm_id") @db.Uuid
+  name         String   @db.VarChar(150)
+  category     String   @db.VarChar(30)
+  unit         String   @db.VarChar(20)
+  quantity     Decimal  @default(0) @db.Decimal(12, 3)
+  unitPrice    Decimal  @default(0) @map("unit_price") @db.Decimal(12, 2)
+  minThreshold Decimal  @default(0) @map("min_threshold") @db.Decimal(12, 3)
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@index([farmId, category, name])
+  @@map("inventory_supplies")
 }
 
 model SeedSupplier {
