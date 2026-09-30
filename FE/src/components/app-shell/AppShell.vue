@@ -17,6 +17,7 @@ const selectedFarm = computed(() => farmContext.farms.find((farm) => farm.id ===
 const isOwner = computed(() => farmContext.farms.some((farm) => farm.role === 'owner'))
 const canViewPondTanks = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(selectedFarm.value?.role))
+const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 onMounted(() => loadFarmContext(true))
 
 function setSidebarMode(mode) {
@@ -91,6 +92,14 @@ async function signOut() {
         </span>
         <span class="nav-label">Nhà cung cấp giống</span>
       </RouterLink>
+        <RouterLink v-if="canViewSeedBatches" class="nav-item" :class="{ active: route.path === '/seed-batches' }" to="/seed-batches">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8h16l-1.5 11h-13L4 8Z"/><path d="M8 8a4 4 0 0 1 8 0M8 13h.01M12 13h.01M16 13h.01"/>
+            </svg>
+          </span>
+          <span class="nav-label">Lô giống</span>
+        </RouterLink>
       </nav>
       <v-menu v-model="modeMenu" location="top start" :offset="10">
         <template #activator="{ props }"><button v-bind="props" class="sidebar-mode-btn" type="button" title="Chế độ hiển thị sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path d="m15 9 3 3-3 3"/></svg></button></template>

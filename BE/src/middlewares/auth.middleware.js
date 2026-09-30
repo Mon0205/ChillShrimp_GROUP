@@ -87,6 +87,28 @@ export async function requireSeedSupplierManager(req, _res, next) {
   } catch (error) { next(error) }
 }
 
+export async function requireSeedBatchViewer(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền xem lô giống.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requireSeedBatchManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager'].includes(membership.role)) {
+      throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực được tiếp nhận lô giống.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
 export async function requireFarmOwner(req, _res, next) {
   try {
     const membership = await loadMembership(req)
