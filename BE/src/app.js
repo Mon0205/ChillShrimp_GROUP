@@ -9,6 +9,7 @@ import { seedSupplierRouter } from './routes/seed-supplier.routes.js'
 import { seedBatchRouter } from './routes/seed-batch.routes.js'
 import { feedingLogRouter } from './routes/feeding-log.routes.js'
 import { inventorySupplyRouter } from './routes/inventory-supply.routes.js'
+import { feedingReportRouter } from './routes/feeding-report.routes.js'
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js'
 
 export const app = express()
@@ -23,6 +24,7 @@ app.use('/api/farms/:farmId/seed-suppliers', seedSupplierRouter)
 app.use('/api/farms/:farmId/seed-batches', seedBatchRouter)
 app.use('/api/farms/:farmId/feeding-logs', feedingLogRouter)
 app.use('/api/farms/:farmId/inventory-supplies', inventorySupplyRouter)
+app.use('/api/farms/:farmId/reports', feedingReportRouter)
 app.use('/api/farms', farmRouter)
 app.use(notFoundHandler)
 app.use(errorHandler)
