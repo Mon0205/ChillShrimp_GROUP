@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { INVENTORY_CATEGORIES, normalizeInventorySupplyInput } from '../utils/inventory-supply.validation.js'
+import { assertInventorySupplyDeletable } from '../utils/inventory-supply.lifecycle.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -95,4 +96,37 @@ export async function updateInventorySupply(req, res) {
   if (input.minThreshold !== undefined) input.minThreshold = toDecimal(input.minThreshold)
   const supply = await prisma.inventorySupply.update({ where: { id: existing.id }, data: input })
   return sendData(res, serializeSupply(supply))
+}
+
+export async function deleteInventorySupply(req, res) {
+  if (!UUID_PATTERN.test(req.params.supplyId || '')) throw createHttpError(400, 'Mã vật tư không hợp lệ.')
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw(Prisma.sql`
+        SELECT "id" FROM "inventory_supplies"
+        WHERE "id" = CAST(${req.params.supplyId} AS UUID)
+          AND "farm_id" = CAST(${req.params.farmId} AS UUID)
+        FOR UPDATE
+      `)
+      if (!locked.length) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
+
+      const supply = await tx.inventorySupply.findFirst({
+        where: { id: req.params.supplyId, farmId: req.params.farmId },
+      })
+      const transactionCount = await tx.inventoryTransaction.count({
+        where: { supplyId: req.params.supplyId },
+      })
+      assertInventorySupplyDeletable({ quantity: supply.quantity, transactionCount })
+      await tx.inventorySupply.delete({ where: { id: supply.id } })
+    })
+  } catch (error) {
+    if (error.status) throw error
+    if (error.code === 'P2003') {
+      throw createHttpError(409, 'Vật tư đã phát sinh giao dịch kho nên không thể xóa.')
+    }
+    throw error
+  }
+
+  return sendData(res, { id: req.params.supplyId, deleted: true })
 }

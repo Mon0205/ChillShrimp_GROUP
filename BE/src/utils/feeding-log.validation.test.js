@@ -25,3 +25,10 @@ test('rejects blank feed name, non-positive amount, invalid status, and invalid 
   assert.throws(() => normalizeFeedingLogInput({ ...validInput, feedCheckStatus: 'unknown' }), /Trạng thái/)
   assert.throws(() => normalizeFeedingLogInput({ ...validInput, feedingTime: 'not-a-date' }), /Thời gian/)
 })
+
+test('accepts an optional supply link and rejects malformed supply ids or unsupported fields', () => {
+  const supplyId = '9cbe76d4-3280-4f7c-b197-c54066daf410'
+  assert.equal(normalizeFeedingLogInput({ ...validInput, supplyId }).supplyId, supplyId)
+  assert.throws(() => normalizeFeedingLogInput({ ...validInput, supplyId: 'not-a-uuid' }), /Mã vật tư thức ăn/)
+  assert.throws(() => normalizeFeedingLogInput({ ...validInput, scheduleId: supplyId }), /không được hỗ trợ/)
+})

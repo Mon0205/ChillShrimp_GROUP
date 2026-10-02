@@ -11,6 +11,7 @@ const supplies = ref([])
 const loading = ref(true)
 const listLoading = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const error = ref('')
 const query = ref('')
 const categoryFilter = ref('')
@@ -21,6 +22,7 @@ const pagination = ref({ total: 0, pageCount: 1 })
 const dialog = ref(false)
 const formRef = ref(null)
 const editingSupply = ref(null)
+const deletingSupply = ref(null)
 const form = ref(emptyForm())
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
@@ -134,6 +136,18 @@ async function saveSupply() {
   finally { saving.value = false }
 }
 
+async function deleteSupply() {
+  if (!deletingSupply.value) return
+  deleting.value = true
+  try {
+    await api(farmUrl(`/inventory-supplies/${encodeURIComponent(deletingSupply.value.id)}`), { method: 'DELETE' })
+    showToast('Đã xóa vật tư.', 'success')
+    deletingSupply.value = null
+    await loadSupplies()
+  } catch (err) { showToast(err.message, 'error') }
+  finally { deleting.value = false }
+}
+
 watch(farmId, () => { page.value = 1; loadSupplies() })
 onMounted(loadPage)
 </script>
@@ -171,7 +185,10 @@ onMounted(loadPage)
               <td><span :class="['quantity', { low: item.isBelowThreshold }]">{{ formatNumber(item.quantity) }} {{ item.unit }}</span><small v-if="item.isBelowThreshold" class="low-note">Dưới ngưỡng</small></td>
               <td>{{ formatNumber(item.unitPrice, 2) }}</td>
               <td>{{ formatNumber(item.minThreshold) }} {{ item.unit }}</td>
-              <td v-if="canManage" class="action-col"><v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${item.name}`" title="Cập nhật vật tư" @click="openEdit(item)" /></td>
+              <td v-if="canManage" class="action-col">
+                <v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${item.name}`" title="Cập nhật vật tư" @click="openEdit(item)" />
+                <v-btn icon="mdi-delete-outline" variant="text" size="small" color="error" :aria-label="`Xóa ${item.name}`" title="Xóa vật tư" @click="deletingSupply = item" />
+              </td>
             </tr>
             <tr v-if="!listLoading && !supplies.length"><td :colspan="canManage ? 7 : 6" class="empty-row">{{ lowStockOnly ? 'Không có vật tư nào dưới ngưỡng.' : 'Chưa có vật tư phù hợp.' }}</td></tr>
           </tbody>
@@ -201,6 +218,17 @@ onMounted(loadPage)
           <v-card-actions><v-spacer /><v-btn variant="text" :disabled="saving" @click="dialog = false">Hủy</v-btn><v-btn color="primary" :loading="saving" @click="saveSupply">Lưu</v-btn></v-card-actions>
         </v-card>
       </v-dialog>
+
+      <v-dialog :model-value="Boolean(deletingSupply)" max-width="460" @update:model-value="(value) => { if (!value && !deleting.value) deletingSupply = null }">
+        <v-card class="form-card">
+          <v-card-title>Xóa vật tư</v-card-title>
+          <v-card-text>
+            <p v-if="deletingSupply">Bạn có chắc muốn xóa <strong>{{ deletingSupply.name }}</strong>?</p>
+            <p class="delete-note">Chỉ vật tư chưa có tồn kho và chưa phát sinh giao dịch mới được xóa. Mặt hàng thức ăn đang được dùng trong nhật ký cho ăn có thể tiếp tục được lưu theo tên đã ghi nhận.</p>
+          </v-card-text>
+          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="deleting" @click="deletingSupply = null">Hủy</v-btn><v-btn color="error" :loading="deleting" @click="deleteSupply">Xóa</v-btn></v-card-actions>
+        </v-card>
+      </v-dialog>
     </section>
   </AppShell>
 </template>
@@ -225,5 +253,6 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .pager { display:flex; align-items:center; gap:8px; }
 .form-card { border-radius:8px !important; }.form-card :deep(.v-card-title) { padding:20px 22px 8px; font-size:18px; font-weight:800; }.form-card :deep(.v-card-text) { padding:12px 22px; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }.full-width { grid-column:1/-1; }
+.delete-note { margin-top:10px; color:#71827e; font-size:13px; }
 @media(max-width:760px) { .page-heading { align-items:flex-start; flex-direction:column; }.filter-row { grid-template-columns:1fr 1fr; }.filter-row .v-btn { grid-column:1/-1; }.table-wrap { overflow-x:auto; }.form-grid { grid-template-columns:1fr; }.full-width { grid-column:auto; } }
 </style>

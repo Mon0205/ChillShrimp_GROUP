@@ -4,6 +4,7 @@ import { createUploadSignature, getOwnedCloudinaryAsset } from '../config/cloudi
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { deriveGrowthMetrics, getQuantityDelta } from '../utils/seed-batch-metrics.js'
+import { isSeedBatchEditable } from '../utils/seed-batch-lifecycle.js'
 
 const BATCH_STATUSES = ['active', 'ready_for_sale', 'sold', 'failed', 'cancelled']
 const BATCH_STATUS_TRANSITIONS = {
@@ -443,6 +444,9 @@ export async function createSeedBatch(req, res) {
 
 export async function updateSeedBatch(req, res) {
   const existing = await findBatch(req, req.params.batchId)
+  if (!isSeedBatchEditable(existing.status)) {
+    throw createHttpError(409, 'Không thể cập nhật thông tin lô đã kết thúc.')
+  }
   const fields = req.membership.role === 'technician' ? TECHNICAL_FIELDS : EDITABLE_FIELDS
   const forbidden = Object.keys(req.body).filter((field) => !fields.includes(field))
   if (forbidden.length) throw createHttpError(403, `Bạn không có quyền cập nhật trường: ${forbidden.join(', ')}.`)

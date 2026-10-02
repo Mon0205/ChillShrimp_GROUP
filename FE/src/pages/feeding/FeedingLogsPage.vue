@@ -8,11 +8,14 @@ import { api } from '../../services/api.js'
 const farmContext = useFarmContext()
 const farms = ref([])
 const tanks = ref([])
+const feedSupplies = ref([])
 const logs = ref([])
 const summary = ref({ amountsByUnit: [], averageFeedingRatePercent: null })
 const loading = ref(true)
 const listLoading = ref(false)
 const saving = ref(false)
+const recommendationLoading = ref(false)
+const recommendationMessage = ref('')
 const error = ref('')
 const formDialog = ref(false)
 const formRef = ref(null)
@@ -21,6 +24,7 @@ const pageSize = 50
 const pagination = ref({ total: 0, pageCount: 1 })
 const filters = ref({ tankId: '', from: '', to: '' })
 const form = ref(emptyForm())
+let recommendationRequest = 0
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
@@ -37,7 +41,7 @@ const unitRules = [requiredRule('Đơn vị'), (v) => String(v || '').trim().len
 
 function emptyForm() {
   return {
-    tankId: '', feedName: '', amount: '', unit: 'kg', biomassSnapshotKg: '',
+    tankId: '', supplyId: '', feedName: '', amount: '', unit: 'kg', biomassSnapshotKg: '',
     feedingRatePercent: '', recommendedAmount: '', feedCheckStatus: 'not_checked',
     feedingTime: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), notes: '',
   }
@@ -74,6 +78,59 @@ async function loadTanks() {
   tanks.value = result.data
 }
 
+async function loadFeedSupplies() {
+  feedSupplies.value = []
+  if (!farmId.value) return
+  const result = await api(farmUrl('/inventory-supplies?category=feed&limit=100'))
+  feedSupplies.value = result.data.items.filter((item) => Number(item.quantity) > 0)
+}
+
+function convertRecommendation(recommendation, targetUnit) {
+  if (!recommendation || !targetUnit) return null
+  const source = recommendation.unit.trim().toLowerCase()
+  const target = targetUnit.trim().toLowerCase()
+  if (source === target) return recommendation.amount
+  if (source === 'kg' && target === 'g') return Number((recommendation.amount * 1000).toFixed(3))
+  if (source === 'g' && target === 'kg') return Number((recommendation.amount / 1000).toFixed(3))
+  return null
+}
+
+async function loadRecommendation() {
+  const requestId = ++recommendationRequest
+  recommendationMessage.value = ''
+  if (!farmId.value || !form.value.tankId) return
+  recommendationLoading.value = true
+  try {
+    const params = new URLSearchParams({ tankId: form.value.tankId })
+    if (form.value.biomassSnapshotKg !== '') params.set('biomassSnapshotKg', String(form.value.biomassSnapshotKg))
+    const result = await api(farmUrl(`/feeding-logs/recommendation?${params}`))
+    if (requestId !== recommendationRequest) return
+    const data = result.data
+    recommendationMessage.value = data.message || ''
+    if (!data.recommendation) return
+    const supply = feedSupplies.value.find((item) => item.id === form.value.supplyId)
+    const amount = convertRecommendation(data.recommendation, supply?.unit || form.value.unit)
+    if (amount !== null) form.value.recommendedAmount = String(amount)
+    if (data.recommendation.ratePercent !== null) form.value.feedingRatePercent = String(data.recommendation.ratePercent)
+    if (form.value.biomassSnapshotKg === '' && data.biomassSnapshotKg) form.value.biomassSnapshotKg = String(data.biomassSnapshotKg)
+    recommendationMessage.value = `${data.recommendation.mealsPerDay ? `Định mức tham khảo ${data.recommendation.mealsPerDay} cữ/ngày. ` : ''}${data.recommendation.sourceReference}${data.recommendation.adjustmentNotes ? ` · ${data.recommendation.adjustmentNotes}` : ''}`
+  } catch (err) {
+    if (requestId === recommendationRequest) recommendationMessage.value = err.message
+  } finally {
+    if (requestId === recommendationRequest) recommendationLoading.value = false
+  }
+}
+
+function selectFeedSupply(supplyId) {
+  form.value.supplyId = supplyId || ''
+  const supply = feedSupplies.value.find((item) => item.id === supplyId)
+  if (supply) {
+    form.value.feedName = supply.name
+    form.value.unit = supply.unit
+  }
+  loadRecommendation()
+}
+
 function buildQuery() {
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
@@ -103,7 +160,7 @@ async function loadPage() {
   error.value = ''
   try {
     await loadFarms()
-    await Promise.all([loadTanks(), loadLogs()])
+    await Promise.all([loadTanks(), loadFeedSupplies(), loadLogs()])
   } catch (err) {
     error.value = err.message
     showToast(err.message, 'error')
@@ -131,6 +188,8 @@ async function saveLog() {
   try {
     const payload = {
       ...form.value,
+      supplyId: form.value.supplyId || null,
+      feedName: feedSupplies.value.find((item) => item.id === form.value.supplyId)?.name || form.value.feedName,
       amount: Number(form.value.amount),
       biomassSnapshotKg: form.value.biomassSnapshotKg === '' ? null : Number(form.value.biomassSnapshotKg),
       feedingRatePercent: rate === '' ? null : Number(rate),
@@ -149,8 +208,12 @@ async function saveLog() {
 watch(farmId, async () => {
   page.value = 1
   filters.value.tankId = ''
-  try { await Promise.all([loadTanks(), loadLogs()]) }
+  try { await Promise.all([loadTanks(), loadFeedSupplies(), loadLogs()]) }
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
+})
+
+watch(() => [form.value.tankId, form.value.biomassSnapshotKg], () => {
+  if (formDialog.value) loadRecommendation()
 })
 
 onMounted(loadPage)
@@ -222,11 +285,14 @@ onMounted(loadPage)
               <div class="form-grid">
                 <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[requiredRule('Ao/bể')]" />
                 <v-text-field v-model="form.feedingTime" type="datetime-local" label="Thời gian *" :rules="[requiredRule('Thời gian')]" />
-                <v-text-field v-model="form.feedName" label="Tên thức ăn *" :rules="feedNameRules" />
-                <div class="amount-unit"><v-text-field v-model="form.amount" type="number" min="0.001" step="0.001" label="Lượng thực tế *" :rules="amountRules" /><v-text-field v-model="form.unit" label="Đơn vị *" :rules="unitRules" /></div>
+                <v-select :model-value="form.supplyId" :items="feedSupplies" item-title="name" item-value="id" label="Lấy thức ăn từ kho (tùy chọn)" clearable @update:model-value="selectFeedSupply" />
+                <v-text-field v-model="form.feedName" label="Tên thức ăn *" :rules="feedNameRules" :readonly="Boolean(form.supplyId)" />
+                <div class="amount-unit"><v-text-field v-model="form.amount" type="number" min="0.001" step="0.001" label="Lượng thực tế *" :rules="amountRules" /><v-text-field v-model="form.unit" label="Đơn vị *" :rules="unitRules" :readonly="Boolean(form.supplyId)" /></div>
                 <v-text-field v-model="form.biomassSnapshotKg" type="number" min="0.001" step="0.001" label="Sinh khối tại thời điểm ghi (kg)" :rules="[optionalPositiveRule('Sinh khối')]" />
                 <v-text-field v-model="form.feedingRatePercent" type="number" min="0" max="100" step="0.001" label="Tỷ lệ cho ăn (%)" />
                 <v-text-field v-model="form.recommendedAmount" type="number" min="0" step="0.001" label="Lượng khuyến nghị" :rules="[optionalNonNegativeRule('Lượng khuyến nghị')]" />
+                <p v-if="recommendationLoading" class="recommendation-note">Đang tra định mức thức ăn…</p>
+                <p v-else-if="recommendationMessage" class="recommendation-note">{{ recommendationMessage }}</p>
                 <v-select v-model="form.feedCheckStatus" label="Kiểm tra sàng ăn" :items="[{ title: 'Chưa kiểm tra', value: 'not_checked' }, { title: 'Đã ăn hết', value: 'consumed' }, { title: 'Còn thức ăn', value: 'leftover' }]" clearable />
                 <v-textarea v-model="form.notes" label="Ghi chú" rows="2" maxlength="4000" counter="4000" class="full-width" />
               </div>
@@ -265,6 +331,7 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .form-card :deep(.v-card-text) { padding:12px 22px; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
 .amount-unit { display:grid; grid-template-columns:1fr 100px; gap:10px; }
+.recommendation-note { grid-column:1/-1; margin:0; color:#617a75; font-size:11px; line-height:1.5; }
 .full-width { grid-column:1/-1; }
 @media(max-width:760px) { .page-heading { align-items:flex-start; flex-direction:column; } .filter-row { grid-template-columns:1fr 1fr; } .filter-row .v-btn { grid-column:1/-1; } .form-grid { grid-template-columns:1fr; } .full-width { grid-column:auto; } .log-table-wrap { overflow-x:auto; } }
 </style>
