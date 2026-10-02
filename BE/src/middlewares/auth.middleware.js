@@ -122,11 +122,11 @@ export async function requireFeedingAccess(req, _res, next) {
   }
 }
 
-export async function requireWaterChangeAccess(req, _res, next) {
+export async function requireCareLogAccess(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n ghi hoáº·c xem nháº­t kÃ½ thay nÆ°á»›c.')
+      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n ghi hoáº·c xem nháº­t kÃ½ chÄƒm sÃ³c ao/bá»ƒ.')
     }
     req.membership = membership
     next()
@@ -153,6 +153,19 @@ export async function requireInventorySupplyManager(req, _res, next) {
     const membership = await loadMembership(req)
     if (!['owner', 'warehouse_staff'].includes(membership.role)) {
       throw createHttpError(403, 'Chỉ Owner hoặc Nhân viên kho mới được quản lý danh mục vật tư.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function requireInventoryUsageAccess(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chỉ Owner hoặc Technician được ghi/xem sử dụng vật tư theo UC07.5.')
     }
     req.membership = membership
     next()

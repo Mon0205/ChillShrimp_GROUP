@@ -20,7 +20,9 @@ const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(s
 const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewFeeding = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewWaterChanges = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewWaterParameters = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewInventorySupplies = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canRecordInventoryUsage = computed(() => ['owner', 'technician'].includes(selectedFarm.value?.role))
 onMounted(() => loadFarmContext(true))
 
 function setSidebarMode(mode) {
@@ -119,6 +121,14 @@ async function signOut() {
           </span>
           <span class="nav-label">Nhật ký thay nước</span>
         </RouterLink>
+        <RouterLink v-if="canViewWaterParameters" class="nav-item" :class="{ active: route.path === '/water-parameter-logs' }" to="/water-parameter-logs">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h4l2-7 4 14 2-7h6" />
+            </svg>
+          </span>
+          <span class="nav-label">Môi trường nước</span>
+        </RouterLink>
         <RouterLink v-if="canViewInventorySupplies" class="nav-item" :class="{ active: route.path === '/inventory-supplies' }" to="/inventory-supplies">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -126,6 +136,14 @@ async function signOut() {
             </svg>
           </span>
           <span class="nav-label">Danh mục vật tư</span>
+        </RouterLink>
+        <RouterLink v-if="canRecordInventoryUsage" class="nav-item" :class="{ active: route.path === '/inventory-usage' }" to="/inventory-usage">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7h16M4 12h10M4 17h7"/><path d="M18 14v6m-3-3h6"/>
+            </svg>
+          </span>
+          <span class="nav-label">Ghi nhận sử dụng</span>
         </RouterLink>
       </nav>
       <v-menu v-model="modeMenu" location="top start" :offset="10">

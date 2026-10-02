@@ -11,6 +11,8 @@ import { feedingLogRouter } from './routes/feeding-log.routes.js'
 import { inventorySupplyRouter } from './routes/inventory-supply.routes.js'
 import { feedingReportRouter } from './routes/feeding-report.routes.js'
 import { waterChangeLogRouter } from './routes/water-change-log.routes.js'
+import { waterParameterLogRouter } from './routes/water-parameter-log.routes.js'
+import { inventoryTransactionRouter } from './routes/inventory-transaction.routes.js'
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js'
 
 export const app = express()
@@ -25,7 +27,9 @@ app.use('/api/farms/:farmId/seed-suppliers', seedSupplierRouter)
 app.use('/api/farms/:farmId/seed-batches', seedBatchRouter)
 app.use('/api/farms/:farmId/feeding-logs', feedingLogRouter)
 app.use('/api/farms/:farmId/water-change-logs', waterChangeLogRouter)
+app.use('/api/farms/:farmId/water-parameter-logs', waterParameterLogRouter)
 app.use('/api/farms/:farmId/inventory-supplies', inventorySupplyRouter)
+app.use('/api/farms/:farmId/inventory-transactions', inventoryTransactionRouter)
 app.use('/api/farms/:farmId/reports', feedingReportRouter)
 app.use('/api/farms', farmRouter)
 app.use(notFoundHandler)
