@@ -122,6 +122,19 @@ export async function requireFeedingAccess(req, _res, next) {
   }
 }
 
+export async function requireWaterChangeAccess(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n ghi hoáº·c xem nháº­t kÃ½ thay nÆ°á»›c.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function requireInventorySupplyViewer(req, _res, next) {
   try {
     const membership = await loadMembership(req)

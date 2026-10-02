@@ -6,6 +6,7 @@ import PondsTanksPage from '../pages/ponds-tanks/PondsTanksPage.vue'
 import SeedSuppliersPage from '../pages/seed-suppliers/SeedSuppliersPage.vue'
 import SeedBatchesPage from '../pages/seed-batches/SeedBatchesPage.vue'
 import FeedingLogsPage from '../pages/feeding/FeedingLogsPage.vue'
+import WaterChangeLogsPage from '../pages/water-changes/WaterChangeLogsPage.vue'
 import InventorySuppliesPage from '../pages/inventory-supplies/InventorySuppliesPage.vue'
 import UsersPage from '../pages/users/UsersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: '/seed-suppliers', component: SeedSuppliersPage, meta: { auth: true } },
     { path: '/seed-batches', component: SeedBatchesPage, meta: { auth: true } },
     { path: '/feeding-logs', component: FeedingLogsPage, meta: { auth: true } },
+    { path: '/water-change-logs', component: WaterChangeLogsPage, meta: { auth: true } },
     { path: '/inventory-supplies', component: InventorySuppliesPage, meta: { auth: true } },
     { path: '/profile', component: ProfilePage, meta: { auth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },

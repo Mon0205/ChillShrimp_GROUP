@@ -32,6 +32,7 @@ model User {
   farmsArchived       Farm[]           @relation("FarmArchiver")
   pondsTanksDeleted   PondTank[]       @relation("PondTankDeleter")
   feedingLogs         FeedingLog[]
+  waterChangeLogs     WaterChangeLog[]
   inventoryTransactions InventoryTransaction[]
   feedGuidelinesApproved FeedGuideline[] @relation("FeedGuidelineApprover")
   seedQualityChecksCreated  SeedQualityCheck[] @relation("SeedQualityCheckChecker")
@@ -128,6 +129,7 @@ model PondTank {
   deleter     User?       @relation("PondTankDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
   seedBatches SeedBatch[]
   feedingLogs FeedingLog[]
+  waterChangeLogs WaterChangeLog[]
   quantityEventsFrom BatchQuantityEvent[] @relation("QuantityEventFromTank")
   quantityEventsTo   BatchQuantityEvent[] @relation("QuantityEventToTank")
 
@@ -162,6 +164,23 @@ model FeedingLog {
   @@index([performedBy, feedingTime])
   @@index([supplyId])
   @@map("feeding_logs")
+}
+
+model WaterChangeLog {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tankId                String   @map("tank_id") @db.Uuid
+  performedBy           String   @map("performed_by")
+  waterChangePercentage Decimal  @map("water_change_percentage") @db.Decimal(5, 2)
+  performedAt           DateTime @map("performed_at") @db.Timestamptz(6)
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tank      PondTank @relation(fields: [tankId], references: [id], onDelete: Restrict)
+  performer User     @relation(fields: [performedBy], references: [id], onDelete: Restrict)
+
+  @@index([tankId, performedAt])
+  @@index([performedBy, performedAt])
+  @@map("water_change_logs")
 }
 
 model InventorySupply {

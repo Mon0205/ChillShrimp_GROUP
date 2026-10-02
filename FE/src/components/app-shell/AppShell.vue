@@ -19,6 +19,7 @@ const canViewPondTanks = computed(() => ['owner', 'area_manager', 'technician'].
 const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(selectedFarm.value?.role))
 const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewFeeding = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewWaterChanges = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewInventorySupplies = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 onMounted(() => loadFarmContext(true))
 
@@ -109,6 +110,14 @@ async function signOut() {
             </svg>
           </span>
           <span class="nav-label">Nhật ký cho ăn</span>
+        </RouterLink>
+        <RouterLink v-if="canViewWaterChanges" class="nav-item" :class="{ active: route.path === '/water-change-logs' }" to="/water-change-logs">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11Z"/><path d="M9 15a3 3 0 0 0 3 3"/>
+            </svg>
+          </span>
+          <span class="nav-label">Nhật ký thay nước</span>
         </RouterLink>
         <RouterLink v-if="canViewInventorySupplies" class="nav-item" :class="{ active: route.path === '/inventory-supplies' }" to="/inventory-supplies">
           <span class="nav-icon" aria-hidden="true">
