@@ -24,6 +24,14 @@ const formRef = ref(null)
 const editingSupply = ref(null)
 const deletingSupply = ref(null)
 const form = ref(emptyForm())
+const importDialog = ref(false)
+const importFormRef = ref(null)
+const importing = ref(false)
+const importTarget = ref(null)
+const importForm = ref(emptyImportForm())
+const importHistoryDialog = ref(false)
+const importHistoryLoading = ref(false)
+const importHistory = ref([])
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
@@ -51,8 +59,17 @@ const priceRules = [requiredRule('Đơn giá'), nonNegativeRule('Đơn giá', 9_
 const thresholdRules = [requiredRule('Ngưỡng cảnh báo'), nonNegativeRule('Ngưỡng cảnh báo', 999_999_999.999, 3)]
 const descriptionRules = [(v) => String(v ?? '').length <= 4000 || 'Mô tả tối đa 4.000 ký tự.']
 
+const importQuantityRule = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 999_999_999.999 && Math.abs(Number(value) * 1000 - Math.round(Number(value) * 1000)) < 1e-7 || 'Số lượng phải lớn hơn 0 và có tối đa 3 chữ số thập phân.'
+const importPriceRule = (value) => Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 9_999_999_999.99 && Math.abs(Number(value) * 100 - Math.round(Number(value) * 100)) < 1e-7 || 'Đơn giá phải không âm và có tối đa 2 chữ số thập phân.'
+const importDateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời gian nhập không hợp lệ.'
+
 function emptyForm() {
   return { name: '', category: 'feed', unit: 'kg', unitPrice: '0', minThreshold: '0', description: '' }
+}
+
+function emptyImportForm() {
+  const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  return { quantity: '', unitPrice: '', transactionDate: localNow, notes: '' }
 }
 
 function farmUrl(path = '') { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
@@ -111,6 +128,53 @@ function openEdit(supply) {
     description: supply.description || '',
   }
   dialog.value = true
+}
+
+function openImport(supply) {
+  importTarget.value = supply
+  importForm.value = { ...emptyImportForm(), unitPrice: supply.unitPrice }
+  importDialog.value = true
+}
+
+async function submitImport() {
+  const validation = await importFormRef.value?.validate()
+  if (!validation?.valid) return showToast('Vui lòng kiểm tra lại thông tin nhập kho.', 'error')
+  if (importForm.value.notes.length > 4000) return showToast('Ghi chú không được vượt quá 4.000 ký tự.', 'error')
+  importing.value = true
+  try {
+    await api(farmUrl('/inventory-transactions/imports'), {
+      method: 'POST',
+      body: JSON.stringify({
+        supplyId: importTarget.value.id,
+        quantity: Number(importForm.value.quantity),
+        unitPrice: Number(importForm.value.unitPrice),
+        transactionDate: new Date(importForm.value.transactionDate).toISOString(),
+        notes: importForm.value.notes.trim() || null,
+      }),
+    })
+    importDialog.value = false
+    showToast('Nhập kho thành công, tồn kho đã được cập nhật.', 'success')
+    await loadSupplies()
+  } catch (err) { showToast(err.message, 'error') }
+  finally { importing.value = false }
+}
+
+async function openImportHistory(supply) {
+  importTarget.value = supply
+  importHistory.value = []
+  importHistoryDialog.value = true
+  importHistoryLoading.value = true
+  try {
+    const result = await api(farmUrl(`/inventory-transactions/imports?supplyId=${encodeURIComponent(supply.id)}&page=1&limit=100`))
+    importHistory.value = result.data.items
+  } catch (err) {
+    importHistoryDialog.value = false
+    showToast(err.message, 'error')
+  } finally { importHistoryLoading.value = false }
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
 async function saveSupply() {
@@ -186,6 +250,8 @@ onMounted(loadPage)
               <td>{{ formatNumber(item.unitPrice, 2) }}</td>
               <td>{{ formatNumber(item.minThreshold) }} {{ item.unit }}</td>
               <td v-if="canManage" class="action-col">
+                <v-btn icon="mdi-tray-arrow-down" variant="text" size="small" :aria-label="`Nhập kho ${item.name}`" title="Nhập kho" @click="openImport(item)" />
+                <v-btn icon="mdi-history" variant="text" size="small" :aria-label="`Lịch sử nhập kho ${item.name}`" title="Lịch sử nhập kho" @click="openImportHistory(item)" />
                 <v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${item.name}`" title="Cập nhật vật tư" @click="openEdit(item)" />
                 <v-btn icon="mdi-delete-outline" variant="text" size="small" color="error" :aria-label="`Xóa ${item.name}`" title="Xóa vật tư" @click="deletingSupply = item" />
               </td>
@@ -219,6 +285,40 @@ onMounted(loadPage)
         </v-card>
       </v-dialog>
 
+      <v-dialog v-model="importDialog" max-width="580">
+        <v-card class="form-card">
+          <v-card-title>Nhập kho{{ importTarget ? ` · ${importTarget.name}` : '' }}</v-card-title>
+          <v-card-text>
+            <v-form ref="importFormRef" @submit.prevent="submitImport">
+              <div class="form-grid">
+                <v-text-field :model-value="importTarget?.unit" label="Đơn vị" readonly />
+                <v-text-field v-model="importForm.quantity" type="number" min="0.001" max="999999999.999" step="0.001" label="Số lượng nhập *" :rules="[requiredRule('Số lượng nhập'), importQuantityRule]" />
+                <v-text-field v-model="importForm.unitPrice" type="number" min="0" max="9999999999.99" step="0.01" label="Đơn giá nhập *" :rules="[requiredRule('Đơn giá nhập'), importPriceRule]" />
+                <v-text-field v-model="importForm.transactionDate" type="datetime-local" label="Thời gian nhập *" :rules="[importDateRule]" />
+                <v-textarea v-model="importForm.notes" label="Ghi chú / mã hóa đơn" rows="2" maxlength="4000" counter="4000" class="full-width" />
+              </div>
+            </v-form>
+            <p class="import-note">Lịch sử nhập kho được lưu; tồn hiện tại và đơn giá vật tư được cập nhật cùng giao dịch.</p>
+          </v-card-text>
+          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="importing" @click="importDialog = false">Hủy</v-btn><v-btn color="primary" :loading="importing" @click="submitImport">Xác nhận nhập</v-btn></v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <v-dialog v-model="importHistoryDialog" max-width="760">
+        <v-card class="form-card">
+          <v-card-title>Lịch sử nhập kho{{ importTarget ? ` · ${importTarget.name}` : '' }}</v-card-title>
+          <v-card-text>
+            <div v-if="importHistoryLoading" class="state-message">Đang tải lịch sử...</div>
+            <div v-else-if="!importHistory.length" class="state-message">Chưa có giao dịch nhập kho.</div>
+            <div v-else class="history-table-wrap"><v-table density="comfortable">
+              <thead><tr><th>Thời gian</th><th>Số lượng</th><th>Đơn giá</th><th>Người nhập</th><th>Ghi chú</th></tr></thead>
+              <tbody><tr v-for="item in importHistory" :key="item.id"><td>{{ formatDateTime(item.transactionDate) }}</td><td>{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td><td>{{ formatNumber(item.unitPrice, 2) }}</td><td>{{ item.creator.displayName || item.creator.email }}</td><td>{{ item.notes || '—' }}</td></tr></tbody>
+            </v-table></div>
+          </v-card-text>
+          <v-card-actions><v-spacer /><v-btn variant="text" @click="importHistoryDialog = false">Đóng</v-btn></v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <v-dialog :model-value="Boolean(deletingSupply)" max-width="460" @update:model-value="(value) => { if (!value && !deleting.value) deletingSupply = null }">
         <v-card class="form-card">
           <v-card-title>Xóa vật tư</v-card-title>
@@ -247,12 +347,13 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .supplies-table :deep(td) { color:#34514c; font-size:12px; }
 .description,.low-note { display:block; margin-top:3px; max-width:260px; overflow:hidden; color:#83918e; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
 .quantity { font-weight:700; }.quantity.low,.low-note { color:#b34a32; }
-.action-col { width:76px; text-align:right !important; }
+.action-col { min-width:170px; text-align:right !important; white-space:nowrap; }
 .empty-row { height:100px; color:#83918e !important; text-align:center; }
 .table-footer { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:0 14px; border-top:1px solid #e5eeeb; color:#71827e; font-size:11px; }
 .pager { display:flex; align-items:center; gap:8px; }
 .form-card { border-radius:8px !important; }.form-card :deep(.v-card-title) { padding:20px 22px 8px; font-size:18px; font-weight:800; }.form-card :deep(.v-card-text) { padding:12px 22px; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }.full-width { grid-column:1/-1; }
 .delete-note { margin-top:10px; color:#71827e; font-size:13px; }
+.import-note { margin:8px 0 0; color:#71827e; font-size:12px; line-height:1.5; }.history-table-wrap { overflow:auto; border:1px solid #dbe9e5; border-radius:6px; }.history-table-wrap :deep(th) { color:#71827e; font-size:10px; text-transform:uppercase; white-space:nowrap; }.history-table-wrap :deep(td) { color:#34514c; font-size:12px; }
 @media(max-width:760px) { .page-heading { align-items:flex-start; flex-direction:column; }.filter-row { grid-template-columns:1fr 1fr; }.filter-row .v-btn { grid-column:1/-1; }.table-wrap { overflow-x:auto; }.form-grid { grid-template-columns:1fr; }.full-width { grid-column:auto; } }
 </style>

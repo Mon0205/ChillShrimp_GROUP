@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
+import { normalizeInventoryImportInput } from '../utils/inventory-import.validation.js'
 import { normalizeInventoryUsageInput } from '../utils/inventory-usage.validation.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -71,6 +72,82 @@ export async function listInventoryUsageTransactions(req, res) {
     prisma.inventoryTransaction.count({ where }),
   ])
   return sendData(res, { items: items.map(serializeTransaction), pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } })
+}
+
+export async function listInventoryImports(req, res) {
+  const { page, limit, skip } = parsePagination(req.query)
+  const supplyId = req.query.supplyId || null
+  const from = parseDate(req.query.from, 'Start date')
+  const to = parseDate(req.query.to, 'End date')
+  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'Supply id is invalid.')
+  if (from && to && from > to) throw createHttpError(400, 'Start date must be on or before end date.')
+
+  const where = {
+    transactionType: 'import',
+    supply: { is: { farmId: req.params.farmId } },
+    ...(supplyId ? { supplyId } : {}),
+    ...(from || to ? { transactionDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+  }
+  const [items, total] = await prisma.$transaction([
+    prisma.inventoryTransaction.findMany({
+      where,
+      include: {
+        supply: { select: { id: true, name: true, category: true, unit: true } },
+        creator: { select: { id: true, displayName: true, email: true } },
+      },
+      orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+      skip,
+      take: limit,
+    }),
+    prisma.inventoryTransaction.count({ where }),
+  ])
+  return sendData(res, { items: items.map(serializeTransaction), pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } })
+}
+
+export async function recordInventoryImport(req, res) {
+  let input
+  try { input = normalizeInventoryImportInput(req.body) }
+  catch (error) { throw createHttpError(400, error.message) }
+
+  const farmId = req.params.farmId
+  const quantity = new Prisma.Decimal(String(input.quantity))
+  const unitPrice = new Prisma.Decimal(String(input.unitPrice))
+  const transaction = await prisma.$transaction(async (tx) => {
+    const lockedSupply = await tx.$queryRaw(Prisma.sql`
+      SELECT "id" FROM "inventory_supplies"
+      WHERE "id" = CAST(${input.supplyId} AS UUID)
+        AND "farm_id" = CAST(${farmId} AS UUID)
+      FOR UPDATE
+    `)
+    if (!lockedSupply.length) throw createHttpError(404, 'Supply was not found in this farm.')
+
+    const supply = await tx.inventorySupply.findFirst({ where: { id: input.supplyId, farmId } })
+    if (!supply) throw createHttpError(404, 'Supply was not found in this farm.')
+
+    const stockUpdate = await tx.inventorySupply.updateMany({
+      where: { id: supply.id, farmId },
+      data: { quantity: { increment: quantity }, unitPrice },
+    })
+    if (!stockUpdate.count) throw createHttpError(409, 'Stock changed while importing. Reload and try again.')
+
+    return tx.inventoryTransaction.create({
+      data: {
+        supplyId: supply.id,
+        createdBy: req.auth.id,
+        transactionType: 'import',
+        quantity,
+        unitPrice,
+        transactionDate: input.transactionDate,
+        notes: input.notes,
+      },
+      include: {
+        supply: { select: { id: true, name: true, category: true, unit: true } },
+        creator: { select: { id: true, displayName: true, email: true } },
+      },
+    })
+  })
+
+  return sendData(res, serializeTransaction(transaction), 201)
 }
 
 export async function recordInventoryUsage(req, res) {
