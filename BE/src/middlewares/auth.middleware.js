@@ -135,6 +135,26 @@ export async function requireCareLogAccess(req, _res, next) {
   }
 }
 
+export async function requireEnvironmentThresholdViewer(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'technician'].includes(membership.role)) {
+      throw createHttpError(403, 'Your farm role cannot view environmental thresholds or alerts.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requireEnvironmentThresholdManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (membership.role !== 'owner') throw createHttpError(403, 'Only the farm owner can configure or approve farm-wide thresholds.')
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
 export async function requireInventorySupplyViewer(req, _res, next) {
   try {
     const membership = await loadMembership(req)

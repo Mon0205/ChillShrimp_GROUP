@@ -223,7 +223,7 @@ onMounted(loadPage)
                 <v-select v-model="form.measurementMethod" :items="methods" label="Phương pháp đo *" :rules="[methodRule]" />
                 <v-text-field v-model="form.measurementDevice" label="Thiết bị đo" maxlength="100" />
                 <v-text-field v-for="metric in measurements" :key="metric.key" v-model="form[metric.key]" type="number" :min="metric.key === 'temperature' ? undefined : 0" :max="metric.key === 'ph' ? 14 : 999999999.999" step="0.001" :rules="measurementRules(metric)" :label="`${metric.title}${metric.unit ? ` (${metric.unit})` : ''}`" />
-                <p class="form-hint">Để trống thông số chưa đo; cần nhập ít nhất một kết quả. Các giá trị ngưỡng/cảnh báo chưa được áp dụng ở bước này.</p>
+                <p class="form-hint">Để trống thông số chưa đo; cần nhập ít nhất một kết quả. Hệ thống sẽ đối chiếu ngưỡng đã được phê duyệt và tạo cảnh báo nếu vượt giới hạn.</p>
                 <v-textarea v-model="form.notes" label="Ghi chú" rows="2" maxlength="4000" counter="4000" class="full-width" />
               </div>
             </v-form>

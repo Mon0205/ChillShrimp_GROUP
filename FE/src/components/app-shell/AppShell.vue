@@ -21,6 +21,7 @@ const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'
 const canViewFeeding = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewWaterChanges = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewWaterParameters = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewEnvironmentThresholds = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewTreatmentLogs = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewInventorySupplies = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canRecordInventoryUsage = computed(() => ['owner', 'technician'].includes(selectedFarm.value?.role))
@@ -129,6 +130,14 @@ async function signOut() {
             </svg>
           </span>
           <span class="nav-label">Môi trường nước</span>
+        </RouterLink>
+        <RouterLink v-if="canViewEnvironmentThresholds" class="nav-item" :class="{ active: route.path === '/environment-thresholds' }" to="/environment-thresholds">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19V5m0 14h16"/><path d="m7 15 4-4 3 2 5-6"/><path d="M16 7h3v3"/>
+            </svg>
+          </span>
+          <span class="nav-label">Ngưỡng môi trường</span>
         </RouterLink>
         <RouterLink v-if="canViewTreatmentLogs" class="nav-item" :class="{ active: route.path === '/treatment-logs' }" to="/treatment-logs">
           <span class="nav-icon" aria-hidden="true">

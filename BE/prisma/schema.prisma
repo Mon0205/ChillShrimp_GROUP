@@ -37,6 +37,8 @@ model User {
   treatmentLogs       TreatmentLog[]
   inventoryTransactions InventoryTransaction[]
   feedGuidelinesApproved FeedGuideline[] @relation("FeedGuidelineApprover")
+  environmentThresholdsCreated  EnvironmentThreshold[] @relation("EnvironmentThresholdCreator")
+  environmentThresholdsApproved EnvironmentThreshold[] @relation("EnvironmentThresholdApprover")
   seedQualityChecksCreated  SeedQualityCheck[] @relation("SeedQualityCheckChecker")
   seedQualityChecksReviewed SeedQualityCheck[] @relation("SeedQualityCheckReviewer")
   batchQuantityEvents BatchQuantityEvent[]
@@ -83,6 +85,8 @@ model Farm {
   seedSuppliers SeedSupplier[]
   inventorySupplies InventorySupply[]
   feedGuidelines FeedGuideline[]
+  environmentThresholds EnvironmentThreshold[]
+  alertsNotifications AlertNotification[]
 
   @@index([status])
   @@map("farms")
@@ -133,6 +137,7 @@ model PondTank {
   feedingLogs FeedingLog[]
   waterChangeLogs WaterChangeLog[]
   waterParameterLogs WaterParameterLog[]
+  environmentalAlerts AlertNotification[]
   treatmentLogs TreatmentLog[]
   quantityEventsFrom BatchQuantityEvent[] @relation("QuantityEventFromTank")
   quantityEventsTo   BatchQuantityEvent[] @relation("QuantityEventToTank")
@@ -211,10 +216,73 @@ model WaterParameterLog {
 
   tank     PondTank @relation(fields: [tankId], references: [id], onDelete: Restrict)
   recorder User     @relation(fields: [recordedBy], references: [id], onDelete: Restrict)
+  alerts   AlertNotification[]
 
   @@index([tankId, recordedAt])
   @@index([recordedBy, recordedAt])
   @@map("water_parameter_logs")
+}
+
+model EnvironmentThreshold {
+  id               String   @id @default(uuid()) @db.Uuid
+  farmId           String   @map("farm_id") @db.Uuid
+  species          String   @db.VarChar(50)
+  developmentStage String   @map("development_stage") @db.VarChar(50)
+  tankType         String   @map("tank_type") @db.VarChar(30)
+  parameterCode    String   @map("parameter_code") @db.VarChar(30)
+  unit             String   @db.VarChar(20)
+  optimalMin       Decimal? @map("optimal_min") @db.Decimal(12, 3)
+  optimalMax       Decimal? @map("optimal_max") @db.Decimal(12, 3)
+  warningMin       Decimal? @map("warning_min") @db.Decimal(12, 3)
+  warningMax       Decimal? @map("warning_max") @db.Decimal(12, 3)
+  dangerMin        Decimal? @map("danger_min") @db.Decimal(12, 3)
+  dangerMax        Decimal? @map("danger_max") @db.Decimal(12, 3)
+  sourceReference  String   @map("source_reference")
+  effectiveFrom    DateTime @map("effective_from") @db.Date
+  effectiveTo      DateTime? @map("effective_to") @db.Date
+  isActive         Boolean  @default(true) @map("is_active")
+  createdBy        String   @map("created_by")
+  approvedBy       String?  @map("approved_by")
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  farm     Farm  @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  creator  User  @relation("EnvironmentThresholdCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver User? @relation("EnvironmentThresholdApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  alerts   AlertNotification[]
+
+  @@index([farmId, isActive, effectiveFrom, effectiveTo])
+  @@index([farmId, species, developmentStage, tankType, parameterCode])
+  @@map("environment_thresholds")
+}
+
+model AlertNotification {
+  id            String   @id @default(uuid()) @db.Uuid
+  farmId        String   @map("farm_id") @db.Uuid
+  batchId       String?  @map("batch_id") @db.Uuid
+  tankId        String?  @map("tank_id") @db.Uuid
+  thresholdId   String?  @map("threshold_id") @db.Uuid
+  sourceLogId   String?  @map("source_log_id") @db.Uuid
+  parameterCode String?  @map("parameter_code") @db.VarChar(30)
+  observedValue Decimal? @map("observed_value") @db.Decimal(12, 3)
+  alertType     String   @map("alert_type") @db.VarChar(30)
+  severity      String   @db.VarChar(20)
+  title         String   @db.VarChar(150)
+  message       String
+  isRead        Boolean  @default(false) @map("is_read")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  farm      Farm                  @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  batch     SeedBatch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  tank      PondTank?             @relation(fields: [tankId], references: [id], onDelete: SetNull)
+  threshold EnvironmentThreshold? @relation(fields: [thresholdId], references: [id], onDelete: SetNull)
+  sourceLog WaterParameterLog?    @relation(fields: [sourceLogId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceLogId, parameterCode])
+  @@index([farmId, alertType, createdAt])
+  @@index([tankId, createdAt])
+  @@map("alerts_notifications")
 }
 
 model TreatmentLog {
@@ -362,6 +430,7 @@ model SeedBatch {
   quantityEvents BatchQuantityEvent[]
   growthSamples GrowthSamplingLog[]
   inventoryTransactions InventoryTransaction[]
+  alerts AlertNotification[]
 
   @@index([tankId, status])
   @@index([supplierId])

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { normalizeWaterParameterLogInput } from '../utils/water-parameter-log.validation.js'
+import { createEnvironmentAlerts } from '../services/environment-threshold.service.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DECIMAL_FIELDS = ['temperature', 'ph', 'salinity', 'dissolvedOxygen', 'nh3', 'tan', 'no2', 'nitrate', 'alkalinity', 'h2s', 'turbidity', 'waterLevelM']
@@ -66,7 +67,7 @@ export async function createWaterParameterLog(req, res) {
 
   const tank = await prisma.pondTank.findFirst({
     where: scopedTankWhere(req, { id: input.tankId }),
-    select: { id: true },
+    select: { id: true, farmId: true, tankType: true, code: true, name: true },
   })
   if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
 
@@ -80,12 +81,16 @@ export async function createWaterParameterLog(req, res) {
   }
   for (const field of DECIMAL_FIELDS) data[field] = input[field] === null ? null : new Prisma.Decimal(String(input[field]))
 
-  const item = await prisma.waterParameterLog.create({
-    data,
-    include: {
-      tank: { select: { id: true, code: true, name: true } },
-      recorder: { select: { id: true, displayName: true, email: true } },
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const log = await tx.waterParameterLog.create({
+      data,
+      include: {
+        tank: { select: { id: true, code: true, name: true } },
+        recorder: { select: { id: true, displayName: true, email: true } },
+      },
+    })
+    const alerts = await createEnvironmentAlerts(tx, { farmId: tank.farmId, tank, log })
+    return { ...log, alerts }
   })
-  return sendData(res, item, 201)
+  return sendData(res, result, 201)
 }

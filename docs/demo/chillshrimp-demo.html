@@ -1,0 +1,1397 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ChillShrimp demo dashboard">
+<title>ChillShrimp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Lexend:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============ Design tokens ============ */
+:root{
+  --accent:#0f766e;
+  --accent-ink:#0b5c55;
+  --accent-soft:#dcf3f0;
+  --accent-strong:#0a4b45;
+  --ink:#132321;
+  --ink-muted:#54655f;
+  --ink-faint:#8296909a;
+  --paper:#f4f7f6;
+  --surface:#ffffff;
+  --surface-2:#eef2f1;
+  --border:#dde5e2;
+  --border-strong:#c6d2ce;
+  --success:#15803d;
+  --success-soft:#dcfce7;
+  --warning:#b45309;
+  --warning-soft:#fef3c7;
+  --critical:#b91c1c;
+  --critical-soft:#fee2e2;
+  --info:#2563eb;
+  --info-soft:#dbeafe;
+  --shadow: 0 1px 2px rgba(15,35,32,.06), 0 8px 24px -12px rgba(15,35,32,.16);
+  --sidebar-bg:#0e2a26;
+  --sidebar-bg-2:#123530;
+  --sidebar-ink:#cfe6e0;
+  --sidebar-ink-dim:#7fa79d;
+  --sidebar-active:#12463f;
+  --radius-sm:8px;
+  --radius-md:12px;
+  --radius-lg:18px;
+  --font-display:"Lexend", ui-sans-serif, system-ui, sans-serif;
+  --font-body:"Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#e7f2ef;
+    --ink-muted:#a7bdb6;
+    --ink-faint:#5f766f;
+    --paper:#0b1615;
+    --surface:#101f1c;
+    --surface-2:#152825;
+    --border:#1f3733;
+    --border-strong:#2b4844;
+    --accent:#2dd4bf;
+    --accent-ink:#7fe9db;
+    --accent-soft:#123a35;
+    --accent-strong:#8beee1;
+    --success:#4ade80;
+    --success-soft:#123a26;
+    --warning:#fbbf24;
+    --warning-soft:#3a2a0c;
+    --critical:#f87171;
+    --critical-soft:#3a1414;
+    --info:#60a5fa;
+    --info-soft:#0f2748;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px -14px rgba(0,0,0,.6);
+    --sidebar-bg:#081615;
+    --sidebar-bg-2:#0c1e1b;
+    --sidebar-active:#153f38;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e7f2ef;
+  --ink-muted:#a7bdb6;
+  --ink-faint:#5f766f;
+  --paper:#0b1615;
+  --surface:#101f1c;
+  --surface-2:#152825;
+  --border:#1f3733;
+  --border-strong:#2b4844;
+  --accent:#2dd4bf;
+  --accent-ink:#7fe9db;
+  --accent-soft:#123a35;
+  --accent-strong:#8beee1;
+  --success:#4ade80;
+  --success-soft:#123a26;
+  --warning:#fbbf24;
+  --warning-soft:#3a2a0c;
+  --critical:#f87171;
+  --critical-soft:#3a1414;
+  --info:#60a5fa;
+  --info-soft:#0f2748;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px -14px rgba(0,0,0,.6);
+  --sidebar-bg:#081615;
+  --sidebar-bg-2:#0c1e1b;
+  --sidebar-active:#153f38;
+}
+
+/* ============ Base ============ */
+*,*::before,*::after{box-sizing:border-box;}
+html{color-scheme:light dark;}
+body{
+  margin:0;
+  min-width:320px;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:14.5px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{
+  font-family:var(--font-display);
+  font-weight:600;
+  color:var(--ink);
+  margin:0;
+  text-wrap:balance;
+}
+p{margin:0;}
+a{color:inherit;}
+button{font-family:inherit;}
+::selection{background:var(--accent-soft);color:var(--accent-strong);}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+.tabular{font-variant-numeric:tabular-nums;}
+.scroll-x{overflow-x:auto;}
+
+/* ============ Login screen ============ */
+#login-screen{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:1.5rem;
+  background:
+    radial-gradient(1100px 520px at 15% -10%, var(--accent-soft), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, var(--info-soft), transparent 55%),
+    var(--paper);
+}
+.login-card{
+  width:min(940px,100%);
+  display:grid;
+  grid-template-columns:1.05fr 1fr;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.login-visual{
+  background:linear-gradient(155deg,var(--accent-strong),var(--accent) 55%,#0a3d38);
+  color:#eafff9;
+  padding:2.4rem 2.2rem;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  position:relative;
+  overflow:hidden;
+}
+.login-visual::after{
+  content:"";
+  position:absolute; inset:auto -30% -40% auto;
+  width:340px; height:340px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, rgba(255,255,255,.16), transparent 65%);
+}
+.brandmark{display:flex;align-items:center;gap:.6rem;font-family:var(--font-display);font-weight:700;font-size:1.15rem;letter-spacing:.01em;}
+.brandmark .dot{width:10px;height:10px;border-radius:50%;background:#eafff9;box-shadow:0 0 0 4px rgba(234,255,249,.25);}
+.login-visual h1{color:#fff;font-size:1.7rem;line-height:1.25;margin-top:1.6rem;}
+.login-visual p.lede{color:#d8fff5;margin-top:.7rem;max-width:34ch;}
+.login-stats{display:flex;gap:1.4rem;margin-top:2rem;position:relative;z-index:1;}
+.login-stats div b{display:block;font-family:var(--font-display);font-size:1.3rem;}
+.login-stats div span{font-size:.72rem;color:#c9f4ea;text-transform:uppercase;letter-spacing:.06em;}
+.login-form-wrap{padding:2.4rem 2.2rem;display:flex;flex-direction:column;gap:1.1rem;}
+.login-form-wrap h2{font-size:1.3rem;}
+.login-form-wrap .muted{color:var(--ink-muted);font-size:.88rem;}
+.field{display:flex;flex-direction:column;gap:.35rem;}
+.field label{font-size:.78rem;font-weight:600;color:var(--ink-muted);}
+.field input,.field select,.field textarea{
+  border:1px solid var(--border-strong);
+  background:var(--surface);
+  color:var(--ink);
+  border-radius:var(--radius-sm);
+  padding:.62rem .75rem;
+  font-size:.92rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.btn{
+  appearance:none;border:1px solid transparent;border-radius:var(--radius-sm);
+  padding:.62rem 1rem;font-size:.88rem;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:.45rem;
+  transition:transform .12s ease, filter .12s ease;
+}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--accent);color:#022e29;}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-ghost{background:transparent;border-color:var(--border-strong);color:var(--ink);}
+.btn-ghost:hover{background:var(--surface-2);}
+.btn-block{width:100%;}
+.btn-sm{padding:.42rem .7rem;font-size:.8rem;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.login-demo-note{
+  background:var(--surface-2); border:1px dashed var(--border-strong); border-radius:var(--radius-sm);
+  padding:.65rem .8rem; font-size:.78rem; color:var(--ink-muted);
+}
+.login-demo-note b{color:var(--ink);}
+#login-screen.hidden{display:none;}
+
+/* ============ App shell ============ */
+#app-shell{display:none;min-height:100vh;grid-template-columns:258px 1fr;}
+#app-shell.active{display:grid;}
+@media (max-width: 900px){
+  #app-shell{grid-template-columns:1fr;}
+  .sidebar{position:fixed;z-index:40;inset:0 auto 0 0;width:258px;transform:translateX(-100%);transition:transform .2s ease;}
+  .sidebar.open{transform:translateX(0);}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(4,12,11,.45);z-index:39;}
+  .scrim.show{display:block;}
+}
+
+.sidebar{
+  background:linear-gradient(180deg,var(--sidebar-bg),var(--sidebar-bg-2));
+  color:var(--sidebar-ink);
+  display:flex;flex-direction:column;
+  padding:1.1rem .85rem;
+  gap:1.2rem;
+}
+.sidebar-brand{display:flex;align-items:center;gap:.6rem;padding:.3rem .4rem .6rem;}
+.sidebar-brand .dot{width:11px;height:11px;border-radius:50%;background:var(--accent-ink);box-shadow:0 0 0 4px rgba(45,212,191,.18);}
+.sidebar-brand span{font-family:var(--font-display);font-weight:700;color:#eafff9;font-size:1.08rem;}
+.sidebar nav{display:flex;flex-direction:column;gap:1.15rem;overflow-y:auto;}
+.nav-group-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--sidebar-ink-dim);padding:0 .5rem;margin-bottom:.35rem;}
+.nav-item{
+  display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;
+  background:transparent;border:none;color:var(--sidebar-ink);
+  padding:.52rem .55rem;border-radius:var(--radius-sm);font-size:.86rem;cursor:pointer;
+}
+.nav-item:hover{background:rgba(255,255,255,.06);}
+.nav-item.active{background:var(--sidebar-active);color:#eafff9;font-weight:600;}
+.nav-item .ic{width:18px;text-align:center;font-size:.95rem;}
+.nav-item .status-dot{margin-left:auto;width:7px;height:7px;border-radius:50%;flex:none;}
+.status-dot.live{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.18);}
+.status-dot.planned{background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.18);}
+.sidebar-legend{margin-top:auto;padding:.75rem .55rem;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:var(--sidebar-ink-dim);display:flex;flex-direction:column;gap:.35rem;}
+.sidebar-legend div{display:flex;align-items:center;gap:.45rem;}
+
+.main-col{display:flex;flex-direction:column;min-width:0;}
+.topbar{
+  display:flex;align-items:center;gap:.9rem;
+  padding:.7rem 1.3rem;border-bottom:1px solid var(--border);
+  background:var(--surface);position:sticky;top:0;z-index:10;
+  flex-wrap:wrap;
+}
+.hamburger{display:none;background:none;border:1px solid var(--border-strong);border-radius:var(--radius-sm);width:34px;height:34px;cursor:pointer;color:var(--ink);}
+@media (max-width:900px){.hamburger{display:inline-flex;align-items:center;justify-content:center;}}
+.view-title{font-family:var(--font-display);font-size:1.05rem;font-weight:600;}
+.farm-switch{position:relative;}
+.farm-switch select{
+  border:1px solid var(--border-strong); background:var(--surface-2); color:var(--ink);
+  border-radius:999px; padding:.4rem .9rem .4rem .7rem; font-size:.8rem; font-weight:600;
+}
+.role-switch{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--ink-muted);}
+.role-switch select{border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);border-radius:999px;padding:.4rem .8rem;font-weight:600;font-size:.78rem;}
+.topbar-spacer{flex:1;}
+.avatar{
+  width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);
+  display:grid;place-items:center;font-weight:700;font-family:var(--font-display);font-size:.85rem;flex:none;
+}
+.toast{
+  position:fixed; right:1.1rem; bottom:1.1rem; background:var(--ink); color:var(--paper);
+  padding:.65rem 1rem; border-radius:var(--radius-sm); font-size:.82rem; box-shadow:var(--shadow);
+  opacity:0; transform:translateY(8px); transition:opacity .2s ease, transform .2s ease; z-index:80; pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+main.content{padding:1.3rem 1.4rem 3rem;max-width:1280px;width:100%;margin:0 auto;}
+.view{display:none;flex-direction:column;gap:1.1rem;}
+.view.active{display:flex;}
+
+.demo-banner{
+  display:flex;align-items:flex-start;gap:.6rem;
+  background:var(--info-soft); border:1px solid var(--border); color:var(--ink);
+  border-radius:var(--radius-md); padding:.75rem .95rem; font-size:.82rem;
+}
+.demo-banner b{color:var(--info);}
+.demo-banner button{margin-left:auto;background:none;border:none;color:var(--ink-muted);cursor:pointer;font-size:.95rem;line-height:1;}
+.demo-banner.hidden{display:none;}
+
+/* cards / sections */
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.section-head h2{font-size:1.15rem;}
+.section-head p{color:var(--ink-muted);font-size:.82rem;margin-top:.2rem;}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow); padding:1.1rem 1.2rem;
+}
+.card-title-row{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin-bottom:.7rem;}
+.card-title-row h3{font-size:.95rem;}
+.card-title-row .muted{color:var(--ink-muted);font-size:.78rem;}
+
+.grid{display:grid;gap:1rem;}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-2{grid-template-columns:1.4fr 1fr;}
+@media (max-width:1080px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-2{grid-template-columns:1fr;} .grid-3{grid-template-columns:1fr 1fr;}}
+@media (max-width:560px){.grid-4{grid-template-columns:1fr;} .grid-3{grid-template-columns:1fr;}}
+
+.stat-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.1rem;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.5rem;}
+.stat-tile .top{display:flex;align-items:center;justify-content:space-between;}
+.stat-tile .label{font-size:.76rem;color:var(--ink-muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.stat-tile .value{font-family:var(--font-display);font-size:1.65rem;font-weight:600;}
+.stat-tile .delta{font-size:.76rem;font-weight:600;}
+.delta.up{color:var(--success);}
+.delta.down{color:var(--critical);}
+.delta.flat{color:var(--ink-muted);}
+.stat-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:1rem;flex:none;}
+
+table{width:100%;border-collapse:collapse;font-size:.86rem;}
+thead th{
+  text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);
+  padding:.5rem .65rem;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+tbody td{padding:.62rem .65rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+.code{font-weight:600;letter-spacing:.01em;}
+
+.chip{display:inline-flex;align-items:center;gap:.35rem;padding:.22rem .58rem;border-radius:999px;font-size:.72rem;font-weight:600;white-space:nowrap;}
+.chip.success{background:var(--success-soft);color:var(--success);}
+.chip.warning{background:var(--warning-soft);color:var(--warning);}
+.chip.critical{background:var(--critical-soft);color:var(--critical);}
+.chip.info{background:var(--info-soft);color:var(--info);}
+.chip.neutral{background:var(--surface-2);color:var(--ink-muted);border:1px solid var(--border);}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+.progress{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;}
+.progress > span{display:block;height:100%;background:var(--accent);border-radius:999px;}
+
+.role-tag{font-size:.72rem;padding:.15rem .5rem;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);color:var(--ink-muted);font-weight:600;}
+
+/* topbar tabs (sub navigation) */
+.subtabs{display:flex;gap:.4rem;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:.1rem;}
+.subtab{background:none;border:none;padding:.5rem .85rem;font-size:.84rem;color:var(--ink-muted);cursor:pointer;border-bottom:2px solid transparent;font-weight:600;}
+.subtab.active{color:var(--accent-ink);border-bottom-color:var(--accent);}
+.subpanel{display:none;}
+.subpanel.active{display:block;}
+
+/* RBAC visibility */
+body[data-role="viewer"] [data-owner-only],
+body[data-role="staff"] [data-owner-only]{display:none !important;}
+body[data-role="viewer"] [data-staff-plus]{display:none !important;}
+.viewer-note{display:none;color:var(--ink-muted);font-size:.78rem;font-style:italic;}
+body[data-role="viewer"] .viewer-note{display:block;}
+
+/* pond / batch cards */
+.pond-card{border:1px solid var(--border);border-radius:var(--radius-md);padding:.85rem .9rem;background:var(--surface);display:flex;flex-direction:column;gap:.5rem;}
+.pond-card .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;}
+.pond-card h4{font-size:.94rem;}
+.pond-card .meta{font-size:.78rem;color:var(--ink-muted);display:flex;flex-direction:column;gap:.15rem;}
+.pond-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.85rem;}
+
+/* AI screen */
+.ai-layout{display:grid;grid-template-columns:1.15fr .85fr;gap:1.1rem;}
+@media (max-width:980px){.ai-layout{grid-template-columns:1fr;}}
+.sample-tray{
+  position:relative;border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:4/3;
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(140% 100% at 80% 90%, rgba(0,0,0,.18), transparent 60%),
+    linear-gradient(160deg,#0a4b45,#0f766e 45%,#0a3d38);
+  border:1px solid var(--border);
+}
+.larva{position:absolute;width:9px;height:4px;border-radius:50%;background:rgba(255,255,255,.55);filter:blur(.2px);}
+.bbox{position:absolute;border:1.5px dashed #ffd166;border-radius:4px;}
+.bbox .tag{
+  position:absolute;top:-1.15rem;left:0;background:#ffd166;color:#3a2600;font-size:.63rem;font-weight:700;
+  padding:.05rem .35rem;border-radius:4px;white-space:nowrap;
+}
+.sample-tray .scale{position:absolute;left:.8rem;bottom:.7rem;color:#eafff9;font-size:.68rem;background:rgba(0,0,0,.28);padding:.2rem .5rem;border-radius:6px;}
+.sample-tray .ring{position:absolute;inset:6%;border:1px dashed rgba(255,255,255,.25);border-radius:50%;}
+.upload-strip{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;}
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem .9rem;}
+.kv{display:flex;flex-direction:column;gap:.15rem;padding:.6rem .7rem;background:var(--surface-2);border-radius:var(--radius-sm);}
+.kv .k{font-size:.7rem;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.04em;}
+.kv .v{font-family:var(--font-display);font-size:1.05rem;font-weight:600;}
+.confidence-bar{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:.3rem;}
+.confidence-bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--warning),var(--success));}
+
+/* alerts */
+.alert-row{display:flex;gap:.8rem;align-items:flex-start;padding:.75rem .2rem;border-bottom:1px solid var(--border);}
+.alert-row:last-child{border-bottom:none;}
+.alert-row .sev{width:8px;align-self:stretch;border-radius:4px;flex:none;}
+.sev.info{background:var(--info);}
+.sev.warning{background:var(--warning);}
+.sev.critical{background:var(--critical);}
+.alert-row.read{opacity:.55;}
+.alert-body{flex:1;min-width:0;}
+.alert-body .title{font-weight:600;font-size:.88rem;}
+.alert-body .msg{font-size:.8rem;color:var(--ink-muted);margin-top:.1rem;}
+.alert-body .meta{font-size:.72rem;color:var(--ink-faint);margin-top:.3rem;}
+
+/* modal */
+.modal-scrim{position:fixed;inset:0;background:rgba(4,12,11,.5);display:none;align-items:center;justify-content:center;z-index:60;padding:1rem;}
+.modal-scrim.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);width:min(440px,100%);padding:1.3rem;display:flex;flex-direction:column;gap:.9rem;}
+.modal h3{font-size:1.05rem;}
+.modal-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:.3rem;}
+
+/* charts */
+.chart-wrap{width:100%;}
+.chart-wrap svg{width:100%;height:auto;display:block;}
+.legend-row{display:flex;gap:1rem;flex-wrap:wrap;font-size:.76rem;color:var(--ink-muted);margin-top:.5rem;}
+.legend-row span{display:inline-flex;align-items:center;gap:.35rem;}
+.legend-row i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+
+.footnote{font-size:.75rem;color:var(--ink-faint);}
+.empty-state{padding:1.6rem;text-align:center;color:var(--ink-muted);font-size:.86rem;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-visual">
+      <div class="brandmark"><span class="dot"></span>ChillShrimp</div>
+      <div>
+        <h1>Số hóa dữ liệu trại tôm/cua giống, từ ao nuôi đến báo cáo.</h1>
+        <p class="lede">Theo dõi môi trường, chăm sóc, kiểm tra mẫu bằng AI, kho vật tư và hiệu quả từng lô giống trên một hệ thống duy nhất.</p>
+      </div>
+      <div class="login-stats">
+        <div><b class="tabular">6</b><span>Ao / bể</span></div>
+        <div><b class="tabular">3</b><span>Lô đang nuôi</span></div>
+        <div><b class="tabular">92%</b><span>Tỷ lệ sống TB</span></div>
+      </div>
+    </div>
+    <div class="login-form-wrap">
+      <div>
+        <h2>Đăng nhập</h2>
+        <p class="muted">Tài khoản được tạo qua lời mời của quản trị viên trang trại.</p>
+      </div>
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" value="an.nguyen@chillshrimp.vn" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="login-pass">Mật khẩu</label>
+        <input id="login-pass" type="password" value="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="enterApp()">Đăng nhập</button>
+      <div class="login-demo-note">
+        <b>Giao diện demo tĩnh.</b> Dữ liệu bên dưới là dữ liệu minh họa dựng theo <code>SRS.md</code>, <code>DATABASE.md</code> và <code>USECASE-SPECIFICATION.md</code> — không gọi API thật. Nút đăng nhập sẽ mở thẳng bảng điều khiển.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="toggleSidebar(false)"></div>
+
+<div id="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="dot"></span><span>ChillShrimp</span></div>
+    <nav id="nav-list"></nav>
+    <div class="sidebar-legend">
+      <div><span class="status-dot live"></span> Đã có trong codebase hiện tại</div>
+      <div><span class="status-dot planned"></span> Định hướng theo SRS, demo giao diện</div>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <header class="topbar">
+      <button class="hamburger" onclick="toggleSidebar(true)" aria-label="Mở menu">☰</button>
+      <span class="view-title" id="view-title">Bảng điều khiển</span>
+      <div class="farm-switch">
+        <select id="farm-select" onchange="switchFarm(this.value)">
+          <option value="Trại giống Chill Bạc Liêu">🏡 Trại giống Chill Bạc Liêu</option>
+          <option value="Trại giống Chill Cần Giờ">🏡 Trại giống Chill Cần Giờ</option>
+        </select>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="role-switch">
+        <span>Xem theo vai trò</span>
+        <select id="role-select" onchange="setRole(this.value)">
+          <option value="owner">Owner</option>
+          <option value="staff">Staff/Technician</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </div>
+      <div class="avatar" id="avatar">AN</div>
+    </header>
+
+    <main class="content">
+      <div class="demo-banner" id="demo-banner">
+        <span>ℹ️</span>
+        <span><b>Demo giao diện ChillShrimp.</b> Bảng điều khiển, Trang trại &amp; Thành viên phản ánh chức năng đã có ở backend. Các màn còn lại minh họa phạm vi mục tiêu trong SRS §3–§5 (ao/bể, lô giống, nhật ký, AI, kho, thu hoạch, cảnh báo, báo cáo) và dùng dữ liệu giả lập. Đổi vai trò ở góc phải để xem giao diện ẩn/hiện thao tác theo phân quyền.</span>
+        <button onclick="document.getElementById('demo-banner').classList.add('hidden')" aria-label="Đóng">✕</button>
+      </div>
+
+      <!-- ===================== DASHBOARD ===================== -->
+      <section class="view" data-view="dashboard">
+        <div class="section-head">
+          <div>
+            <h2>Xin chào, Nguyễn Văn An 👋</h2>
+            <p>Tổng quan <span id="dash-farm-name">Trại giống Chill Bạc Liêu</span> — cập nhật lúc 07:40, 22/08/2026.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" data-owner-only onclick="showToast('Đã xuất báo cáo tổng quan (demo).')">⤓ Xuất tổng quan</button>
+        </div>
+
+        <div class="grid grid-4" id="stat-tiles"></div>
+
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title-row">
+              <h3>Xu hướng pH &amp; nhiệt độ — AO-01</h3>
+              <span class="muted">7 ngày gần nhất</span>
+            </div>
+            <div class="chart-wrap" id="env-trend-chart"></div>
+            <div class="legend-row">
+              <span><i style="background:var(--accent)"></i> pH</span>
+              <span><i style="background:var(--info)"></i> Nhiệt độ (°C)</span>
+              <span><i style="background:var(--warning)"></i> Ngưỡng cảnh báo pH</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title-row">
+              <h3>Cảnh báo chưa xử lý</h3>
+              <span class="muted">3 mục</span>
+            </div>
+            <div id="dash-alerts"></div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:.6rem" onclick="go('alerts')">Xem tất cả cảnh báo →</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row">
+            <h3>Trạng thái ao/bể</h3>
+            <span class="muted">6 ao/bể</span>
+          </div>
+          <div class="pond-grid" id="dash-ponds"></div>
+        </div>
+      </section>
+
+      <!-- ===================== FARM & MEMBERS ===================== -->
+      <section class="view" data-view="farm">
+        <div class="section-head">
+          <div><h2>Trang trại &amp; thành viên</h2><p>Quản lý thông tin trại và phân quyền theo vai trò owner / staff / viewer.</p></div>
+          <button class="btn btn-primary btn-sm" data-owner-only onclick="openInvite()">+ Mời thành viên</button>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title-row"><h3>Thông tin trại</h3><span class="chip success"><span class="dot"></span>Đang hoạt động</span></div>
+            <div class="kv-grid">
+              <div class="kv"><span class="k">Tên trại</span><span class="v" style="font-size:.95rem" id="farm-name-field">Trại giống Chill Bạc Liêu</span></div>
+              <div class="kv"><span class="k">Địa chỉ</span><span class="v" style="font-size:.95rem">Ấp 3, xã Vĩnh Trạch, Bạc Liêu</span></div>
+              <div class="kv"><span class="k">Chủ trại</span><span class="v" style="font-size:.95rem">Nguyễn Văn An</span></div>
+              <div class="kv"><span class="k">Ngày tạo</span><span class="v" style="font-size:.95rem">03/01/2026</span></div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:.8rem" data-owner-only onclick="showToast('Đã lưu thông tin trại (demo).')">Cập nhật thông tin trại</button>
+            <p class="viewer-note">Viewer chỉ xem được thông tin trại, không thể chỉnh sửa.</p>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><h3>Ma trận phân quyền (SRS §2.5)</h3></div>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Chức năng</th><th>Owner</th><th>Staff</th><th>Viewer</th></tr></thead>
+                <tbody id="rbac-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row"><h3>Thành viên trang trại</h3><span class="muted" id="member-count"></span></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Thành viên</th><th>Email</th><th>Vai trò</th><th>Tham gia</th><th>Trạng thái</th><th data-owner-only></th></tr></thead>
+              <tbody id="members-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row"><h3>Lời mời đang chờ</h3></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Email</th><th>Vai trò</th><th>Gửi lúc</th><th>Hết hạn</th><th>Trạng thái</th><th data-owner-only></th></tr></thead>
+              <tbody id="invitations-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PONDS ===================== -->
+      <section class="view" data-view="ponds">
+        <div class="section-head">
+          <div><h2>Ao / bể nuôi</h2><p>Quản lý ao/bể theo trang trại — mã, loại hình, sức chứa, nhân viên phụ trách và trạng thái.</p></div>
+          <button class="btn btn-primary btn-sm" data-owner-only onclick="showToast('Mở form tạo ao/bể (demo — UC-16).')">+ Tạo ao/bể</button>
+        </div>
+        <div class="pond-grid" id="ponds-full-grid"></div>
+      </section>
+
+      <!-- ===================== BATCHES ===================== -->
+      <section class="view" data-view="batches">
+        <div class="section-head">
+          <div><h2>Lô giống</h2><p>Theo dõi vòng đời lô giống từ khi thả đến thu hoạch, số lượng ước tính và tỷ lệ sống.</p></div>
+          <button class="btn btn-primary btn-sm" data-owner-only onclick="showToast('Mở form tạo lô giống (demo — UC-23).')">+ Tạo lô giống</button>
+        </div>
+        <div class="card">
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Mã lô</th><th>Loài</th><th>Giai đoạn</th><th>Ao/bể</th><th>Ngày thả</th><th class="tabular">SL ban đầu</th><th class="tabular">SL ước tính</th><th>Tỷ lệ sống</th><th>Trạng thái</th></tr></thead>
+              <tbody id="batches-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== LOGS ===================== -->
+      <section class="view" data-view="logs">
+        <div class="section-head">
+          <div><h2>Nhật ký môi trường &amp; chăm sóc</h2><p>Thông số nước, cho ăn, thay nước và thuốc/chế phẩm theo từng ao/bể và lô giống.</p></div>
+        </div>
+        <div class="subtabs" id="logs-subtabs"></div>
+
+        <div class="subpanel active" data-panel="env">
+          <div class="grid grid-2" style="margin-top:.9rem;">
+            <div class="card">
+              <div class="card-title-row"><h3>Log thông số môi trường — AO-01</h3><button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở form ghi log môi trường (demo — UC-31).')">+ Ghi log</button></div>
+              <div class="scroll-x">
+                <table>
+                  <thead><tr><th>Thời điểm</th><th>pH</th><th>Nhiệt độ</th><th>Độ mặn</th><th>DO</th><th>NH3</th><th>Trạng thái</th></tr></thead>
+                  <tbody id="env-log-table"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title-row"><h3>Ngưỡng cảnh báo áp dụng</h3><span class="muted" data-owner-only>Cấu hình bởi Owner</span></div>
+              <table>
+                <thead><tr><th>Chỉ số</th><th>Cảnh báo</th><th>Nghiêm trọng</th></tr></thead>
+                <tbody id="threshold-table"></tbody>
+              </table>
+              <button class="btn btn-ghost btn-sm" style="margin-top:.7rem" data-owner-only onclick="showToast('Mở cấu hình ngưỡng (demo — UC-33).')">Cấu hình ngưỡng</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="feeding">
+          <div class="card" style="margin-top:.9rem;">
+            <div class="card-title-row"><h3>Nhật ký cho ăn</h3><button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở form ghi nhật ký cho ăn (demo — UC-34).')">+ Ghi nhật ký</button></div>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Thời điểm</th><th>Ao/bể</th><th>Lô</th><th>Thức ăn</th><th class="tabular">Khối lượng (kg)</th><th>Ca</th><th>Người ghi</th></tr></thead>
+                <tbody id="feeding-log-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="water">
+          <div class="card" style="margin-top:.9rem;">
+            <div class="card-title-row"><h3>Nhật ký thay nước</h3><button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở form ghi nhật ký thay nước (demo — UC-36).')">+ Ghi nhật ký</button></div>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Thời điểm</th><th>Ao/bể</th><th>Tỷ lệ thay</th><th class="tabular">Thể tích (m³)</th><th>Vật liệu dùng</th><th>Người ghi</th></tr></thead>
+                <tbody id="water-log-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="treatment">
+          <div class="card" style="margin-top:.9rem;">
+            <div class="card-title-row"><h3>Nhật ký thuốc / hóa chất / chế phẩm</h3><button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở form ghi nhật ký xử lý (demo — UC-38).')">+ Ghi nhật ký</button></div>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Thời điểm</th><th>Ao/bể</th><th>Sản phẩm</th><th>Loại</th><th class="tabular">Liều lượng</th><th>Mục đích</th></tr></thead>
+                <tbody id="treatment-log-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== AI ===================== -->
+      <section class="view" data-view="ai">
+        <div class="section-head">
+          <div><h2>Kiểm tra mẫu bằng AI</h2><p>Chọn ao/bể → lô giống → lấy mẫu → chụp/tải ảnh → AI đếm số lượng → xác nhận kết quả (SRS §2.4.2, §4.6).</p></div>
+        </div>
+        <div class="ai-layout">
+          <div class="card">
+            <div class="card-title-row"><h3>Mẫu LOT-2026-015 · Bể ương BE-02</h3><span class="chip info"><span class="dot"></span>Đã xử lý AI</span></div>
+            <div class="sample-tray" id="sample-tray"></div>
+            <div class="upload-strip">
+              <button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở trình chụp / chọn ảnh (demo — UC-40).')">📷 Chụp / tải ảnh khác</button>
+              <button class="btn btn-primary btn-sm" id="ai-run-btn" data-staff-plus onclick="runAI()">▶ Gửi AI phân tích lại</button>
+              <span class="footnote">Thể tích mẫu: 250 ml · model <code>shrimp-count-v0.3</code></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><h3>Kết quả phân tích</h3><span class="muted">reviewed bởi Trần Thị Bích</span></div>
+            <div class="kv-grid">
+              <div class="kv"><span class="k">Số lượng AI đếm</span><span class="v tabular">1.284 con</span></div>
+              <div class="kv"><span class="k">Số đếm hiệu chỉnh</span><span class="v tabular">1.260 con</span></div>
+              <div class="kv"><span class="k">Mật độ mẫu</span><span class="v tabular">5,04 con/ml</span></div>
+              <div class="kv"><span class="k">Ước tính tổng đàn</span><span class="v tabular">≈ 618.000 con</span></div>
+              <div class="kv"><span class="k">Kích thước TB</span><span class="v tabular">11,2 mm</span></div>
+              <div class="kv"><span class="k">Độ đồng đều</span><span class="v tabular">86,5%</span></div>
+            </div>
+            <div style="margin-top:.85rem;">
+              <div class="card-title-row" style="margin-bottom:.3rem;"><h3 style="font-size:.82rem;">Độ tin cậy (confidence)</h3><span class="tabular" style="font-weight:700;">91%</span></div>
+              <div class="confidence-bar"><span style="width:91%"></span></div>
+            </div>
+            <div class="login-demo-note" style="margin-top:.9rem;">
+              Kết quả AI chỉ mang tính hỗ trợ tham khảo (FR-AI-10). Staff/Technician cần đối chiếu thực tế trước khi xác nhận.
+            </div>
+            <div class="modal-actions" style="justify-content:flex-start;margin-top:.2rem;">
+              <button class="btn btn-primary btn-sm" data-staff-plus onclick="showToast('Đã xác nhận kết quả AI (demo — UC-45).')">✓ Xác nhận kết quả</button>
+              <button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở form hiệu chỉnh số đếm (demo — UC-46).')">✎ Hiệu chỉnh thủ công</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row"><h3>Lịch sử kiểm tra AI</h3></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Thời điểm</th><th>Lô</th><th>Ao/bể</th><th class="tabular">Số đếm</th><th class="tabular">Mật độ</th><th>Confidence</th><th>Trạng thái</th></tr></thead>
+              <tbody id="ai-history-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== INVENTORY ===================== -->
+      <section class="view" data-view="inventory">
+        <div class="section-head">
+          <div><h2>Kho vật tư</h2><p>Thức ăn, thuốc, hóa chất, chế phẩm — tồn kho, ngưỡng tối thiểu và lịch sử giao dịch.</p></div>
+          <div style="display:flex;gap:.5rem;">
+            <button class="btn btn-ghost btn-sm" data-owner-only onclick="showToast('Mở form tạo vật tư (demo — UC-49).')">+ Vật tư mới</button>
+            <button class="btn btn-primary btn-sm" data-staff-plus onclick="showToast('Mở form nhập/xuất kho (demo — UC-52/53).')">↕ Nhập / xuất kho</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Vật tư</th><th>Danh mục</th><th>Đơn vị</th><th class="tabular">Tồn kho</th><th class="tabular">Ngưỡng tối thiểu</th><th class="tabular">Đơn giá</th><th>Trạng thái</th></tr></thead>
+              <tbody id="inventory-table"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><h3>Giao dịch kho gần đây</h3></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Thời điểm</th><th>Vật tư</th><th>Loại giao dịch</th><th class="tabular">Số lượng</th><th class="tabular">Thành tiền</th><th>Người thực hiện</th></tr></thead>
+              <tbody id="inventory-tx-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== EXPENSES ===================== -->
+      <section class="view" data-view="expenses">
+        <div class="section-head">
+          <div><h2>Chi phí theo lô</h2><p>Chi phí thức ăn, thuốc/hóa chất, con giống và chi phí khác ghi nhận theo từng lô giống.</p></div>
+          <button class="btn btn-primary btn-sm" data-owner-only onclick="showToast('Mở form ghi chi phí (demo — UC-56).')">+ Ghi chi phí</button>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title-row"><h3>Chi phí theo lô — LOT-2026-014</h3><span class="muted tabular">Tổng: 42.850.000đ</span></div>
+            <div class="chart-wrap" id="expense-breakdown-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><h3>Chi tiết chi phí</h3></div>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Ngày</th><th>Loại chi phí</th><th>Nguồn</th><th class="tabular">Số tiền</th></tr></thead>
+                <tbody id="expense-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SALES ===================== -->
+      <section class="view" data-view="sales">
+        <div class="section-head">
+          <div><h2>Thu hoạch &amp; xuất bán</h2><p>Hồ sơ thu hoạch, khách hàng, số lượng, đơn giá, doanh thu và tỷ lệ sống.</p></div>
+          <button class="btn btn-primary btn-sm" data-owner-only onclick="showToast('Mở form tạo hồ sơ thu hoạch (demo — UC-58).')">+ Tạo hồ sơ thu hoạch</button>
+        </div>
+        <div class="card">
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Lô</th><th>Khách hàng</th><th>Ngày</th><th class="tabular">SL thu hoạch</th><th class="tabular">Đơn giá /1000 con</th><th class="tabular">Doanh thu</th><th>Tỷ lệ sống</th><th>Trạng thái</th></tr></thead>
+              <tbody id="sales-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== ALERTS ===================== -->
+      <section class="view" data-view="alerts">
+        <div class="section-head">
+          <div><h2>Cảnh báo</h2><p>Sinh tự động khi môi trường vượt ngưỡng, kết quả AI bất thường hoặc vật tư sắp hết.</p></div>
+        </div>
+        <div class="card">
+          <div id="alerts-full-list"></div>
+        </div>
+      </section>
+
+      <!-- ===================== REPORTS ===================== -->
+      <section class="view" data-view="reports">
+        <div class="section-head">
+          <div><h2>Báo cáo</h2><p>Chi phí, doanh thu và diễn biến môi trường theo thời gian.</p></div>
+          <button class="btn btn-ghost btn-sm" data-owner-only onclick="showToast('Đã tạo file báo cáo PDF (demo — FR-REPORT-08).')">⤓ Xuất PDF/CSV</button>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><h3>Chi phí so với doanh thu theo tháng</h3><span class="muted">6 tháng gần nhất, đơn vị triệu đồng</span></div>
+          <div class="chart-wrap" id="cost-revenue-chart"></div>
+          <div class="legend-row"><span><i style="background:var(--critical)"></i> Chi phí</span><span><i style="background:var(--success)"></i> Doanh thu</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title-row"><h3>Nhật ký thay đổi gần đây (audit log)</h3></div>
+          <div class="scroll-x">
+            <table>
+              <thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th></tr></thead>
+              <tbody id="audit-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="modal-scrim" id="invite-modal">
+  <div class="modal">
+    <h3>Mời thành viên</h3>
+    <p class="muted" style="font-size:.82rem;">Hệ thống kiểm tra email trước khi tạo lời mời (UC-12). Người nhận sẽ đặt mật khẩu qua link gửi email.</p>
+    <div class="field"><label>Email</label><input type="email" placeholder="ten@vidu.vn" id="invite-email"></div>
+    <div class="field">
+      <label>Vai trò</label>
+      <select id="invite-role">
+        <option value="staff">Staff/Technician — nhập dữ liệu vận hành</option>
+        <option value="viewer">Viewer — chỉ xem</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeInvite()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="sendInvite()">Gửi lời mời</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Mock data — dựng theo docs/SRS.md, DATABASE.md, USECASE-SPECIFICATION.md
+   ============================================================ */
+
+const NAV = [
+  {group:"Tổng quan", items:[
+    {id:"dashboard", label:"Bảng điều khiển", icon:"◆", status:"live"},
+  ]},
+  {group:"Trang trại", items:[
+    {id:"farm", label:"Trang trại & thành viên", icon:"⌂", status:"live"},
+    {id:"ponds", label:"Ao / bể", icon:"▦", status:"planned"},
+    {id:"batches", label:"Lô giống", icon:"⬡", status:"planned"},
+  ]},
+  {group:"Vận hành", items:[
+    {id:"logs", label:"Nhật ký chăm sóc", icon:"≋", status:"planned"},
+    {id:"ai", label:"Kiểm tra mẫu AI", icon:"◎", status:"planned"},
+  ]},
+  {group:"Kho & tài chính", items:[
+    {id:"inventory", label:"Kho vật tư", icon:"▤", status:"planned"},
+    {id:"expenses", label:"Chi phí theo lô", icon:"฿", status:"planned"},
+    {id:"sales", label:"Thu hoạch & xuất bán", icon:"⇄", status:"planned"},
+  ]},
+  {group:"Giám sát", items:[
+    {id:"alerts", label:"Cảnh báo", icon:"▲", status:"planned"},
+    {id:"reports", label:"Báo cáo", icon:"▥", status:"planned"},
+  ]},
+];
+
+const VIEW_TITLES = {
+  dashboard:"Bảng điều khiển", farm:"Trang trại & thành viên", ponds:"Ao / bể",
+  batches:"Lô giống", logs:"Nhật ký môi trường & chăm sóc", ai:"Kiểm tra mẫu AI",
+  inventory:"Kho vật tư", expenses:"Chi phí theo lô", sales:"Thu hoạch & xuất bán",
+  alerts:"Cảnh báo", reports:"Báo cáo",
+};
+
+const MEMBERS = [
+  {name:"Nguyễn Văn An", email:"an.nguyen@chillshrimp.vn", role:"owner", joined:"03/01/2026", status:"active"},
+  {name:"Trần Thị Bích", email:"bich.tran@chillshrimp.vn", role:"staff", joined:"10/01/2026", status:"active"},
+  {name:"Lê Hoàng Nam", email:"nam.le@chillshrimp.vn", role:"staff", joined:"22/02/2026", status:"active"},
+  {name:"Phạm Quốc Huy", email:"huy.pham@partner.vn", role:"viewer", joined:"14/03/2026", status:"active"},
+];
+const INVITATIONS = [
+  {email:"thao.vo@chillshrimp.vn", role:"staff", sent:"18/08/2026", expires:"25/08/2026", status:"pending"},
+  {email:"khang.dang@chillshrimp.vn", role:"viewer", sent:"05/08/2026", expires:"12/08/2026", status:"cancelled"},
+];
+
+const PONDS = [
+  {code:"AO-01", name:"Ao đất số 1", kind:"Ao đất", volume:"1.200 m³", assignee:"Trần Thị Bích", status:"active"},
+  {code:"BE-02", name:"Bể composite ương", kind:"Bể · hatchery", volume:"18 m³", assignee:"Lê Hoàng Nam", status:"active"},
+  {code:"BE-03", name:"Bể ương PL", kind:"Bể · nursery", volume:"22 m³", assignee:"Lê Hoàng Nam", status:"cleaning"},
+  {code:"AO-04", name:"Ao đất số 4", kind:"Ao đất", volume:"980 m³", assignee:"Trần Thị Bích", status:"active"},
+  {code:"BE-05", name:"Bể cách ly", kind:"Bể · quarantine", volume:"12 m³", assignee:"—", status:"maintenance"},
+  {code:"AO-06", name:"Ao đất số 6", kind:"Ao đất", volume:"1.050 m³", assignee:"—", status:"preparing"},
+];
+const POND_STATUS_LABEL = {active:["Đang hoạt động","success"], cleaning:["Đang vệ sinh","warning"], maintenance:["Bảo trì","critical"], preparing:["Đang chuẩn bị","info"], empty:["Trống","neutral"], inactive:["Ngừng dùng","neutral"]};
+
+const BATCHES = [
+  {code:"LOT-2026-014", species:"Tôm thẻ chân trắng", stage:"PL12", pond:"AO-01", stocked:"12/06/2026", initial:500000, current:462000, survival:92, status:"active"},
+  {code:"LOT-2026-015", species:"Tôm sú", stage:"PL8", pond:"BE-02", stocked:"30/07/2026", initial:240000, current:224000, survival:93, status:"active"},
+  {code:"LOT-2026-011", species:"Cua biển", stage:"Megalopa", pond:"AO-04", stocked:"02/05/2026", initial:80000, current:65000, survival:81, status:"ready_for_harvest"},
+  {code:"LOT-2026-016", species:"Tôm thẻ chân trắng", stage:"Nauplius", pond:"BE-03", stocked:"—", initial:300000, current:null, survival:null, status:"draft"},
+  {code:"LOT-2026-009", species:"Tôm thẻ chân trắng", stage:"Thu hoạch", pond:"AO-06", stocked:"20/03/2026", initial:520000, current:458000, survival:88, status:"harvested"},
+  {code:"LOT-2026-008", species:"Tôm sú", stage:"Juvenile", pond:"BE-05", stocked:"01/03/2026", initial:180000, current:0, survival:0, status:"failed"},
+];
+const BATCH_STATUS_LABEL = {active:["Đang nuôi","success"], ready_for_harvest:["Sẵn sàng thu hoạch","info"], draft:["Nháp","neutral"], harvested:["Đã thu hoạch","neutral"], failed:["Thất bại","critical"], cancelled:["Đã hủy","neutral"]};
+
+const ENV_LOGS = [
+  {time:"22/08 06:00", ph:7.9, temp:29.1, sal:14.2, do_:5.1, nh3:0.02, abnormal:false},
+  {time:"21/08 18:00", ph:7.6, temp:30.4, sal:14.0, do_:4.6, nh3:0.05, abnormal:false},
+  {time:"21/08 06:00", ph:6.9, temp:28.7, sal:14.5, do_:4.1, nh3:0.09, abnormal:true},
+  {time:"20/08 18:00", ph:7.8, temp:29.8, sal:14.1, do_:5.0, nh3:0.03, abnormal:false},
+  {time:"20/08 06:00", ph:7.7, temp:28.9, sal:14.3, do_:4.8, nh3:0.03, abnormal:false},
+  {time:"19/08 18:00", ph:7.5, temp:30.1, sal:13.9, do_:4.4, nh3:0.06, abnormal:false},
+];
+const THRESHOLDS = [
+  {param:"pH", warn:"7.0 – 8.5", crit:"< 6.5 hoặc > 9.0"},
+  {param:"Nhiệt độ", warn:"27 – 31 °C", crit:"< 25 hoặc > 33 °C"},
+  {param:"DO (oxy hòa tan)", warn:"≥ 4.0 mg/l", crit:"< 3.0 mg/l"},
+  {param:"NH3", warn:"≤ 0.05 mg/l", crit:"> 0.1 mg/l"},
+];
+const FEEDING_LOGS = [
+  {time:"22/08 06:30", pond:"AO-01", batch:"LOT-2026-014", feed:"CP-9000 công nghiệp", qty:18.5, shift:"Sáng", by:"Trần Thị Bích"},
+  {time:"21/08 17:30", pond:"BE-02", batch:"LOT-2026-015", feed:"Artemia tươi", qty:2.1, shift:"Chiều", by:"Lê Hoàng Nam"},
+  {time:"21/08 11:00", pond:"AO-01", batch:"LOT-2026-014", feed:"CP-9000 công nghiệp", qty:17.8, shift:"Trưa", by:"Trần Thị Bích"},
+  {time:"20/08 06:15", pond:"AO-04", batch:"LOT-2026-011", feed:"Thức ăn viên cua", qty:9.4, shift:"Sáng", by:"Trần Thị Bích"},
+];
+const WATER_LOGS = [
+  {time:"21/08 15:00", pond:"AO-01", percent:"20%", volume:"240 m³", material:"Vôi CaCO₃ 15kg", by:"Trần Thị Bích"},
+  {time:"19/08 15:20", pond:"BE-02", percent:"35%", volume:"6.3 m³", material:"—", by:"Lê Hoàng Nam"},
+  {time:"18/08 09:00", pond:"AO-04", percent:"15%", volume:"147 m³", material:"Men vi sinh EM", by:"Trần Thị Bích"},
+];
+const TREATMENT_LOGS = [
+  {time:"20/08 07:00", pond:"AO-01", product:"Iodine 10%", type:"Hóa chất", dose:"1,2 ppm", purpose:"Sát khuẩn định kỳ"},
+  {time:"17/08 06:40", pond:"BE-05", product:"Oxytetracycline", type:"Thuốc", dose:"3 g/m³", purpose:"Điều trị đốm trắng (LOT-2026-008)"},
+  {time:"15/08 16:00", pond:"BE-02", product:"Men vi sinh Bacillus", type:"Chế phẩm", dose:"5 g/m³", purpose:"Ổn định nền đáy bể"},
+];
+
+const INVENTORY = [
+  {name:"CP-9000 công nghiệp", cat:"Thức ăn", unit:"kg", qty:340, min:150, price:"32.000đ", status:"ok"},
+  {name:"Artemia tươi (trứng)", cat:"Thức ăn", unit:"kg", qty:8, min:10, status:"low", price:"1.850.000đ"},
+  {name:"Iodine 10%", cat:"Hóa chất", unit:"lít", qty:22, min:8, price:"185.000đ", status:"ok"},
+  {name:"Oxytetracycline", cat:"Thuốc", unit:"kg", qty:3.4, min:3, price:"420.000đ", status:"ok"},
+  {name:"Men vi sinh Bacillus", cat:"Chế phẩm", unit:"kg", qty:1.2, min:4, price:"260.000đ", status:"low"},
+  {name:"Vôi CaCO₃", cat:"Hóa chất", unit:"kg", qty:180, min:100, price:"6.500đ", status:"ok"},
+];
+const INVENTORY_TX = [
+  {time:"21/08 15:00", item:"Vôi CaCO₃", type:"Xuất kho", qty:"-15 kg", amount:"97.500đ", by:"Trần Thị Bích"},
+  {time:"19/08 09:00", item:"CP-9000 công nghiệp", type:"Nhập kho", qty:"+200 kg", amount:"6.400.000đ", by:"Nguyễn Văn An"},
+  {time:"18/08 09:00", item:"Men vi sinh EM", type:"Xuất kho", qty:"-9 kg", amount:"52.000đ", by:"Trần Thị Bích"},
+  {time:"12/08 10:00", item:"Artemia tươi (trứng)", type:"Điều chỉnh", qty:"-1.5 kg", amount:"—", by:"Nguyễn Văn An"},
+];
+
+const EXPENSES = [
+  {date:"21/08/2026", type:"Hóa chất xử lý nước", source:"treatment_logs", amount:"1.470.000đ"},
+  {date:"20/08/2026", type:"Thức ăn công nghiệp", source:"feeding_logs", amount:"3.920.000đ"},
+  {date:"14/08/2026", type:"Con giống PL12", source:"manual", amount:"28.000.000đ"},
+  {date:"05/08/2026", type:"Nhân công vận hành", source:"manual", amount:"9.460.000đ"},
+];
+const EXPENSE_BREAKDOWN = [
+  {label:"Con giống", value:28.0, color:"var(--accent)"},
+  {label:"Thức ăn", value:8.9, color:"var(--info)"},
+  {label:"Thuốc/hóa chất", value:2.5, color:"var(--warning)"},
+  {label:"Nhân công", value:3.45, color:"var(--ink-faint)"},
+];
+
+const SALES = [
+  {batch:"LOT-2026-009", customer:"Cty TNHH Giống thủy sản Minh Phú", date:"18/07/2026", qty:"458.000 con", price:"185.000đ", revenue:"84.730.000đ", survival:"88%", status:"completed"},
+  {batch:"LOT-2026-011", customer:"Trại nuôi cua Cần Giờ", date:"—", qty:"—", price:"—", revenue:"—", survival:"81% (ước tính)", status:"draft"},
+];
+const SALES_STATUS_LABEL = {draft:["Nháp","neutral"],confirmed:["Đã xác nhận","info"],completed:["Hoàn tất","success"],cancelled:["Đã hủy","critical"]};
+
+const ALERTS = [
+  {sev:"critical", title:"pH vượt ngưỡng nghiêm trọng — AO-01", msg:"pH đo lúc 21/08 06:00 = 6.9, thấp hơn ngưỡng cảnh báo 7.0. Cần kiểm tra và xử lý sớm.", meta:"Nguồn: water_parameter_logs · 21/08/2026 06:05", read:false},
+  {sev:"warning", title:"Mật độ AI bất thường — LOT-2026-015", msg:"Kết quả kiểm tra mẫu cho mật độ thấp hơn 12% so với lần đo trước, cần đối chiếu thực tế.", meta:"Nguồn: ai_inspections · 20/08/2026 14:20", read:false},
+  {sev:"warning", title:"Vật tư sắp hết — Artemia tươi (trứng)", msg:"Tồn kho còn 8 kg, thấp hơn ngưỡng tối thiểu 10 kg.", meta:"Nguồn: inventory_supplies · 19/08/2026 09:10", read:false},
+  {sev:"info", title:"Men vi sinh Bacillus dưới ngưỡng", msg:"Tồn kho còn 1.2 kg trên ngưỡng tối thiểu 4 kg, cân nhắc đặt hàng thêm.", meta:"Nguồn: inventory_supplies · 12/08/2026 10:30", read:true},
+  {sev:"info", title:"Lô LOT-2026-011 sẵn sàng thu hoạch", msg:"Đã đạt kích thước mục tiêu theo kế hoạch, có thể lập hồ sơ thu hoạch.", meta:"Nguồn: seed_batches · 10/08/2026 08:00", read:true},
+];
+
+const AI_HISTORY = [
+  {time:"20/08 14:20", batch:"LOT-2026-015", pond:"BE-02", count:"1.284", density:"5,04 con/ml", conf:"91%", status:"reviewed"},
+  {time:"15/08 09:10", batch:"LOT-2026-014", pond:"AO-01", count:"2.940", density:"4,70 con/ml", conf:"88%", status:"reviewed"},
+  {time:"08/08 09:00", batch:"LOT-2026-011", pond:"AO-04", count:"612", density:"—", conf:"79%", status:"completed"},
+  {time:"02/08 10:40", batch:"LOT-2026-016", pond:"BE-03", count:"—", density:"—", conf:"—", status:"failed"},
+];
+const AI_STATUS_LABEL = {pending:["Đang chờ","neutral"], processing:["Đang xử lý","info"], completed:["Hoàn tất","success"], reviewed:["Đã xác nhận","success"], failed:["Lỗi","critical"]};
+
+const AUDIT = [
+  {time:"21/08 15:02", actor:"Trần Thị Bích", action:"update", entity:"ponds_tanks · AO-01 (xuất kho vôi CaCO₃)"},
+  {time:"20/08 14:22", actor:"Trần Thị Bích", action:"review", entity:"ai_inspections · LOT-2026-015"},
+  {time:"19/08 09:05", actor:"Nguyễn Văn An", action:"create", entity:"inventory_transactions · nhập CP-9000"},
+  {time:"18/08 10:00", actor:"Nguyễn Văn An", action:"invite", entity:"farm_invitations · thao.vo@chillshrimp.vn"},
+];
+
+const RBAC_ROWS = [
+  ["Quản lý trang trại","Toàn quyền","Không","Xem"],
+  ["Quản lý thành viên","Toàn quyền","Không","Không"],
+  ["Quản lý ao/bể","Toàn quyền","Theo phân công","Xem"],
+  ["Ghi nhật ký chăm sóc","Có","Có","Không"],
+  ["Xác nhận/hiệu chỉnh AI","Có","Có","Không"],
+  ["Quản lý kho/vật tư","Có","Theo quyền","Xem"],
+  ["Thu hoạch/xuất bán","Có","Theo quyền","Xem"],
+  ["Xóa trang trại","Có","Không","Không"],
+];
+
+/* ============================================================
+   Render helpers
+   ============================================================ */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const fmtInt = n => n===null||n===undefined ? "—" : n.toLocaleString("vi-VN");
+
+function chip(label, tone){ return `<span class="chip ${tone}"><span class="dot"></span>${label}</span>`; }
+
+function renderNav(){
+  const wrap = $("#nav-list");
+  wrap.innerHTML = NAV.map(g => `
+    <div>
+      <div class="nav-group-label">${g.group}</div>
+      ${g.items.map(it => `
+        <button class="nav-item" data-nav="${it.id}" onclick="go('${it.id}')">
+          <span class="ic">${it.icon}</span><span>${it.label}</span>
+          <span class="status-dot ${it.status}" title="${it.status==='live' ? 'Đã có trong codebase' : 'Định hướng theo SRS'}"></span>
+        </button>`).join("")}
+    </div>`).join("");
+}
+
+function go(viewId){
+  $$(".view").forEach(v => v.classList.toggle("active", v.dataset.view === viewId));
+  $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.nav === viewId));
+  $("#view-title").textContent = VIEW_TITLES[viewId] || "ChillShrimp";
+  toggleSidebar(false);
+  window.scrollTo({top:0,behavior:"instant"});
+}
+
+function toggleSidebar(open){
+  $("#sidebar").classList.toggle("open", !!open);
+  $("#scrim").classList.toggle("show", !!open);
+}
+
+function setRole(role){
+  document.body.dataset.role = role;
+  const initials = {owner:"AN", staff:"TB", viewer:"QH"}[role];
+  $("#avatar").textContent = initials;
+  showToast("Đang xem giao diện theo vai trò: " + ({owner:"Owner",staff:"Staff/Technician",viewer:"Viewer"}[role]));
+}
+
+function switchFarm(name){
+  $("#dash-farm-name").textContent = name;
+  $("#farm-name-field").textContent = name;
+  showToast("Đã chuyển sang " + name + " (dữ liệu minh họa giữ nguyên trong bản demo).");
+}
+
+let toastTimer;
+function showToast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+function openInvite(){ $("#invite-modal").classList.add("open"); }
+function closeInvite(){ $("#invite-modal").classList.remove("open"); }
+function sendInvite(){
+  const email = $("#invite-email").value.trim();
+  if(!email){ showToast("Vui lòng nhập email trước khi gửi lời mời."); return; }
+  closeInvite();
+  showToast("Đã tạo lời mời cho " + email + " (demo — UC-11).");
+  $("#invite-email").value = "";
+}
+
+function enterApp(){
+  $("#login-screen").classList.add("hidden");
+  $("#app-shell").classList.add("active");
+  renderAll();
+  go("dashboard");
+}
+
+/* ---------- Dashboard ---------- */
+function renderStatTiles(){
+  const data = [
+    {label:"Trang trại quản lý", value:"2", delta:"+0 so với tháng trước", tone:"flat", icon:"⌂", bg:"var(--accent-soft)", fg:"var(--accent-ink)"},
+    {label:"Ao/bể đang hoạt động", value:"4 / 6", delta:"2 ao đang chuẩn bị / bảo trì", tone:"flat", icon:"▦", bg:"var(--info-soft)", fg:"var(--info)"},
+    {label:"Lô giống đang nuôi", value:"3", delta:"1 sẵn sàng thu hoạch", tone:"up", icon:"⬡", bg:"var(--success-soft)", fg:"var(--success)"},
+    {label:"Cảnh báo chưa xử lý", value:"3", delta:"1 nghiêm trọng · 2 cảnh báo", tone:"down", icon:"▲", bg:"var(--critical-soft)", fg:"var(--critical)"},
+  ];
+  $("#stat-tiles").innerHTML = data.map(d => `
+    <div class="stat-tile">
+      <div class="top">
+        <span class="label">${d.label}</span>
+        <span class="stat-icon" style="background:${d.bg};color:${d.fg}">${d.icon}</span>
+      </div>
+      <span class="value tabular">${d.value}</span>
+      <span class="delta ${d.tone}">${d.delta}</span>
+    </div>`).join("");
+}
+
+function renderDashAlerts(){
+  $("#dash-alerts").innerHTML = ALERTS.filter(a=>!a.read).slice(0,3).map(a => `
+    <div class="alert-row">
+      <div class="sev ${a.sev}"></div>
+      <div class="alert-body">
+        <div class="title">${a.title}</div>
+        <div class="meta">${a.meta}</div>
+      </div>
+    </div>`).join("");
+}
+
+function pondCard(p, full){
+  const [label, tone] = POND_STATUS_LABEL[p.status];
+  return `<div class="pond-card">
+    <div class="row1">
+      <div><h4>${p.code}</h4><div class="meta">${p.name}</div></div>
+      ${chip(label, tone)}
+    </div>
+    <div class="meta">
+      <span>${p.kind} · ${p.volume}</span>
+      <span>Phụ trách: ${p.assignee}</span>
+    </div>
+    ${full ? `<button class="btn btn-ghost btn-sm" data-staff-plus onclick="showToast('Mở chi tiết ${p.code} (demo — UC-18).')">Xem chi tiết</button>` : ""}
+  </div>`;
+}
+function renderPonds(){
+  $("#dash-ponds").innerHTML = PONDS.map(p=>pondCard(p,false)).join("");
+  $("#ponds-full-grid").innerHTML = PONDS.map(p=>pondCard(p,true)).join("");
+}
+
+/* ---------- Farm / members ---------- */
+function renderFarm(){
+  $("#rbac-table").innerHTML = RBAC_ROWS.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
+  $("#member-count").textContent = MEMBERS.length + " thành viên";
+  $("#members-table").innerHTML = MEMBERS.map(m=>{
+    const initials = m.name.split(" ").slice(-2).map(w=>w[0]).join("").toUpperCase();
+    return `<tr>
+      <td style="display:flex;align-items:center;gap:.6rem;">
+        <span class="avatar" style="width:28px;height:28px;font-size:.68rem;">${initials}</span>${m.name}
+      </td>
+      <td>${m.email}</td>
+      <td><span class="role-tag">${m.role}</span></td>
+      <td>${m.joined}</td>
+      <td>${chip("Đang hoạt động","success")}</td>
+      <td data-owner-only><button class="btn btn-ghost btn-sm" onclick="showToast('Mở đổi vai trò / xóa thành viên (demo — UC-13/UC-14).')">Quản lý</button></td>
+    </tr>`;
+  }).join("");
+  $("#invitations-table").innerHTML = INVITATIONS.map(i=>`
+    <tr>
+      <td>${i.email}</td>
+      <td><span class="role-tag">${i.role}</span></td>
+      <td>${i.sent}</td>
+      <td>${i.expires}</td>
+      <td>${i.status==="pending" ? chip("Đang chờ","warning") : chip("Đã hủy","neutral")}</td>
+      <td data-owner-only>${i.status==="pending" ? `<button class="btn btn-ghost btn-sm" onclick="showToast('Đã hủy lời mời (demo — UC-15).')">Hủy</button>` : ""}</td>
+    </tr>`).join("");
+}
+
+/* ---------- Batches ---------- */
+function renderBatches(){
+  $("#batches-table").innerHTML = BATCHES.map(b=>{
+    const [label,tone] = BATCH_STATUS_LABEL[b.status];
+    const survivalBar = b.survival!==null ? `<div style="min-width:90px;"><div class="progress"><span style="width:${b.survival}%;background:${b.survival<70?'var(--critical)':b.survival<85?'var(--warning)':'var(--success)'}"></span></div><span class="footnote tabular">${b.survival}%</span></div>` : "—";
+    return `<tr>
+      <td class="code">${b.code}</td>
+      <td>${b.species}</td>
+      <td>${b.stage}</td>
+      <td>${b.pond}</td>
+      <td>${b.stocked}</td>
+      <td class="tabular">${fmtInt(b.initial)}</td>
+      <td class="tabular">${b.current!==null?fmtInt(b.current):"—"}</td>
+      <td>${survivalBar}</td>
+      <td>${chip(label,tone)}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- Logs ---------- */
+function renderLogsSubtabs(){
+  const tabs = [{id:"env",label:"Môi trường"},{id:"feeding",label:"Cho ăn"},{id:"water",label:"Thay nước"},{id:"treatment",label:"Thuốc/chế phẩm"}];
+  $("#logs-subtabs").innerHTML = tabs.map((t,i)=>`<button class="subtab ${i===0?'active':''}" data-tab="${t.id}" onclick="switchLogTab('${t.id}')">${t.label}</button>`).join("");
+}
+function switchLogTab(id){
+  $$(".subtab").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  $$(".subpanel").forEach(p=>p.classList.toggle("active", p.dataset.panel===id));
+}
+function renderLogs(){
+  $("#env-log-table").innerHTML = ENV_LOGS.map(l=>`
+    <tr>
+      <td>${l.time}</td>
+      <td class="tabular">${l.ph}</td>
+      <td class="tabular">${l.temp}°C</td>
+      <td class="tabular">${l.sal} ‰</td>
+      <td class="tabular">${l.do_}</td>
+      <td class="tabular">${l.nh3}</td>
+      <td>${l.abnormal ? chip("Bất thường","critical") : chip("Bình thường","success")}</td>
+    </tr>`).join("");
+  $("#threshold-table").innerHTML = THRESHOLDS.map(t=>`<tr><td>${t.param}</td><td>${t.warn}</td><td>${t.crit}</td></tr>`).join("");
+  $("#feeding-log-table").innerHTML = FEEDING_LOGS.map(f=>`<tr><td>${f.time}</td><td>${f.pond}</td><td class="code">${f.batch}</td><td>${f.feed}</td><td class="tabular">${f.qty}</td><td>${f.shift}</td><td>${f.by}</td></tr>`).join("");
+  $("#water-log-table").innerHTML = WATER_LOGS.map(w=>`<tr><td>${w.time}</td><td>${w.pond}</td><td class="tabular">${w.percent}</td><td class="tabular">${w.volume}</td><td>${w.material}</td><td>${w.by}</td></tr>`).join("");
+  $("#treatment-log-table").innerHTML = TREATMENT_LOGS.map(t=>`<tr><td>${t.time}</td><td>${t.pond}</td><td>${t.product}</td><td>${t.type}</td><td class="tabular">${t.dose}</td><td>${t.purpose}</td></tr>`).join("");
+}
+
+/* ---------- AI sample tray (deterministic pseudo-random) ---------- */
+function seededRandom(seed){ let s = seed; return () => { s = (s*9301+49297) % 233280; return s/233280; }; }
+function renderSampleTray(){
+  const rnd = seededRandom(42);
+  const tray = $("#sample-tray");
+  let html = `<div class="ring"></div>`;
+  const points = [];
+  for(let i=0;i<46;i++){
+    const x = 8 + rnd()*84, y = 10 + rnd()*78, rot = Math.floor(rnd()*360);
+    points.push({x,y});
+    html += `<span class="larva" style="left:${x}%;top:${y}%;transform:rotate(${rot}deg);"></span>`;
+  }
+  const boxes = [2,7,11,15,19,23,28,33,37,41];
+  boxes.forEach((idx,i)=>{
+    const p = points[idx];
+    const w = 6+rnd()*3, h = 4+rnd()*2.5;
+    const conf = Math.floor(84 + rnd()*14);
+    html += `<div class="bbox" style="left:${(p.x-w/1.4).toFixed(1)}%;top:${(p.y-h*1.6).toFixed(1)}%;width:${(w*1.9).toFixed(1)}%;height:${(h*3.4).toFixed(1)}%;">
+      <span class="tag">${conf}%</span>
+    </div>`;
+  });
+  html += `<span class="scale">⟷ 250 ml mẫu · x40</span>`;
+  tray.innerHTML = html;
+}
+function runAI(){
+  const btn = $("#ai-run-btn");
+  btn.disabled = true; btn.textContent = "⏳ Đang xử lý…";
+  setTimeout(()=>{
+    renderSampleTray();
+    btn.disabled = false; btn.textContent = "▶ Gửi AI phân tích lại";
+    showToast("AI đã xử lý xong mẫu (demo — UC-42, trạng thái completed).");
+  }, 900);
+}
+function renderAIHistory(){
+  $("#ai-history-table").innerHTML = AI_HISTORY.map(a=>{
+    const [label,tone]=AI_STATUS_LABEL[a.status];
+    return `<tr><td>${a.time}</td><td class="code">${a.batch}</td><td>${a.pond}</td><td class="tabular">${a.count}</td><td class="tabular">${a.density}</td><td class="tabular">${a.conf}</td><td>${chip(label,tone)}</td></tr>`;
+  }).join("");
+}
+
+/* ---------- Inventory / expenses / sales ---------- */
+function renderInventory(){
+  $("#inventory-table").innerHTML = INVENTORY.map(i=>`
+    <tr>
+      <td>${i.name}</td><td>${i.cat}</td><td>${i.unit}</td>
+      <td class="tabular">${i.qty}</td><td class="tabular">${i.min}</td><td class="tabular">${i.price}</td>
+      <td>${i.status==="low" ? chip("Sắp hết","critical") : chip("Ổn định","success")}</td>
+    </tr>`).join("");
+  $("#inventory-tx-table").innerHTML = INVENTORY_TX.map(t=>`<tr><td>${t.time}</td><td>${t.item}</td><td>${t.type}</td><td class="tabular">${t.qty}</td><td class="tabular">${t.amount}</td><td>${t.by}</td></tr>`).join("");
+}
+function renderExpenses(){
+  $("#expense-table").innerHTML = EXPENSES.map(e=>`<tr><td>${e.date}</td><td>${e.type}</td><td><code>${e.source}</code></td><td class="tabular">${e.amount}</td></tr>`).join("");
+  const total = EXPENSE_BREAKDOWN.reduce((s,x)=>s+x.value,0);
+  let y=0;
+  const bars = EXPENSE_BREAKDOWN.map(b=>{
+    const w = (b.value/total*100);
+    const el = `<rect x="${y}%" y="0" width="${w}%" height="28" fill="${b.color}" rx="4"></rect>`;
+    y += w;
+    return el;
+  }).join("");
+  $("#expense-breakdown-chart").innerHTML = `
+    <svg viewBox="0 0 400 28" preserveAspectRatio="none" style="height:28px;">${bars}</svg>
+    <div class="legend-row">${EXPENSE_BREAKDOWN.map(b=>`<span><i style="background:${b.color}"></i>${b.label} · ${b.value.toFixed(1)}tr</span>`).join("")}</div>`;
+}
+function renderSales(){
+  $("#sales-table").innerHTML = SALES.map(s=>{
+    const [label,tone]=SALES_STATUS_LABEL[s.status];
+    return `<tr><td class="code">${s.batch}</td><td>${s.customer}</td><td>${s.date}</td><td class="tabular">${s.qty}</td><td class="tabular">${s.price}</td><td class="tabular">${s.revenue}</td><td>${s.survival}</td><td>${chip(label,tone)}</td></tr>`;
+  }).join("");
+}
+
+/* ---------- Alerts ---------- */
+function alertRow(a){
+  return `<div class="alert-row ${a.read?'read':''}">
+    <div class="sev ${a.sev}"></div>
+    <div class="alert-body">
+      <div class="title">${a.title}</div>
+      <div class="msg">${a.msg}</div>
+      <div class="meta">${a.meta}</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" data-staff-plus onclick="this.closest('.alert-row').classList.toggle('read')">${a.read?'Đánh dấu chưa đọc':'Đánh dấu đã đọc'}</button>
+  </div>`;
+}
+function renderAlerts(){
+  $("#alerts-full-list").innerHTML = ALERTS.map(alertRow).join("");
+}
+
+/* ---------- Charts (inline SVG) ---------- */
+function lineChart(el, series, opts){
+  const w=560,h=170,pad=28;
+  const allY = series.flatMap(s=>s.data);
+  const min=Math.min(...allY), max=Math.max(...allY);
+  const n = series[0].data.length;
+  const xAt = i => pad + (i*(w-pad*2)/(n-1));
+  const yAt = v => h-pad - ((v-min)/(max-min||1))*(h-pad*2);
+  let svg = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${opts.label||''}">`;
+  for(let g=0; g<=3; g++){
+    const gy = pad + g*(h-pad*2)/3;
+    svg += `<line x1="${pad}" y1="${gy}" x2="${w-pad}" y2="${gy}" stroke="var(--border)" stroke-width="1"/>`;
+  }
+  series.forEach(s=>{
+    const pts = s.data.map((v,i)=>`${xAt(i)},${yAt(v)}`).join(" ");
+    const area = `${xAt(0)},${h-pad} ${pts} ${xAt(n-1)},${h-pad}`;
+    if(s.area) svg += `<polygon points="${area}" fill="${s.color}" opacity="0.12"></polygon>`;
+    svg += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+    s.data.forEach((v,i)=>{ svg += `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="${i===n-1?3.4:2.2}" fill="${s.color}"/>`; });
+  });
+  if(opts.threshold!==undefined){
+    svg += `<line x1="${pad}" y1="${yAt(opts.threshold)}" x2="${w-pad}" y2="${yAt(opts.threshold)}" stroke="var(--warning)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+  }
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+function renderEnvTrendChart(){
+  const days = ["17/08","18/08","19/08","20/08","21/08","22/08"];
+  lineChart($("#env-trend-chart"), [
+    {data:[7.7,7.8,7.5,7.8,7.3,7.9], color:"var(--accent)", area:true},
+    {data:[29.0,28.9,30.1,29.8,30.4,29.1], color:"var(--info)"},
+  ], {threshold:7.0, label:"pH và nhiệt độ 7 ngày"});
+}
+function barChart(el, categories, series, opts){
+  const w=640,h=220,pad=32, gap=14;
+  const allV = series.flatMap(s=>s.data);
+  const max = Math.max(...allV)*1.15;
+  const groupW = (w-pad*2)/categories.length;
+  const barW = (groupW-gap)/series.length;
+  let svg = `<svg viewBox="0 0 ${w} ${h}">`;
+  for(let g=0; g<=3; g++){
+    const gy = pad + g*(h-pad*2-20)/3;
+    svg += `<line x1="${pad}" y1="${gy}" x2="${w-pad}" y2="${gy}" stroke="var(--border)" stroke-width="1"/>`;
+  }
+  categories.forEach((cat,ci)=>{
+    series.forEach((s,si)=>{
+      const v = s.data[ci];
+      const barH = (v/max)*(h-pad*2-20);
+      const x = pad + ci*groupW + si*barW + gap/2;
+      const y = h-pad-20-barH;
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(barW-4).toFixed(1)}" height="${barH.toFixed(1)}" rx="3" fill="${s.color}"/>`;
+    });
+    svg += `<text x="${(pad+ci*groupW+groupW/2).toFixed(1)}" y="${h-8}" font-size="11" fill="var(--ink-muted)" text-anchor="middle">${cat}</text>`;
+  });
+  el.innerHTML = svg;
+}
+function renderCostRevenueChart(){
+  const months = ["T3","T4","T5","T6","T7","T8"];
+  barChart($("#cost-revenue-chart"), months, [
+    {data:[62,58,71,66,84,79], color:"var(--critical)"},
+    {data:[0,0,0,95,0,0].map((v,i)=>[70,74,88,95,110,0][i]), color:"var(--success)"},
+  ], {});
+}
+
+function renderAll(){
+  renderNav();
+  renderStatTiles();
+  renderDashAlerts();
+  renderPonds();
+  renderFarm();
+  renderBatches();
+  renderLogsSubtabs();
+  renderLogs();
+  renderSampleTray();
+  renderAIHistory();
+  renderInventory();
+  renderExpenses();
+  renderSales();
+  renderAlerts();
+  renderEnvTrendChart();
+  renderCostRevenueChart();
+  $("#audit-table").innerHTML = AUDIT.map(a=>`<tr><td>${a.time}</td><td>${a.actor}</td><td>${a.action}</td><td>${a.entity}</td></tr>`).join("");
+  setRole("owner");
+}
+
+window.addEventListener("resize", ()=>{ renderEnvTrendChart(); renderCostRevenueChart(); });
+</script>
+</body>
+</html>
