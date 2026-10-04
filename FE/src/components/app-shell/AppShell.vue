@@ -21,6 +21,7 @@ const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'
 const canViewFeeding = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewWaterChanges = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewWaterParameters = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewTreatmentLogs = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canViewInventorySupplies = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const canRecordInventoryUsage = computed(() => ['owner', 'technician'].includes(selectedFarm.value?.role))
 onMounted(() => loadFarmContext(true))
@@ -129,6 +130,14 @@ async function signOut() {
           </span>
           <span class="nav-label">Môi trường nước</span>
         </RouterLink>
+        <RouterLink v-if="canViewTreatmentLogs" class="nav-item" :class="{ active: route.path === '/treatment-logs' }" to="/treatment-logs">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 3h6l1 4H8l1-4Z"/><path d="M8 7h8l2 13H6L8 7Z"/><path d="M9 12h6M10 16h4"/>
+            </svg>
+          </span>
+          <span class="nav-label">Nhật ký thuốc/chế phẩm</span>
+        </RouterLink>
         <RouterLink v-if="canViewInventorySupplies" class="nav-item" :class="{ active: route.path === '/inventory-supplies' }" to="/inventory-supplies">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -200,7 +209,11 @@ async function signOut() {
 .sidebar.collapsed { width: 72px; padding-inline: 10px; }
 .sidebar.collapsed:hover { width: 250px; padding-inline: 14px; box-shadow: 12px 0 30px rgba(8,80,70,.2); }
 .sidebar.collapsed:not(:hover) .nav-item { width: 48px; height: 48px; justify-content: center; gap: 0; padding: 9px; margin-inline: auto; }
-.sidebar-nav { display: grid; gap: 8px; }
+.sidebar-nav { min-height: 0; flex: 1 1 auto; display: grid; align-content: start; gap: 8px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(225,255,249,.42) transparent; }
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { border: 1px solid transparent; border-radius: 8px; background: rgba(225,255,249,.38); background-clip: padding-box; }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(225,255,249,.68); background-clip: padding-box; }
 .nav-item { padding: 13px 14px; display: flex; align-items: center; gap: 11px; border-radius: 12px; color: #e8fffa; text-decoration: none; font-size: 13px; font-weight: 600; }
 .nav-item.active, .nav-item:hover { color: white; background: #06685b; }
 .nav-icon { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 9px; background: rgba(255,255,255,.12); }

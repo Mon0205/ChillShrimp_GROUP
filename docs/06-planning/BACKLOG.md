@@ -32,7 +32,7 @@ Quy ước ưu tiên: **P0** bắt buộc cho MVP, **P1** quan trọng, **P2** m
 
 - [ ] **CARE-01 · P0** Nhật ký cho ăn: loại thức ăn, lượng, thời điểm và người thực hiện.
 - [ ] **CARE-02 · P0** Nhật ký thay nước: lượng/tỷ lệ, thời điểm và ghi chú.
-- [ ] **CARE-03 · P0** Nhật ký thuốc/chế phẩm: liều lượng, đơn vị, mục đích và chi phí.
+- [ ] **CARE-03 · P0** Nhật ký thuốc/chế phẩm: liều lượng, đơn vị, mục đích và chi phí. Đã có UC05.6 cùng trừ kho khi chọn vật tư; còn thiếu tổng hợp/hiển thị chi phí sử dụng.
 - [ ] **CARE-04 · P1** Lập lịch, nhắc việc và đánh dấu hoàn thành.
 - [ ] **ENV-01 · P0** Nhập thông số môi trường và hiển thị lịch sử theo ao/bể.
 - [ ] **ENV-02 · P0** Cấu hình ngưỡng theo chỉ số, loài và giai đoạn nuôi.
