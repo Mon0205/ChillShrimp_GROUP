@@ -15,8 +15,8 @@ export async function readNeonSession(req, res) {
 
 export async function getMe(req, res) {
   const session = await readNeonSession(req, res)
-  await requireAccessSession(req, res, session.user.id)
+  const accessSession = await requireAccessSession(req, res, session.user.id)
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, email: true, username: true, displayName: true, phone: true } })
   if (!user) throw createHttpError(403, 'Tài khoản chưa được cấp quyền vào hệ thống.')
-  return sendData(res, { ...user, ...await accountAccess(user) })
+  return sendData(res, { ...user, ...await accountAccess(user), sessionExpiresAt: accessSession.expiresAt })
 }

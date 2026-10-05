@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { api } from '../services/api.js'
 import { showToast } from './toast.js'
 import { resetFarmContext } from './farm-context.js'
@@ -7,7 +7,9 @@ const auth = reactive({ user: null, ready: false })
 
 export async function loadUser() {
   try { auth.user = (await api('/auth/me')).data }
-  catch { auth.user = null }
+  catch (error) {
+    if (error.status === 401 || error.status === 403) auth.user = null
+  }
   finally { auth.ready = true }
   return auth.user
 }
@@ -31,45 +33,55 @@ export async function logout() {
 
 export function useAuth() { return auth }
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000
-const HEARTBEAT_MS = 5 * 60 * 1000
 let sessionHandlingInstalled = false
 
 export function installSessionHandling(router) {
   if (sessionHandlingInstalled) return
   sessionHandlingInstalled = true
 
-  let lastActivity = Date.now()
-  let activitySinceHeartbeat = false
+  let expiryTimer
+  let checkingSession = false
   let expiring = false
 
-  const markActivity = () => {
-    lastActivity = Date.now()
-    activitySinceHeartbeat = true
+  const checkSession = async () => {
+    if (checkingSession || expiring || !auth.user) return
+    checkingSession = true
+    try { await loadUser() } finally { checkingSession = false }
+  }
+
+  const scheduleExpiry = () => {
+    window.clearTimeout(expiryTimer)
+    if (!auth.user || expiring) return
+    const remaining = new Date(auth.user.sessionExpiresAt).getTime() - Date.now()
+    if (!Number.isFinite(remaining)) return
+    if (remaining <= 0) { void expireSession(); return }
+    expiryTimer = window.setTimeout(scheduleExpiry, remaining)
   }
 
   const expireSession = async () => {
     if (expiring || !auth.user) return
     expiring = true
+    window.clearTimeout(expiryTimer)
     try { await logout() } catch { auth.user = null }
     localStorage.removeItem('authSessionActive')
     showToast('Phiên đăng nhập đã hết hạn', 'warning')
-    if (router.currentRoute.value.path !== '/login') await router.replace('/login')
-    expiring = false
+    try {
+      if (router.currentRoute.value.path !== '/login') await router.replace('/login')
+    } finally { expiring = false }
   }
 
-  for (const eventName of ['pointerdown', 'keydown', 'scroll', 'touchstart']) {
-    window.addEventListener(eventName, markActivity, { passive: true })
+  const resumeSession = () => {
+    if (document.visibilityState === 'hidden' || !auth.user || expiring) return
+    // The server deadline stays fixed across activity, reloads and tab resumes.
+    scheduleExpiry()
+    if (!expiring) void checkSession()
   }
+
   window.addEventListener('auth:session-expired', expireSession)
 
-  window.setInterval(() => {
-    if (auth.user && Date.now() - lastActivity >= IDLE_TIMEOUT_MS) expireSession()
-  }, 30 * 1000)
-
-  window.setInterval(async () => {
-    if (!auth.user || !activitySinceHeartbeat || Date.now() - lastActivity >= IDLE_TIMEOUT_MS) return
-    activitySinceHeartbeat = false
-    await loadUser()
-  }, HEARTBEAT_MS)
+  window.addEventListener('focus', resumeSession)
+  document.addEventListener('visibilitychange', resumeSession)
+  watch(() => auth.user?.sessionExpiresAt, () => {
+    scheduleExpiry()
+  }, { immediate: true, flush: 'sync' })
 }

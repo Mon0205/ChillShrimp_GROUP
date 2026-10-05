@@ -18,9 +18,9 @@ export async function login(req, res) {
   const user = await prisma.user.findUnique({ where: { id: data.user.id }, select: { id: true, email: true, displayName: true } })
   if (!user) throw createHttpError(403, 'Tài khoản chưa được cấp quyền vào hệ thống.')
   const permissions = await accountAccess(user)
-  await createAccessSession(user.id, res)
+  const accessSession = await createAccessSession(user.id, res)
   Object.assign(user, permissions)
-  return sendData(res, { user })
+  return sendData(res, { user: { ...user, sessionExpiresAt: accessSession.expiresAt } })
 }
 
 export async function logout(req, res) {

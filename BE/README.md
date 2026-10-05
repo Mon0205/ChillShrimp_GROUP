@@ -4,7 +4,6 @@ Rà soát việc ưu tiên Neon Auth/Vuetify và các ngoại lệ nghiệp vụ
 
 ## Kiểm thử đăng nhập, suspend và OTP
 
-Chạy `npm test` với Node.js 22.18 trở lên. Bộ regression test dùng mock cho Prisma và Neon Auth, không gửi email hoặc thay đổi dữ liệu thật. Frontend được kiểm tra bằng `cd ../FE` rồi `npm run build`.
 
 Trạng thái `suspended` thuộc về thành viên của từng trại. Tài khoản bị ngưng ở tất cả trại không được đăng nhập hoặc sử dụng phiên cũ (403). Tài khoản còn active ở trại khác vẫn được truy cập trại đó. Chỉ Owner active được tạo trại; `ADMIN_EMAIL` chỉ hỗ trợ tạo trại đầu tiên khi chưa có membership. Nút Ngưng sử dụng/Kích hoạt trong trang Người dùng chỉ tác động đến trại đang chọn, không cho tự ngưng chính mình.
 
