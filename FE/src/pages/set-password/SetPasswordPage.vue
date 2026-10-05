@@ -1,4 +1,5 @@
 <script setup>
+import { required, passwordRule, matchingPassword } from '../../utils/validation.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../../services/api.js'
@@ -19,9 +20,8 @@ onMounted(async () => {
   finally { loading.value = false }
 })
 
-async function submit() {
-  if (password.value.length < 8) { error.value = 'Mật khẩu cần ít nhất 8 ký tự.'; return }
-  if (password.value !== confirmPassword.value) { error.value = 'Mật khẩu xác nhận không khớp.'; return }
+async function submit(event) {
+  if (event?.then && !(await event).valid) return
   error.value = ''; submitting.value = true
   try {
     const result = await api('/users/accept-invitation', { method: 'POST', body: JSON.stringify({ token, password: password.value, confirmPassword: confirmPassword.value }) })
@@ -43,9 +43,9 @@ async function submit() {
           <label class="auth-field-label">Email</label>
           <v-text-field :model-value="invitation.email" disabled hide-details="auto" />
           <label class="auth-field-label" for="new-password">Mật khẩu</label>
-          <v-text-field id="new-password" v-model="password" placeholder="Tối thiểu 8 ký tự" type="password" autocomplete="new-password" hide-details="auto" required />
+          <v-text-field id="new-password" :rules="[passwordRule]" v-model="password" placeholder="Tối thiểu 8 ký tự" type="password" autocomplete="new-password" hide-details="auto" required />
           <label class="auth-field-label" for="confirm-password">Xác nhận mật khẩu</label>
-          <v-text-field id="confirm-password" v-model="confirmPassword" placeholder="Nhập lại mật khẩu" type="password" autocomplete="new-password" :error-messages="mismatch ? 'Mật khẩu không khớp' : ''" hide-details="auto" required />
+          <v-text-field id="confirm-password" :rules="[required('xác nhận mật khẩu'), matchingPassword(() => password)]" v-model="confirmPassword" placeholder="Nhập lại mật khẩu" type="password" autocomplete="new-password" :error-messages="mismatch ? 'Mật khẩu không khớp' : ''" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="submitting" :disabled="!!mismatch">Chấp nhận lời mời</v-btn>
         </v-form>
       </template>
@@ -58,7 +58,6 @@ async function submit() {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 .auth-page {
   min-height: 100vh;
@@ -66,7 +65,7 @@ async function submit() {
   place-items: center;
   padding: 24px;
   color: #134e4a;
-  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-family: var(--app-font);
   background: linear-gradient(135deg, #eef8f5 0%, #fff 48%, #ccfbf1 100%);
   position: relative;
   overflow: hidden;

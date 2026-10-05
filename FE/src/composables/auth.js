@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import { api } from '../services/api.js'
 import { showToast } from './toast.js'
+import { resetFarmContext } from './farm-context.js'
 
 const auth = reactive({ user: null, ready: false })
 
@@ -13,6 +14,7 @@ export async function loadUser() {
 
 export async function login(email, password) {
   const result = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+  resetFarmContext()
   auth.user = result.data.user
   auth.ready = true
   localStorage.setItem('authSessionActive', 'true')
@@ -22,6 +24,7 @@ export async function logout() {
   try { await api('/auth/logout', { method: 'POST' }) }
   finally {
     auth.user = null
+    resetFarmContext()
     localStorage.removeItem('authSessionActive')
   }
 }

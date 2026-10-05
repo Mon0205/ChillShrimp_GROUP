@@ -6,7 +6,7 @@ export async function revokeInvitation(req, res) {
   if (!invitation || invitation.status !== 'pending') throw createHttpError(404, 'Không tìm thấy lời mời đang chờ.')
   const membership = await prisma.farmMember.findUnique({ where: { farmId_userId: { farmId: invitation.farmId, userId: req.auth.id } } })
   const canRevoke = membership?.role === 'owner' || (membership?.role === 'area_manager' && membership.areaId === invitation.areaId)
-  if (!canRevoke) throw createHttpError(403, 'Bạn không có quyền thu hồi lời mời này.')
+  if (!canRevoke || membership.status !== 'active') throw createHttpError(403, 'Bạn không có quyền thu hồi lời mời này.')
   await prisma.farmInvitation.update({ where: { id: invitation.id }, data: { status: 'cancelled' } })
   return res.status(204).end()
 }

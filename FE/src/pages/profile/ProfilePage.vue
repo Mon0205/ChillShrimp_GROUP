@@ -1,4 +1,5 @@
 <script setup>
+import { required, passwordRule, matchingPassword, otpRule, maxLength } from '../../utils/validation.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import AppShell from '../../components/app-shell/AppShell.vue'
 import { useAuth } from '../../composables/auth.js'
@@ -28,7 +29,8 @@ async function loadProfile() {
 }
 onMounted(loadProfile)
 
-async function saveProfile() {
+async function saveProfile(event) {
+  if (event?.then && !(await event).valid) return
   error.value = ''; success.value = ''; saving.value = true
   try {
     const result = await api('/users/me', { method: 'PATCH', body: JSON.stringify(form.value) })
@@ -39,7 +41,8 @@ async function saveProfile() {
   finally { saving.value = false }
 }
 
-async function changePassword() {
+async function changePassword(event) {
+  if (event?.then && !(await event).valid) return
   error.value = ''; success.value = ''; changing.value = true
   try {
     await api('/users/me/change-password', { method: 'POST', body: JSON.stringify(password.value) })
@@ -58,7 +61,8 @@ async function sendOtp() {
   finally { sendingOtp.value = false }
 }
 
-async function resetWithOtp() {
+async function resetWithOtp(event) {
+  if (event?.then && !(await event).valid) return
   error.value = ''; success.value = ''; resetting.value = true
   try {
     await api('/users/me/password-otp/reset', { method: 'POST', body: JSON.stringify({ otp: otp.value.code, newPassword: otp.value.newPassword, confirmPassword: otp.value.confirmPassword }) })
@@ -78,10 +82,10 @@ async function resetWithOtp() {
         <v-card class="profile-card" elevation="0">
           <h2>Thông tin tài khoản</h2><p>Email và chức vụ do hệ thống quản lý nên không thể chỉnh sửa.</p>
           <v-form class="profile-form" @submit.prevent="saveProfile">
-            <label>Họ và tên</label><v-text-field v-model="form.displayName" hide-details="auto" required />
+            <label>Họ và tên</label><v-text-field :rules="[required('họ tên'), maxLength(100)]" v-model="form.displayName" hide-details="auto" required />
             <label>Email</label><v-text-field :model-value="profile.email" disabled hide-details="auto" />
             <label>Chức vụ và phạm vi quản lý</label><v-text-field class="role-scope-field" :model-value="roleText" disabled hide-details="auto" />
-            <label>Số điện thoại</label><v-text-field v-model="form.phone" placeholder="Chưa cập nhật" hide-details="auto" />
+            <label>Số điện thoại</label><v-text-field :rules="[maxLength(30)]" v-model="form.phone" placeholder="Chưa cập nhật" hide-details="auto" />
             <v-btn type="submit" color="primary" :loading="saving">Lưu thay đổi</v-btn>
           </v-form>
         </v-card>
@@ -92,9 +96,9 @@ async function resetWithOtp() {
           <v-window v-model="tab">
             <v-window-item value="current">
               <v-form class="profile-form security-form" @submit.prevent="changePassword">
-                <label>Mật khẩu hiện tại</label><v-text-field v-model="password.currentPassword" type="password" autocomplete="current-password" hide-details="auto" required />
-                <label>Mật khẩu mới</label><v-text-field v-model="password.newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
-                <label>Xác nhận mật khẩu mới</label><v-text-field v-model="password.confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
+                <label>Mật khẩu hiện tại</label><v-text-field :rules="[required('mật khẩu')]" v-model="password.currentPassword" type="password" autocomplete="current-password" hide-details="auto" required />
+                <label>Mật khẩu mới</label><v-text-field :rules="[passwordRule]" v-model="password.newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
+                <label>Xác nhận mật khẩu mới</label><v-text-field :rules="[required('xác nhận mật khẩu'), matchingPassword(() => password.newPassword)]" v-model="password.confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
                 <v-btn type="submit" color="primary" :loading="changing">Đổi mật khẩu</v-btn>
               </v-form>
             </v-window-item>
@@ -102,9 +106,9 @@ async function resetWithOtp() {
               <div class="otp-copy">OTP sẽ được gửi tới <strong>{{ profile.email }}</strong>.</div>
               <v-btn v-if="!otpSent" color="primary" variant="outlined" block :loading="sendingOtp" @click="sendOtp">Gửi mã OTP</v-btn>
               <v-form v-else class="profile-form security-form" @submit.prevent="resetWithOtp">
-                <label>Mã OTP</label><v-otp-input v-model="otp.code" :length="6" type="number" />
-                <label>Mật khẩu mới</label><v-text-field v-model="otp.newPassword" type="password" hide-details="auto" required />
-                <label>Xác nhận mật khẩu mới</label><v-text-field v-model="otp.confirmPassword" type="password" hide-details="auto" required />
+                <label>Mã OTP</label><v-input :model-value="otp.code" :rules="[otpRule]" hide-details="auto"><template #default="{ isValid }"><v-otp-input v-model="otp.code" :length="6" type="number" :error="isValid.value === false" /></template></v-input>
+                <label>Mật khẩu mới</label><v-text-field :rules="[passwordRule]" v-model="otp.newPassword" type="password" hide-details="auto" required />
+                <label>Xác nhận mật khẩu mới</label><v-text-field :rules="[required('xác nhận mật khẩu'), matchingPassword(() => otp.newPassword)]" v-model="otp.confirmPassword" type="password" hide-details="auto" required />
                 <div class="otp-actions"><v-btn variant="text" :loading="sendingOtp" @click="sendOtp">Gửi lại OTP</v-btn><v-btn type="submit" color="primary" :loading="resetting">Xác nhận đổi</v-btn></div>
               </v-form>
             </v-window-item>

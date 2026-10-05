@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import 'vuetify/styles'
+import '@mdi/font/css/materialdesignicons.css'
 import { createVuetify } from 'vuetify'
 import App from './App.vue'
 import router from './router/index.js'
@@ -19,7 +20,7 @@ const vuetify = createVuetify({
     },
   },
   defaults: {
-    VBtn: { rounded: 'lg', fontWeight: 700 },
+    VBtn: { rounded: 'lg', elevation: 0 },
     VTextField: { variant: 'outlined', density: 'comfortable', color: 'primary' },
     VSelect: { variant: 'outlined', density: 'comfortable', color: 'primary' },
     VCard: { rounded: 'xl' },

@@ -1,5 +1,17 @@
 # Backend – Express + Prisma + Neon
 
+Rà soát việc ưu tiên Neon Auth/Vuetify và các ngoại lệ nghiệp vụ: [báo cáo](../docs/neon-vuetify-audit.md).
+
+## Kiểm thử đăng nhập, suspend và OTP
+
+Chạy `npm test` với Node.js 22.18 trở lên. Bộ regression test dùng mock cho Prisma và Neon Auth, không gửi email hoặc thay đổi dữ liệu thật. Frontend được kiểm tra bằng `cd ../FE` rồi `npm run build`.
+
+Trạng thái `suspended` thuộc về thành viên của từng trại. Tài khoản bị ngưng ở tất cả trại không được đăng nhập hoặc sử dụng phiên cũ (403). Tài khoản còn active ở trại khác vẫn được truy cập trại đó. Chỉ Owner active được tạo trại; `ADMIN_EMAIL` chỉ hỗ trợ tạo trại đầu tiên khi chưa có membership. Nút Ngưng sử dụng/Kích hoạt trong trang Người dùng chỉ tác động đến trại đang chọn, không cho tự ngưng chính mình.
+
+OTP đặt lại mật khẩu do **Neon Auth** gửi, không dùng `SMTP_*` trong `email.service.js` (các biến đó dùng cho lời mời). API yêu cầu OTP dùng `/email-otp/request-password-reset`, chỉ quay về `/forget-password/email-otp` khi nhà cung cấp trả 404. Xem [tài liệu OTP](https://better-auth.com/docs/plugins/email-otp) và [cấu hình email provider của Neon](https://api-docs.neon.tech/reference/updateneonauthemailprovider).
+
+Để nghiệm thu TC16 trên môi trường thật, kiểm tra cấu hình email provider của đúng Neon branch, hạn mức gửi, log gửi mail và thư mục spam. HTTP 200 từ nhà cung cấp không chứng minh thư đã đến hộp thư. Không ghi OTP hoặc mật khẩu vào log. Sau khi nhận được thư, chạy TC18–25 với OTP thật; thời hạn ứng dụng là 60 giây tính từ khi yêu cầu gửi thành công. Kiểm tra TC95 với hai trại và một Owner khác thực hiện suspend, rồi thử cả phiên cũ lẫn đăng nhập mới của người bị ngưng. Các kiểm thử mock không thay thế bước E2E này.
+
 ## Quy ước đặt tên migration
 
 Migration mới sử dụng định dạng `ddmmyyyy_STT_ten_migration`.
