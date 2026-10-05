@@ -112,7 +112,7 @@ async function signOut() {
         <v-list-item to="/farms" prepend-icon="mdi-home-city-outline" title="Trang trại" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewPondTanks" to="/ponds-tanks" prepend-icon="mdi-waves" title="Ao/bể" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedSuppliers" to="/seed-suppliers" prepend-icon="mdi-truck-outline" title="Nhà cung cấp giống" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-shrimp" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-fishbowl" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/feeding-logs" prepend-icon="mdi-food-drumstick-outline" title="Nhật ký cho ăn" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/water-change-logs" prepend-icon="mdi-water-sync" title="Nhật ký thay nước" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/water-parameter-logs" prepend-icon="mdi-water-thermometer-outline" title="Môi trường nước" rounded="lg" @click="closeMobileDrawer" />
