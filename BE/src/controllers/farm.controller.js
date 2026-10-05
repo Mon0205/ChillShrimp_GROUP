@@ -23,7 +23,16 @@ export async function listFarms(req, res) {
     },
     include: { farm: true, area: { select: { id: true, code: true, name: true } } }, orderBy: { farm: { createdAt: 'desc' } },
   })
-  return sendData(res, memberships.map(({ farm, role, area }) => ({ ...farm, role, area })))
+  const ownerFarmIds = memberships.filter(member => member.role === 'owner').map(member => member.farmId)
+  const managerAreaIds = memberships.filter(member => member.role === 'area_manager' && member.areaId).map(member => member.areaId)
+  const areas = ownerFarmIds.length || managerAreaIds.length ? await prisma.area.findMany({
+    where: { OR: [{ farmId: { in: ownerFarmIds } }, { id: { in: managerAreaIds } }] },
+    select: { id: true, farmId: true, code: true, name: true },
+    orderBy: { name: 'asc' },
+  }) : []
+  return sendData(res, memberships.map(({ farm, role, area }) => ({
+    ...farm, role, area, areas: areas.filter(item => item.farmId === farm.id),
+  })))
 }
 
 export async function createFarm(req, res) {

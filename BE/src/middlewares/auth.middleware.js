@@ -2,18 +2,22 @@ import { prisma } from '../config/prisma.js'
 import { createHttpError } from '../utils/http.js'
 import { readNeonSession } from '../auth/get.js'
 import { requireAccessSession } from '../auth/session.js'
+import { accountAccess } from '../auth/access.js'
 
 export async function requireAuth(req, res, next) {
   try {
     const session = await readNeonSession(req, res)
     await requireAccessSession(req, res, session.user.id)
+    await accountAccess(session.user)
     req.auth = { id: session.user.id, email: session.user.email }
     next()
   } catch (error) { next(error) }
 }
 
 async function loadMembership(req, { allowArchivedFarm = false } = {}) {
-  const farmId = req.params.farmId || req.query.farmId || req.body.farmId
+  const ids = [req.params?.farmId, req.query?.farmId, req.body?.farmId].filter(value => value !== undefined)
+  if (ids.some(value => typeof value !== 'string') || new Set(ids).size > 1) throw createHttpError(400, 'Mã trại không hợp lệ hoặc không nhất quán.')
+  const farmId = ids[0]
   if (!farmId) throw createHttpError(400, 'Thiếu mã trại.')
   const membership = await prisma.farmMember.findUnique({
     where: { farmId_userId: { farmId, userId: req.auth.id } },
@@ -214,9 +218,8 @@ export async function requireFarmOwnerIncludingArchived(req, _res, next) {
 
 export async function requireOwnerAccount(req, _res, next) {
   try {
-    const bootstrapOwner = req.auth.email?.toLowerCase() === process.env.ADMIN_EMAIL?.trim().toLowerCase()
-    const ownerMembership = await prisma.farmMember.findFirst({ where: { userId: req.auth.id, role: 'owner', status: 'active' }, select: { userId: true } })
-    if (!bootstrapOwner && !ownerMembership) throw createHttpError(403, 'Chỉ Owner mới được tạo trại.')
+    const { canCreateFarm } = await accountAccess(req.auth)
+    if (!canCreateFarm) throw createHttpError(403, 'Chỉ Owner mới được tạo trại.')
     next()
   } catch (error) { next(error) }
 }

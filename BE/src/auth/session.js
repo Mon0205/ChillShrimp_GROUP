@@ -4,7 +4,7 @@ import { createHttpError } from '../utils/http.js'
 
 const COOKIE_NAME = 'chillshrimp_session'
 const SESSION_LIFETIME_MS = 24 * 60 * 60 * 1000
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000
+const IDLE_TIMEOUT_MS = SESSION_LIFETIME_MS
 
 const cookieOptions = {
   httpOnly: true,
@@ -27,10 +27,11 @@ function readCookie(req) {
 export async function createAccessSession(userId, res) {
   const token = crypto.randomBytes(32).toString('hex')
   const now = new Date()
-  await prisma.accessSession.create({
+  const session = await prisma.accessSession.create({
     data: { userId, tokenHash: hashToken(token), lastActivity: now, expiresAt: new Date(now.getTime() + SESSION_LIFETIME_MS) },
   })
   res.cookie(COOKIE_NAME, token, cookieOptions)
+  return session
 }
 
 export async function requireAccessSession(req, res, userId) {
@@ -39,8 +40,10 @@ export async function requireAccessSession(req, res, userId) {
 
   const session = await prisma.accessSession.findUnique({ where: { tokenHash: hashToken(token) } })
   const now = new Date()
+  // Also cap sessions created before switching away from sliding expiration.
+  const expiresAt = session && new Date(Math.min(session.expiresAt.getTime(), session.createdAt.getTime() + SESSION_LIFETIME_MS))
   const idleExpired = !session || now.getTime() - session.lastActivity.getTime() >= IDLE_TIMEOUT_MS
-  if (!session || session.userId !== userId || session.expiresAt <= now || idleExpired) {
+  if (!session || session.userId !== userId || expiresAt <= now || idleExpired) {
     if (session) await prisma.accessSession.delete({ where: { id: session.id } }).catch(() => {})
     res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' })
     throw createHttpError(401, 'Phiên đăng nhập đã hết hạn.')
@@ -48,10 +51,10 @@ export async function requireAccessSession(req, res, userId) {
 
   await prisma.accessSession.update({
     where: { id: session.id },
-    data: { lastActivity: now, expiresAt: new Date(now.getTime() + SESSION_LIFETIME_MS) },
+    data: { lastActivity: now },
   })
-  res.cookie(COOKIE_NAME, token, cookieOptions)
-  return session
+  res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: expiresAt.getTime() - now.getTime() })
+  return { ...session, expiresAt }
 }
 
 export async function destroyAccessSession(req, res) {

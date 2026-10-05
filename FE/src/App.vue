@@ -5,14 +5,21 @@ const toast = useToast()
 
 <template>
   <v-app>
-    <v-main><router-view /></v-main>
+    <router-view />
     <v-snackbar v-model="toast.visible" :timeout="5000" :color="toast.color" location="top end">
-      <div class="global-toast"><span>{{ toast.message }}</span><button type="button" aria-label="Đóng thông báo" @click="toast.visible = false">×</button></div>
+      {{ toast.message }}
+      <template #actions><v-btn icon="mdi-close" variant="text" size="small" aria-label="Đóng thông báo" @click="toast.visible = false" /></template>
     </v-snackbar>
   </v-app>
 </template>
 
 <style>
+:root { --app-font: 'Segoe UI', Arial, 'Helvetica Neue', sans-serif; }
+body, .v-application, .v-overlay-container { font-family: var(--app-font); font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.v-application .v-table, .v-application .v-label, .v-overlay-container .v-list { font-family: var(--app-font); }
+.v-btn { text-transform: none; letter-spacing: normal; font-weight: 600; }
+.v-field, .v-input { font-family: var(--app-font); }
+.v-application .text-caption { font-family: var(--app-font) !important; }
 html, body, #app {
   min-width: 320px;
   min-height: 100%;
@@ -20,6 +27,4 @@ html, body, #app {
 }
 
 body { background: #f0fdfa; }
-.global-toast { display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 12px; font-weight: 700; }
-.global-toast button { border: 0; color: inherit; background: transparent; font-size: 21px; line-height: 1; cursor: pointer; }
 </style>

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { required, emailRule, passwordRule, matchingPassword, otpRule } from '../../utils/validation.js'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login } from '../../composables/auth.js'
 import { api } from '../../services/api.js'
@@ -11,11 +12,17 @@ const loading = ref(false), error = ref('')
 const forgotDialog = ref(false), otpSent = ref(false), sendingOtp = ref(false), resetting = ref(false)
 const forgotEmail = ref(email.value), otp = ref(''), newPassword = ref(''), confirmPassword = ref('')
 const forgotError = ref(''), forgotSuccess = ref('')
+const otpExpiresAt = ref(0), now = ref(Date.now())
+const secondsLeft = computed(() => Math.max(0, Math.ceil((otpExpiresAt.value - now.value) / 1000)))
+const timer = setInterval(() => { now.value = Date.now() }, 1000)
+onUnmounted(() => clearInterval(timer))
 watch(error, (message) => { if (message) { showToast(message, 'error'); error.value = '' } })
 watch(forgotError, (message) => { if (message) { showToast(message, 'error'); forgotError.value = '' } })
 watch(forgotSuccess, (message) => { if (message) { showToast(message, 'success'); forgotSuccess.value = '' } })
 
-async function submit() {
+async function submit(event) {
+  if (event?.then && !(await event).valid) return
+  if (loading.value) return
   error.value = ''; loading.value = true
   try {
     await login(email.value, password.value)
@@ -30,19 +37,25 @@ function openForgotPassword() {
   forgotError.value = ''; forgotSuccess.value = ''; forgotDialog.value = true
 }
 
-async function sendOtp() {
+async function sendOtp(event) {
+  if (event?.then && !(await event).valid) return
+  if (sendingOtp.value || resetting.value) return
+  if (!/^\S+@\S+\.\S+$/.test(forgotEmail.value.trim())) { forgotError.value = 'Vui lòng nhập email hợp lệ.'; return }
   forgotError.value = ''; forgotSuccess.value = ''; sendingOtp.value = true
   try {
-    await api('/users/password-otp', { method: 'POST', body: JSON.stringify({ email: forgotEmail.value }) })
+    const result = await api('/users/password-otp', { method: 'POST', body: JSON.stringify({ email: forgotEmail.value }) })
+    otpExpiresAt.value = new Date(result.data.expiresAt).getTime()
+    now.value = Date.now(); otp.value = ''
     otpSent.value = true
     forgotSuccess.value = `Đã gửi mã OTP tới ${forgotEmail.value}.`
   } catch (err) { forgotError.value = err.message }
   finally { sendingOtp.value = false }
 }
 
-async function resetPassword() {
+async function resetPassword(event) {
+  if (event?.then && !(await event).valid) return
   forgotError.value = ''; forgotSuccess.value = ''
-  if (newPassword.value !== confirmPassword.value) { forgotError.value = 'Mật khẩu xác nhận không khớp.'; return }
+  if (resetting.value || sendingOtp.value) return
   resetting.value = true
   try {
     await api('/users/password-otp/reset', { method: 'POST', body: JSON.stringify({ email: forgotEmail.value, otp: otp.value, newPassword: newPassword.value, confirmPassword: confirmPassword.value }) })
@@ -62,33 +75,38 @@ async function resetPassword() {
       <p class="muted">Đăng nhập để quản lý trại của bạn.</p>
       <v-form class="auth-form" @submit.prevent="submit">
         <label class="auth-field-label" for="login-email">Email</label>
-        <v-text-field id="login-email" v-model="email" placeholder="Nhập email của bạn" type="email" autocomplete="email" hide-details="auto" required />
+        <v-text-field id="login-email" :rules="[required('email'), emailRule]" v-model="email" placeholder="Nhập email của bạn" type="email" autocomplete="email" hide-details="auto" required />
         <label class="auth-field-label" for="login-password">Mật khẩu</label>
-        <v-text-field id="login-password" v-model="password" placeholder="Nhập mật khẩu" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" hide-details="auto" @click:append-inner="showPassword = !showPassword" required />
-        <button class="forgot-link" type="button" @click="openForgotPassword">Quên mật khẩu?</button>
+        <v-text-field id="login-password" :rules="[required('mật khẩu')]" v-model="password" placeholder="Nhập mật khẩu" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" hide-details="auto" required>
+          <template #append-inner>
+            <v-btn variant="text" type="button" size="small" :icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'" :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" :aria-pressed="showPassword" @click="showPassword = !showPassword" />
+          </template>
+        </v-text-field>
+        <v-btn variant="text" class="forgot-link" type="button" @click="openForgotPassword">Quên mật khẩu?</v-btn>
         <v-btn type="submit" color="primary" size="large" block :loading="loading">Đăng nhập</v-btn>
       </v-form>
       <p class="invite-note">Chưa có tài khoản? Tài khoản chỉ được tạo qua lời mời từ quản trị viên.</p>
     </v-card>
     <v-dialog v-model="forgotDialog" max-width="480">
       <v-card class="forgot-card" elevation="0">
-        <div class="forgot-heading"><div><span>KHÔI PHỤC TÀI KHOẢN</span><h2>Quên mật khẩu</h2></div><button type="button" aria-label="Đóng" @click="forgotDialog = false">×</button></div>
+        <div class="forgot-heading"><div><span>KHÔI PHỤC TÀI KHOẢN</span><h2>Quên mật khẩu</h2></div><v-btn variant="text" type="button" aria-label="Đóng" @click="forgotDialog = false" icon="mdi-close" /></div>
         <p class="muted">Nhận mã OTP qua email để đặt lại mật khẩu.</p>
         <v-form v-if="!otpSent" class="forgot-form" @submit.prevent="sendOtp">
           <label class="auth-field-label">Email tài khoản</label>
-          <v-text-field v-model="forgotEmail" type="email" autocomplete="email" placeholder="name@example.com" hide-details="auto" required />
+          <v-text-field :rules="[required('email'), emailRule]" v-model="forgotEmail" type="email" autocomplete="email" placeholder="name@example.com" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="sendingOtp">Gửi mã OTP</v-btn>
         </v-form>
         <v-form v-else class="forgot-form" @submit.prevent="resetPassword">
           <div class="sent-to">Mã đã gửi tới <strong>{{ forgotEmail }}</strong></div>
+          <p role="status">{{ secondsLeft > 0 ? `Mã OTP còn hiệu lực ${secondsLeft} giây.` : 'Mã OTP đã hết hạn. Vui lòng gửi mã mới.' }}</p>
           <label class="auth-field-label">Mã OTP</label>
-          <v-otp-input v-model="otp" :length="6" type="number" />
+          <v-input :model-value="otp" :rules="[otpRule]" hide-details="auto"><template #default="{ isValid }"><v-otp-input v-model="otp" :length="6" type="number" :error="isValid.value === false" /></template></v-input>
           <label class="auth-field-label">Mật khẩu mới</label>
-          <v-text-field v-model="newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
+          <v-text-field :rules="[passwordRule]" v-model="newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
           <label class="auth-field-label">Xác nhận mật khẩu mới</label>
-          <v-text-field v-model="confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
+          <v-text-field :rules="[required('xác nhận mật khẩu'), matchingPassword(() => newPassword)]" v-model="confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="resetting">Đặt lại mật khẩu</v-btn>
-          <button class="resend-link" type="button" :disabled="sendingOtp" @click="sendOtp">Gửi lại mã OTP</button>
+          <v-btn variant="text" class="resend-link" type="button" :disabled="sendingOtp || resetting" @click="sendOtp">Gửi lại mã OTP</v-btn>
         </v-form>
       </v-card>
     </v-dialog>
@@ -96,7 +114,6 @@ async function resetPassword() {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 .auth-page {
   min-height: 100vh;
@@ -104,7 +121,7 @@ async function resetPassword() {
   place-items: center;
   padding: 24px;
   color: #134e4a;
-  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-family: var(--app-font);
   background: linear-gradient(135deg, #eef8f5 0%, #fff 48%, #ccfbf1 100%);
   position: relative;
   overflow: hidden;
@@ -164,14 +181,14 @@ h1 {
   font-weight: 700;
   margin-top: 3px;
 }
-.auth-form .v-btn { height: 48px; margin-top: 10px; }
-.forgot-link, .resend-link { justify-self: end; padding: 3px 0; border: 0; color: #087f6e; background: transparent; font: 700 12px Manrope, sans-serif; cursor: pointer; }
+.auth-form > .v-btn[type="submit"] { height: 48px; margin-top: 10px; }
+.forgot-link, .resend-link { justify-self: end; padding: 3px 0; border: 0; color: #087f6e; background: transparent; font: 600 13px var(--app-font); cursor: pointer; }
 .auth-form .forgot-link { margin-top: 2px; }
 .forgot-card { padding: 28px; border-radius: 20px !important; }
 .forgot-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .forgot-heading span { color: #087f6e; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .forgot-heading h2 { margin: 5px 0 0; color: #134e4a; font-size: 1.55rem; }
-.forgot-heading button { width: 34px; height: 34px; border: 0; border-radius: 9px; color: #61736f; background: #edf5f3; font-size: 24px; cursor: pointer; }
+
 .forgot-form { display: grid; gap: 9px; margin-top: 22px; }
 .forgot-form > .v-btn { height: 48px; margin-top: 10px; }
 .sent-to { padding: 11px 13px; border-radius: 10px; color: #5e7470; background: #edf8f5; font-size: 12px; }

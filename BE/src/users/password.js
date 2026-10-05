@@ -1,3 +1,4 @@
+import { sendPasswordOtp, resetPasswordOtp } from '../auth/password-otp.js'
 import { neonAuth } from '../auth/client.js'
 import { withAuthContext } from '../auth/context.js'
 import { prisma } from '../config/prisma.js'
@@ -21,24 +22,11 @@ export async function changePassword(req, res) {
   return sendData(res, { message: 'Đổi mật khẩu thành công.' })
 }
 
-async function callEmailOtp(path, body) {
-  const response = await fetch(`${process.env.NEON_AUTH_URL.replace(/\/$/, '')}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    },
-    body: JSON.stringify(body),
-  })
-  const result = await response.json().catch(() => ({}))
-  if (!response.ok) throw createHttpError(response.status < 500 ? 400 : 502, result.message || 'Không thể xử lý OTP lúc này.')
-  return result
-}
-
 export async function requestPasswordOtp(req, res) {
-  const email = (req.auth?.email || req.body.email || '').trim().toLowerCase()
+  const rawEmail = req.auth?.email || req.body?.email
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
   if (!/^\S+@\S+\.\S+$/.test(email)) throw createHttpError(400, 'Email không hợp lệ.')
-  await callEmailOtp('/forget-password/email-otp', { email })
+  await sendPasswordOtp(email)
   const expiresAt = new Date(Date.now() + 60 * 1000)
   await prisma.passwordResetOtpWindow.upsert({
     where: { email },
@@ -49,18 +37,19 @@ export async function requestPasswordOtp(req, res) {
 }
 
 export async function resetPasswordWithOtp(req, res) {
-  const email = (req.auth?.email || req.body.email || '').trim().toLowerCase()
+  const rawEmail = req.auth?.email || req.body?.email
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
   const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : ''
   const { newPassword, confirmPassword } = req.body
   if (!/^\S+@\S+\.\S+$/.test(email)) throw createHttpError(400, 'Email không hợp lệ.')
   if (!/^\d{6}$/.test(otp)) throw createHttpError(400, 'Mã OTP phải gồm 6 chữ số.')
   validateNewPassword(newPassword, confirmPassword)
   const otpWindow = await prisma.passwordResetOtpWindow.findUnique({ where: { email } })
-  if (!otpWindow || otpWindow.expiresAt <= new Date()) {
-    if (otpWindow) await prisma.passwordResetOtpWindow.delete({ where: { email } })
+  if (!otpWindow) throw createHttpError(400, 'Mã OTP không hợp lệ hoặc đã được sử dụng. Vui lòng gửi mã mới.')
+  if (otpWindow.expiresAt <= new Date()) {
     throw createHttpError(410, 'Mã OTP đã hết hạn. Vui lòng gửi mã mới.')
   }
-  await callEmailOtp('/email-otp/reset-password', { email, otp, password: newPassword })
-  await prisma.passwordResetOtpWindow.deleteMany({ where: { email } })
+  await resetPasswordOtp(email, otp, newPassword)
+  await prisma.passwordResetOtpWindow.deleteMany({ where: { email, expiresAt: otpWindow.expiresAt } })
   return sendData(res, { message: 'Đặt lại mật khẩu thành công.' })
 }
