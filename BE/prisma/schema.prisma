@@ -43,6 +43,7 @@ model User {
   seedQualityChecksReviewed SeedQualityCheck[] @relation("SeedQualityCheckReviewer")
   batchQuantityEvents BatchQuantityEvent[]
   growthSamplingLogs  GrowthSamplingLog[]
+  aiInspectionsCreated AiInspection[] @relation("AiInspectionCreator")
   memberships         FarmMember[]
   invitationsSent     FarmInvitation[] @relation("InvitationSender")
   invitationsReceived FarmInvitation[] @relation("InvitationRecipient")
@@ -429,6 +430,7 @@ model SeedBatch {
   qualityChecks SeedQualityCheck[]
   quantityEvents BatchQuantityEvent[]
   growthSamples GrowthSamplingLog[]
+  aiInspections AiInspection[]
   inventoryTransactions InventoryTransaction[]
   alerts AlertNotification[]
 
@@ -436,6 +438,38 @@ model SeedBatch {
   @@index([supplierId])
   @@index([status])
   @@map("seed_batches")
+}
+
+model AiInspection {
+  id                   String    @id @default(uuid()) @db.Uuid
+  batchId              String    @map("batch_id") @db.Uuid
+  createdBy            String    @map("created_by")
+  mediaUrl             String    @map("media_url")
+  mediaPublicId        String    @unique(map: "ai_inspections_media_public_id_key") @map("media_public_id") @db.VarChar(255)
+  annotatedImageUrl    String?   @map("annotated_image_url")
+  samplingMethod       String    @map("sampling_method") @db.VarChar(20)
+  sampleVolumeMl       Decimal?  @map("sample_volume_ml") @db.Decimal(12, 3)
+  manualCount          Int?      @map("manual_count")
+  detectedCount        Int?      @map("detected_count")
+  densityPerMl         Decimal?  @map("density_per_ml") @db.Decimal(14, 4)
+  correctionFactor     Decimal?  @map("correction_factor") @db.Decimal(8, 4)
+  averageConfidence    Decimal?  @map("average_confidence") @db.Decimal(6, 5)
+  averageSizeMm        Decimal?  @map("average_size_mm") @db.Decimal(8, 3)
+  uniformityScore      Decimal?  @map("uniformity_score") @db.Decimal(6, 3)
+  detections           Json?     @db.JsonB
+  modelVersion         String?   @map("model_version") @db.VarChar(100)
+  status               String    @default("pending") @db.VarChar(20)
+  inspectedAt          DateTime? @map("inspected_at") @db.Timestamptz(6)
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  batch   SeedBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  creator User      @relation("AiInspectionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([batchId, inspectedAt(sort: Desc)])
+  @@index([createdBy])
+  @@index([status, createdAt])
+  @@map("ai_inspections")
 }
 
 model SeedQualityCheck {

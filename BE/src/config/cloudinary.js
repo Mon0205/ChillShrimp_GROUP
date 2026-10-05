@@ -12,16 +12,16 @@ function config() {
   return { cloudName, apiKey, apiSecret }
 }
 
-export function createUploadSignature({ folder, publicId }) {
+export function createUploadSignature({ folder, publicId, allowedFormats = ALLOWED_FORMATS }) {
   const { cloudName, apiKey, apiSecret } = config()
   const timestamp = Math.floor(Date.now() / 1000)
-  const params = { allowed_formats: ALLOWED_FORMATS, asset_folder: folder, public_id: publicId, timestamp }
+  const params = { allowed_formats: allowedFormats, asset_folder: folder, public_id: publicId, timestamp }
   const serialized = Object.keys(params).sort().map((key) => `${key}=${params[key]}`).join('&')
   const signature = createHash('sha1').update(`${serialized}${apiSecret}`).digest('hex')
   return { cloudName, apiKey, timestamp, signature, params }
 }
 
-export async function getOwnedCloudinaryAsset({ resourceType, publicId, expectedFolder }) {
+export async function getOwnedCloudinaryAsset({ resourceType, publicId, expectedFolder, allowedFormats = ALLOWED_FORMATS.split(',') }) {
   const { cloudName, apiKey, apiSecret } = config()
   if (!['image', 'raw'].includes(resourceType)) return null
   const encodedPublicId = encodeURIComponent(publicId)
@@ -36,8 +36,7 @@ export async function getOwnedCloudinaryAsset({ resourceType, publicId, expected
   }
   const asset = await response.json()
   const format = String(asset.format || '').toLowerCase()
-  const allowed = ALLOWED_FORMATS.split(',')
-  if (asset.asset_folder !== expectedFolder || !allowed.includes(format) || asset.bytes > 10 * 1024 * 1024) return null
+  if (asset.asset_folder !== expectedFolder || !allowedFormats.includes(format) || asset.bytes > 10 * 1024 * 1024) return null
   if (asset.resource_type !== resourceType || !asset.secure_url?.startsWith('https://res.cloudinary.com/')) return null
   return { publicId: asset.public_id, secureUrl: asset.secure_url, resourceType: asset.resource_type, format, bytes: asset.bytes }
 }

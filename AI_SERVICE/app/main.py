@@ -58,6 +58,20 @@ def upload_original_to_cloudinary(file_bytes: bytes, filename: Optional[str]) ->
     )
 
 
+def upload_annotated_to_cloudinary(result: Any) -> dict[str, Any]:
+    annotated = Image.fromarray(result.plot()[:, :, ::-1].copy())
+    stream = BytesIO()
+    annotated.save(stream, format="JPEG", quality=90)
+    stream.seek(0)
+    stream.name = "annotated.jpg"
+    folder = os.getenv("CLOUDINARY_INSPECTION_FOLDER", "chillshrimp/ai-inspections/originals")
+    return cloudinary.uploader.upload(
+        stream,
+        folder=f"{folder}/annotated",
+        resource_type="image",
+    )
+
+
 def detection_to_dict(box: Any, names: dict[int, str]) -> dict[str, Any]:
     class_id = int(box.cls[0].item())
     x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
@@ -90,6 +104,7 @@ async def predict(
     file: UploadFile = File(...),
     conf: float = Query(0.25, ge=0.0, le=1.0),
     imgsz: int = Query(640, ge=64, le=2048),
+    save_original: bool = Query(True),
 ) -> dict[str, Any]:
     file_bytes = await file.read()
     image = read_image(file_bytes)
@@ -109,27 +124,32 @@ async def predict(
     detections = [detection_to_dict(box, names) for box in result.boxes]
 
     try:
-        cloudinary_asset = await run_in_threadpool(
-            upload_original_to_cloudinary,
-            file_bytes,
-            file.filename,
-        )
-        if not cloudinary_asset.get("secure_url") or not cloudinary_asset.get("public_id"):
-            raise RuntimeError("Cloudinary upload response is missing the asset URL or public ID.")
+        cloudinary_asset = None
+        if save_original:
+            cloudinary_asset = await run_in_threadpool(
+                upload_original_to_cloudinary, file_bytes, file.filename
+            )
+            if not cloudinary_asset.get("secure_url") or not cloudinary_asset.get("public_id"):
+                raise RuntimeError("Cloudinary upload response is missing the asset URL or public ID.")
+        annotated_asset = await run_in_threadpool(upload_annotated_to_cloudinary, result)
+        if not annotated_asset.get("secure_url"):
+            raise RuntimeError("Cloudinary upload response is missing the annotated image URL.")
     except Exception as exc:
         raise HTTPException(
             status_code=502,
             detail={
-                "message": "YOLO prediction succeeded, but the original image could not be backed up to Cloudinary.",
-                "image_saved": False,
+                "message": "YOLO prediction succeeded, but an image could not be saved to Cloudinary.",
+                "image_saved": bool(cloudinary_asset),
             },
         ) from exc
 
     return {
         "filename": file.filename,
-        "image_saved": True,
-        "image_url": cloudinary_asset["secure_url"],
-        "public_id": cloudinary_asset["public_id"],
+        "image_saved": bool(cloudinary_asset),
+        "image_url": cloudinary_asset["secure_url"] if cloudinary_asset else None,
+        "public_id": cloudinary_asset["public_id"] if cloudinary_asset else None,
+        "annotated_image_url": annotated_asset["secure_url"],
+        "model_version": os.getenv("MODEL_VERSION", MODEL_PATH.name),
         "image": {"width": image.width, "height": image.height},
         "count": len(detections),
         "detections": detections,

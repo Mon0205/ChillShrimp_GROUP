@@ -1,6 +1,6 @@
 # AI_SERVICE — Shrimp Seed Detection
 
-AI inference service extracted from the shrimp-seed training project. It exposes a FastAPI endpoint using the included YOLOv8 model and uploads original images to Cloudinary after successful inference.
+AI inference service extracted from the shrimp-seed training project. It exposes a FastAPI endpoint using the included YOLOv8 model and uploads annotated results to Cloudinary after successful inference. Direct `/predict` calls also back up the original image by default.
 
 ## Contents
 
@@ -27,7 +27,7 @@ Fill the three Cloudinary values in `.env`. Open `http://localhost:8001/docs` to
 
 ## API
 
-`POST /predict` accepts multipart form field `file` and optional query parameters `conf` (default `0.25`) and `imgsz` (default `640`). It returns the shrimp count, detection class/confidence/boxes, and Cloudinary `image_url`/`public_id`.
+`POST /predict` accepts multipart form field `file` and optional query parameters `conf` (default `0.25`), `imgsz` (default `640`), and `save_original` (default `true`). It returns the shrimp count, detection class/confidence/boxes, `model_version`, and Cloudinary `annotated_image_url`. When `save_original=true`, it also backs up the original image and returns `image_url`/`public_id`.
 
 `GET /health` reports service, model-file, model-load and Cloudinary configuration status.
 
@@ -45,6 +45,6 @@ Provide `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRE
 
 The root `docker-compose.yml` builds this folder as `ai-service` and exposes its Swagger UI at `http://localhost:8001/docs`. Create `AI_SERVICE/.env` from `.env.example`, then copy only the three Cloudinary credential values from `BE/.env`. Do not point this service at `BE/.env`: that file also contains database, authentication, and SMTP secrets.
 
-Original images are uploaded to the same Cloudinary account as the backend, under `chillshrimp/ai-inspections/originals` by default. The AI container uses its own restricted environment file; no credentials are baked into the image.
+Annotated images are uploaded to the same Cloudinary account as the backend, under `chillshrimp/ai-inspections/originals/annotated` by default. Direct `/predict` calls save originals under `chillshrimp/ai-inspections/originals`. The AI container uses its own restricted environment file; no credentials are baked into the image.
 
-The service currently runs alongside the application but is not yet called by a backend inspection endpoint. The frontend should continue to call the backend rather than exposing the AI service directly to browser workflows.
+The backend calls this service through `AI_SERVICE_URL` after an inspection image is saved. The backend sends the already stored original image with `save_original=false`, then records the returned count, detections, confidence, model version, and annotated image URL in `ai_inspections`. The frontend only calls backend endpoints. In Compose, `AI_SERVICE_URL` points to `http://ai-service:8001`; for a locally started backend, set it to `http://localhost:8001`.

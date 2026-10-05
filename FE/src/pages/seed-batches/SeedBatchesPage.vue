@@ -26,14 +26,21 @@ const detailDialog = ref(false)
 const statusDialog = ref(false)
 const qualityDialog = ref(false)
 const qualityHistoryDialog = ref(false)
+const inspectionDialog = ref(false)
 const reviewDialog = ref(false)
 const qualityChecks = ref([])
+const aiInspections = ref([])
+const selectedAiInspection = ref(null)
 const quantityEvents = ref([])
 const growthSamples = ref([])
 const batchHistoryLoading = ref(false)
 const qualityLoading = ref(false)
 const qualitySaving = ref(false)
 const qualityUploading = ref(false)
+const inspectionUploading = ref(false)
+const inspectionSaving = ref(false)
+const inspectionAnalyzingId = ref(null)
+const aiInspectionLoading = ref(false)
 const certificateUploading = ref(false)
 const reviewSaving = ref(false)
 const quantityDialog = ref(false)
@@ -42,8 +49,11 @@ const growthDialog = ref(false)
 const growthSaving = ref(false)
 const selectedCheck = ref(null)
 const qualityBatch = ref(null)
+const inspectionBatch = ref(null)
+const aiInspectionError = ref('')
 const reviewForm = ref({ reviewStatus: 'confirmed', reviewNotes: '' })
 const qualityForm = ref(emptyQualityForm())
+const inspectionForm = ref(emptyInspectionForm())
 const quantityForm = ref(emptyQuantityForm())
 const growthForm = ref(emptyGrowthForm())
 const formRef = ref(null)
@@ -81,6 +91,10 @@ function regenerateSupplierFallbackCode() {
 
 function emptyQualityForm() {
   return { checkType: 'visual', diseaseCode: '', sampleSize: '', liveCount: '', abnormalCount: '', testMethod: '', labName: '', evidencePublicId: '', evidenceResourceType: '', evidenceFormat: '', evidencePreviewUrl: '', evidenceName: '', result: 'pass', notes: '' }
+}
+
+function emptyInspectionForm() {
+  return { mediaPublicId: '', previewUrl: '', filename: '', samplingMethod: 'ai', sampleVolumeMl: '', notes: '' }
 }
 
 function emptyQuantityForm() {
@@ -160,6 +174,120 @@ function formatQuantity(value) {
 
 function qualityUrl(batchId) {
   return `${batchUrl(batchId)}/quality-checks`
+}
+
+function inspectionUrl(batchId) {
+  return `${batchUrl(batchId)}/ai-inspections`
+}
+
+const aiInspectionStatusNames = {
+  pending: 'Đang chờ', processing: 'Đang xử lý', completed: 'Hoàn tất', failed: 'Lỗi',
+}
+const aiInspectionStatusClasses = {
+  pending: '', processing: 'status-processing', completed: 'status-active', failed: 'status-failed',
+}
+
+function formatInspectionValue(value, digits = 2) {
+  if (value === null || value === undefined || value === '') return '—'
+  const number = Number(value)
+  return Number.isFinite(number) ? number.toLocaleString('vi-VN', { maximumFractionDigits: digits }) : '—'
+}
+
+function openInspectionUpload(batch) {
+  inspectionBatch.value = batch
+  inspectionForm.value = emptyInspectionForm()
+  aiInspections.value = []
+  selectedAiInspection.value = null
+  aiInspectionError.value = ''
+  inspectionDialog.value = true
+  loadAiInspectionHistory(batch)
+}
+
+async function loadAiInspectionHistory(batch) {
+  aiInspectionLoading.value = true
+  try {
+    const response = await api(`${inspectionUrl(batch.id)}?limit=100`)
+    aiInspections.value = response.data.items
+    selectedAiInspection.value = aiInspections.value.find((item) => item.id === selectedAiInspection.value?.id) || aiInspections.value[0] || null
+    aiInspectionError.value = ''
+  } catch (err) {
+    aiInspectionError.value = err.message
+  } finally {
+    aiInspectionLoading.value = false
+  }
+}
+
+async function runAiInspection(inspection) {
+  if (!inspectionBatch.value || inspectionAnalyzingId.value) return
+  const batchId = inspectionBatch.value.id
+  inspectionAnalyzingId.value = inspection.id
+  aiInspections.value = aiInspections.value.map((item) => item.id === inspection.id ? { ...item, status: 'processing' } : item)
+  if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = { ...selectedAiInspection.value, status: 'processing' }
+  try {
+    const response = await api(`${inspectionUrl(batchId)}/${inspection.id}/analyze`, { method: 'POST' })
+    if (inspectionBatch.value?.id === batchId) {
+      aiInspections.value = aiInspections.value.map((item) => item.id === inspection.id ? response.data : item)
+      if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = response.data
+    }
+    showToast(`AI đã đếm được ${formatInspectionValue(response.data.detectedCount, 0)} con trong ảnh mẫu.`, 'success')
+  } catch (err) {
+    if (inspectionBatch.value?.id === batchId) await loadAiInspectionHistory(inspectionBatch.value)
+    showToast(err.message, 'error')
+  } finally {
+    inspectionAnalyzingId.value = null
+  }
+}
+
+async function uploadInspectionImage(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || !inspectionBatch.value) return
+  inspectionUploading.value = true
+  try {
+    const uploaded = await uploadCloudinaryFile(`${inspectionUrl(inspectionBatch.value.id)}/upload-signature`, file, { imagesOnly: true })
+    Object.assign(inspectionForm.value, {
+      mediaPublicId: uploaded.publicId,
+      previewUrl: uploaded.secureUrl,
+      filename: file.name,
+    })
+    showToast('Ảnh kiểm tra đã được tải lên Cloudinary.', 'success')
+  } catch (err) {
+    showToast(err.message, 'error')
+  } finally {
+    inspectionUploading.value = false
+  }
+}
+
+async function saveInspectionImage() {
+  const form = inspectionForm.value
+  if (!inspectionBatch.value) return
+  if (!form.mediaPublicId) return showToast('Hãy tải ảnh kiểm tra lên trước khi lưu.', 'error')
+  const sampleVolumeMl = form.sampleVolumeMl === '' ? null : Number(form.sampleVolumeMl)
+  if (sampleVolumeMl !== null && (!Number.isFinite(sampleVolumeMl) || sampleVolumeMl <= 0 || sampleVolumeMl > 1000000)) {
+    return showToast('Thể tích mẫu phải lớn hơn 0 và không vượt quá 1.000.000 ml.', 'error')
+  }
+  inspectionSaving.value = true
+  try {
+    const response = await api(inspectionUrl(inspectionBatch.value.id), {
+      method: 'POST',
+      body: JSON.stringify({
+        mediaPublicId: form.mediaPublicId,
+        samplingMethod: form.samplingMethod,
+        sampleVolumeMl,
+        notes: form.notes.trim() || null,
+      }),
+    })
+    aiInspections.value = [response.data, ...aiInspections.value.filter((item) => item.id !== response.data.id)]
+    selectedAiInspection.value = response.data
+    inspectionForm.value = emptyInspectionForm()
+    aiInspectionError.value = ''
+    showToast('Đã lưu ảnh kiểm tra vào hồ sơ lô giống.', 'success')
+    runAiInspection(response.data)
+  } catch (err) {
+    showToast(err.message, 'error')
+  } finally {
+    inspectionSaving.value = false
+  }
 }
 
 async function openQualityHistory(batch) {
@@ -579,7 +707,7 @@ onMounted(loadPage)
             <td>{{ formatQuantity(batch.currentEstimatedQuantity) }}<small>Ban đầu {{ formatQuantity(batch.initialQuantity) }}</small></td>
             <td>{{ formatDate(batch.stockedDate) }}</td>
             <td><span class="status-tag" :class="`status-${batch.status}`">{{ statusNames[batch.status] || batch.status }}</span></td>
-            <td><div class="row-actions"><button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết lô" @click="openDetails(batch)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></svg></button><button v-if="isTechnician" class="status-action" type="button" @click="openQualityForm(batch)">Ghi kiểm tra</button><button class="status-action" type="button" @click="openQualityHistory(batch)">Chất lượng</button><button v-if="batch.status !== 'sold' && batch.status !== 'cancelled' && batch.status !== 'failed'" class="icon-btn" type="button" title="Cập nhật thông tin" aria-label="Cập nhật lô" @click="openEdit(batch)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><button v-if="canManage && transitions[batch.status]?.length" class="status-action" type="button" @click="openStatus(batch)">Trạng thái</button></div></td>
+            <td><div class="row-actions"><button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết lô" @click="openDetails(batch)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></svg></button><button v-if="canView" class="status-action" type="button" @click="openInspectionUpload(batch)">Ảnh AI</button><button v-if="isTechnician" class="status-action" type="button" @click="openQualityForm(batch)">Ghi kiểm tra</button><button class="status-action" type="button" @click="openQualityHistory(batch)">Chất lượng</button><button v-if="batch.status !== 'sold' && batch.status !== 'cancelled' && batch.status !== 'failed'" class="icon-btn" type="button" title="Cập nhật thông tin" aria-label="Cập nhật lô" @click="openEdit(batch)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button><button v-if="canManage && transitions[batch.status]?.length" class="status-action" type="button" @click="openStatus(batch)">Trạng thái</button></div></td>
           </tr></tbody>
         </table></div>
         <div v-if="!listLoading && pagination.pageCount > 1" class="pagination-row"><span>{{ pagination.total }} kết quả · Trang {{ page }}/{{ pageCount }}</span><v-pagination v-model="page" :length="pageCount" :total-visible="5" density="compact" rounded="lg" /></div>
@@ -674,6 +802,28 @@ onMounted(loadPage)
       <div class="dialog-actions"><v-btn variant="text" @click="qualityDialog = false">Hủy</v-btn><v-btn color="primary" :loading="qualitySaving" :disabled="qualityUploading" @click="saveQualityCheck">Lưu kết quả</v-btn></div>
     </v-card></v-dialog>
 
+    <v-dialog v-model="inspectionDialog" max-width="1040" scrollable><v-card class="dialog-card ai-dialog"><span class="eyebrow">MEDIA MANAGEMENT · AI INSPECTION</span><h2>Kiểm tra mẫu bằng AI</h2><p class="detail-subtitle">{{ inspectionBatch?.batchCode }} · {{ inspectionBatch?.tank?.name || inspectionBatch?.tank?.code }}</p>
+      <section class="ai-upload-area"><div><h3>Tải ảnh kiểm tra</h3><p>Ảnh sẽ được lưu cùng hồ sơ lô giống. Ảnh annotate và kết quả sẽ hiển thị khi AI trả dữ liệu.</p></div><div class="ai-upload-fields">
+        <div><label>Ảnh mẫu *</label><input class="upload-input" type="file" accept="image/jpeg,image/png,image/webp" :disabled="inspectionUploading || inspectionSaving" @change="uploadInspectionImage"><div class="upload-hint">JPG, PNG hoặc WEBP · tối đa 10 MB</div></div>
+        <div><label>Phương pháp lấy mẫu *</label><v-select v-model="inspectionForm.samplingMethod" :items="[{ title: 'AI', value: 'ai' }, { title: 'Thủ công', value: 'manual' }, { title: 'Kết hợp', value: 'combined' }]" hide-details="auto" /></div>
+        <div><label>Thể tích mẫu (ml)</label><v-text-field v-model="inspectionForm.sampleVolumeMl" type="number" min="0.001" max="1000000" step="any" hide-details="auto" /></div>
+        <div class="ai-notes-field"><label>Ghi chú</label><v-textarea v-model="inspectionForm.notes" maxlength="4000" rows="2" auto-grow hide-details="auto" /></div>
+      </div><div v-if="inspectionForm.previewUrl" class="ai-upload-preview"><img :src="inspectionForm.previewUrl" :alt="`Ảnh mẫu đã tải lên: ${inspectionForm.filename}`"><span>{{ inspectionForm.filename }}</span></div>
+      <div class="dialog-actions"><v-btn variant="text" :disabled="inspectionUploading || inspectionSaving" @click="inspectionDialog = false">Đóng</v-btn><v-btn color="primary" :loading="inspectionSaving" :disabled="inspectionUploading || !inspectionForm.mediaPublicId" @click="saveInspectionImage">Lưu ảnh kiểm tra</v-btn></div></section>
+
+      <v-progress-linear v-if="aiInspectionLoading" indeterminate color="primary" />
+      <div v-else-if="aiInspectionError" class="notice error-notice" role="alert"><span>{{ aiInspectionError }}</span><v-btn size="small" variant="text" @click="loadAiInspectionHistory(inspectionBatch)">Thử lại</v-btn></div>
+      <p v-else-if="!aiInspections.length" class="history-empty">Chưa có lịch sử kiểm tra AI cho lô này.</p>
+      <template v-else-if="selectedAiInspection">
+        <div class="ai-result-heading"><div><span class="eyebrow">KẾT QUẢ ĐANG XEM</span><p>{{ formatTimestamp(selectedAiInspection.inspectedAt || selectedAiInspection.createdAt) }} · {{ selectedAiInspection.creator?.displayName || 'Người dùng' }}</p></div><div class="ai-result-actions"><span class="status-tag" :class="aiInspectionStatusClasses[selectedAiInspection.status]">{{ aiInspectionStatusNames[selectedAiInspection.status] || selectedAiInspection.status }}</span><v-btn v-if="['pending', 'failed'].includes(selectedAiInspection.status)" size="small" variant="outlined" color="primary" :disabled="!!inspectionAnalyzingId" @click="runAiInspection(selectedAiInspection)">Phân tích AI</v-btn></div></div>
+        <v-progress-linear v-if="inspectionAnalyzingId === selectedAiInspection.id" indeterminate color="primary" class="ai-analysis-progress" />
+        <div class="ai-result-layout"><section class="ai-media-grid"><figure><figcaption>Ảnh gốc</figcaption><a :href="selectedAiInspection.mediaUrl" target="_blank" rel="noopener noreferrer"><img :src="selectedAiInspection.mediaUrl" alt="Ảnh gốc của lần kiểm tra"></a></figure><figure v-if="selectedAiInspection.annotatedImageUrl"><figcaption>Ảnh đã đánh dấu kết quả AI</figcaption><a :href="selectedAiInspection.annotatedImageUrl" target="_blank" rel="noopener noreferrer"><img :src="selectedAiInspection.annotatedImageUrl" alt="Ảnh kết quả AI đã đánh dấu"></a></figure><div v-else class="annotated-empty">Chưa có ảnh annotate cho lần kiểm tra này.</div></section>
+          <section class="ai-result-panel"><h3>Kết quả phân tích</h3><div class="ai-metrics"><div><span>Số lượng AI đếm</span><strong>{{ formatInspectionValue(selectedAiInspection.detectedCount, 0) }} con</strong></div><div><span>Số đếm hiệu chỉnh</span><strong>{{ formatInspectionValue(selectedAiInspection.manualCount, 0) }} con</strong></div><div><span>Mật độ mẫu</span><strong>{{ formatInspectionValue(selectedAiInspection.densityPerMl, 3) }} con/ml</strong></div><div><span>Độ tin cậy</span><strong>{{ selectedAiInspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(selectedAiInspection.averageConfidence) * 100, 1)}%` }}</strong></div><div><span>Thể tích mẫu</span><strong>{{ formatInspectionValue(selectedAiInspection.sampleVolumeMl, 2) }} ml</strong></div><div><span>Phiên bản model</span><strong>{{ selectedAiInspection.modelVersion || '—' }}</strong></div></div><p v-if="selectedAiInspection.notes" class="ai-inspection-notes">{{ selectedAiInspection.notes }}</p></section>
+        </div>
+        <section class="ai-history-section"><div class="history-section-heading"><div><h3>Lịch sử kiểm tra AI</h3><p>{{ aiInspections.length }} lần kiểm tra · sắp xếp mới nhất trước</p></div></div><div class="table-wrap"><table><thead><tr><th>Thời điểm</th><th class="tabular">Số đếm</th><th class="tabular">Mật độ</th><th>Confidence</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr v-for="inspection in aiInspections" :key="inspection.id" :class="{ 'ai-history-selected': selectedAiInspection.id === inspection.id }"><td>{{ formatTimestamp(inspection.inspectedAt || inspection.createdAt) }}</td><td class="tabular">{{ formatInspectionValue(inspection.detectedCount, 0) }}</td><td class="tabular">{{ inspection.densityPerMl == null ? '—' : `${formatInspectionValue(inspection.densityPerMl, 3)} con/ml` }}</td><td>{{ inspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(inspection.averageConfidence) * 100, 1)}%` }}</td><td><span class="status-tag" :class="aiInspectionStatusClasses[inspection.status]">{{ aiInspectionStatusNames[inspection.status] || inspection.status }}</span></td><td><v-btn size="small" variant="text" color="primary" @click="selectedAiInspection = inspection">Xem ảnh</v-btn></td></tr></tbody></table></div></section>
+      </template>
+    </v-card></v-dialog>
+
     <v-dialog v-model="qualityHistoryDialog" max-width="900" scrollable><v-card class="dialog-card"><span class="eyebrow">LỊCH SỬ KIỂM TRA</span><h2>{{ qualityBatch?.batchCode }}</h2>
       <v-progress-linear v-if="qualityLoading" indeterminate color="primary" />
       <p v-else-if="!qualityChecks.length" class="detail-subtitle">Chưa có lần kiểm tra chất lượng nào.</p>
@@ -702,6 +852,40 @@ onMounted(loadPage)
 .media-preview{display:block;max-width:100%;max-height:280px;margin-top:10px;border:1px solid #dce7e4;border-radius:7px;object-fit:contain}.document-preview{display:block;width:100%;height:320px;margin-top:10px;border:1px solid #dce7e4;border-radius:7px;background:#f7faf9}.evidence-preview{display:grid;gap:8px;margin-top:8px}.evidence-preview a,.detail-grid dd a{width:max-content;color:#087f6e;font-size:11px}
 .batch-history-section{padding-top:18px;margin-top:20px;border-top:1px solid #e5ecea}.history-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.history-section-heading h3{margin:0;color:#244b46;font-size:14px}.history-section-heading p,.history-empty{margin:4px 0 0;color:#788984;font-size:11px}.history-list{display:grid;gap:8px}.history-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:11px 12px;border:1px solid #e5ecea;border-radius:7px}.history-row strong,.history-row small{display:block}.history-row strong{color:#244b46;font-size:12px}.history-row small{margin-top:4px;color:#788984;font-size:10px;line-height:1.45}.history-row b{flex:0 0 auto;font-size:13px}.quantity-negative{color:#a33c34}.quantity-positive{color:#087f6e}.calculation-hint{margin:12px 0 0;color:#71817d;font-size:11px;line-height:1.5}
 .code-hint{display:block;margin-top:4px;color:#71817d;font-size:10px;line-height:1.4}
+.status-processing{background:#e7f0ff;color:#315fa8}
+.ai-upload-area{padding-bottom:20px;border-bottom:1px solid #e5ecea}
+.ai-upload-area h3,.ai-result-panel h3{margin:0 0 5px;color:#244b46;font-size:14px}
+.ai-upload-area>div:first-child p{margin:0 0 14px;color:#788984;font-size:11px;line-height:1.5}
+.ai-upload-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;align-items:start}
+.ai-upload-fields>div{min-width:0}
+.ai-upload-fields label{display:block;margin-bottom:6px;color:#48625e;font-size:11px;font-weight:700}
+.ai-notes-field{grid-column:span 3}
+.ai-upload-preview{display:flex;align-items:center;gap:12px;margin-top:12px;color:#48625e;font-size:11px}
+.ai-upload-preview img{width:88px;height:68px;border:1px solid #dce7e4;border-radius:7px;object-fit:cover}
+.ai-result-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:18px}
+.ai-result-heading p{margin:0;color:#788984;font-size:11px}
+.ai-result-actions{display:flex;align-items:center;gap:10px}
+.ai-analysis-progress{margin-top:12px}
+.ai-result-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,1fr);gap:20px;padding-top:14px}
+.ai-media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.ai-media-grid figure{min-width:0;margin:0}
+.ai-media-grid figcaption{margin-bottom:7px;color:#48625e;font-size:11px;font-weight:700}
+.ai-media-grid a{display:grid;min-height:190px;place-items:center;border:1px solid #dce7e4;border-radius:7px;background:#f7faf9}
+.ai-media-grid img{display:block;width:100%;max-height:330px;object-fit:contain}
+.annotated-empty{display:grid;min-height:190px;place-items:center;padding:16px;border:1px dashed #cbdcd7;border-radius:7px;color:#788984;background:#f8fbfa;font-size:11px;text-align:center}
+.ai-result-panel{min-width:0;padding-left:18px;border-left:1px solid #e5ecea}
+.ai-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.ai-metrics>div{min-width:0}
+.ai-metrics span,.ai-metrics strong{display:block;overflow-wrap:anywhere}
+.ai-metrics span{margin-bottom:4px;color:#788984;font-size:10px}
+.ai-metrics strong{color:#214c46;font-size:12px}
+.ai-inspection-notes{margin:14px 0 0;padding-top:10px;border-top:1px solid #e5ecea;color:#657873;font-size:11px;line-height:1.5;white-space:pre-wrap}
+.ai-history-section{padding-top:18px;margin-top:18px;border-top:1px solid #e5ecea}
+.ai-history-selected{background:#eef8f5}
+.ai-history-section tbody tr{cursor:pointer}
+.ai-history-section tbody tr:hover{background:#f3faf8}
+.tabular{font-variant-numeric:tabular-nums;white-space:nowrap}
 @media(max-width:900px){.toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.result-count{text-align:left}.list-card{padding:16px}.table-wrap{margin-inline:-8px}th,td{padding-inline:8px}}
-@media(max-width:600px){.page-header{align-items:flex-start;flex-direction:column}.page-header h1{font-size:1.8rem}.toolbar{grid-template-columns:1fr;padding:14px}.form-grid,.detail-grid{grid-template-columns:1fr}.span-2,.detail-wide{grid-column:auto}.dialog-card{padding:18px!important}.pagination-row{align-items:flex-start;flex-direction:column}.result-count{display:flex;align-items:baseline;gap:6px}}
+@media(max-width:900px){.ai-result-layout{grid-template-columns:1fr}.ai-result-panel{padding:16px 0 0;border-top:1px solid #e5ecea;border-left:0}}
+@media(max-width:600px){.page-header{align-items:flex-start;flex-direction:column}.page-header h1{font-size:1.8rem}.toolbar{grid-template-columns:1fr;padding:14px}.form-grid,.detail-grid{grid-template-columns:1fr}.span-2,.detail-wide{grid-column:auto}.dialog-card{padding:18px!important}.pagination-row{align-items:flex-start;flex-direction:column}.result-count{display:flex;align-items:baseline;gap:6px}.ai-upload-fields{grid-template-columns:1fr}.ai-notes-field{grid-column:auto}.ai-media-grid{grid-template-columns:1fr}.ai-result-heading{align-items:flex-start}.ai-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
