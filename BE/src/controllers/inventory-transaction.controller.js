@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { normalizeInventoryImportInput } from '../utils/inventory-import.validation.js'
 import { normalizeInventoryUsageInput } from '../utils/inventory-usage.validation.js'
+import { normalizeInventoryAdjustmentInput } from '../utils/inventory-request.validation.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -147,6 +148,80 @@ export async function recordInventoryImport(req, res) {
     })
   })
 
+  return sendData(res, serializeTransaction(transaction), 201)
+}
+
+export async function listInventoryAdjustments(req, res) {
+  const { page, limit, skip } = parsePagination(req.query)
+  const supplyId = req.query.supplyId || null
+  const from = parseDate(req.query.from, 'NgÃ y báº¯t Ä‘áº§u')
+  const to = parseDate(req.query.to, 'NgÃ y káº¿t thÃºc')
+  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'MÃ£ váº­t tÆ° khÃ´ng há»£p lá»‡.')
+  if (from && to && from > to) throw createHttpError(400, 'NgÃ y báº¯t Ä‘áº§u pháº£i trÆ°á»›c hoáº·c báº±ng ngÃ y káº¿t thÃºc.')
+  const where = {
+    transactionType: 'adjustment',
+    supply: { is: { farmId: req.params.farmId } },
+    ...(supplyId ? { supplyId } : {}),
+    ...(from || to ? { transactionDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+  }
+  const [items, total] = await prisma.$transaction([
+    prisma.inventoryTransaction.findMany({
+      where,
+      include: {
+        supply: { select: { id: true, name: true, category: true, unit: true } },
+        creator: { select: { id: true, displayName: true, email: true } },
+      },
+      orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+      skip,
+      take: limit,
+    }),
+    prisma.inventoryTransaction.count({ where }),
+  ])
+  return sendData(res, { items: items.map(serializeTransaction), pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } })
+}
+
+export async function recordInventoryAdjustment(req, res) {
+  let input
+  try { input = normalizeInventoryAdjustmentInput(req.body) }
+  catch (error) { throw createHttpError(400, error.message) }
+  const farmId = req.params.farmId
+  const delta = new Prisma.Decimal(String(input.quantity))
+  const amount = delta.abs()
+  const transaction = await prisma.$transaction(async (tx) => {
+    const lockedSupply = await tx.$queryRaw(Prisma.sql`
+      SELECT "id" FROM "inventory_supplies"
+      WHERE "id" = CAST(${input.supplyId} AS UUID)
+        AND "farm_id" = CAST(${farmId} AS UUID)
+      FOR UPDATE
+    `)
+    if (!lockedSupply.length) throw createHttpError(404, 'KhÃ´ng tÃ¬m tháº¥y váº­t tÆ° trong trang tráº¡i.')
+    const supply = await tx.inventorySupply.findFirst({ where: { id: input.supplyId, farmId } })
+    if (!supply) throw createHttpError(404, 'KhÃ´ng tÃ¬m tháº¥y váº­t tÆ° trong trang tráº¡i.')
+    if (delta.lessThan(0) && supply.quantity.lessThan(amount)) throw createHttpError(409, 'Äiá»u chá»‰nh sáº½ lÃ m tá»“n kho Ã¢m.')
+    if (delta.greaterThan(0) && supply.quantity.plus(amount).greaterThan('999999999.999')) throw createHttpError(409, 'Äiá»u chá»‰nh vÆ°á»£t quÃ¡ giá»›i háº¡n tá»“n kho.')
+
+    const stockUpdate = await tx.inventorySupply.updateMany({
+      where: { id: supply.id, farmId, ...(delta.lessThan(0) ? { quantity: { gte: amount } } : {}) },
+      data: { quantity: delta.greaterThan(0) ? { increment: amount } : { decrement: amount } },
+    })
+    if (!stockUpdate.count) throw createHttpError(409, 'Tá»“n kho vá»«a thay Ä‘á»•i; táº£i láº¡i dá»¯ liá»‡u rá»“i thá»­ láº¡i.')
+
+    return tx.inventoryTransaction.create({
+      data: {
+        supplyId: supply.id,
+        createdBy: req.auth.id,
+        transactionType: 'adjustment',
+        quantity: delta,
+        unitPrice: supply.unitPrice,
+        transactionDate: input.transactionDate,
+        notes: input.reason,
+      },
+      include: {
+        supply: { select: { id: true, name: true, category: true, unit: true } },
+        creator: { select: { id: true, displayName: true, email: true } },
+      },
+    })
+  })
   return sendData(res, serializeTransaction(transaction), 201)
 }
 

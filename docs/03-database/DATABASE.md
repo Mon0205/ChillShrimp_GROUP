@@ -529,7 +529,7 @@ Bảng này giải quyết lịch sử kho.
 | `batch_id`         | UUID        | FK → batch, nullable            |
 | `created_by`       | TEXT        | FK → users                      |
 | `transaction_type` | VARCHAR(20) | `import`, `usage`, `adjustment` |
-| `quantity`         | DECIMAL     | Số lượng                        |
+| `quantity`         | DECIMAL     | `import`/`usage` dương; `adjustment` có dấu (dương tăng, âm giảm) |
 | `unit_price`       | DECIMAL     | Giá tại thời điểm giao dịch     |
 | `transaction_date` | TIMESTAMP   | Thời gian                       |
 | `notes`            | TEXT        | Ghi chú                         |
@@ -566,6 +566,26 @@ Tồn = tồn - 0.8
 ```
 
 Như vậy kho có thể truy vết được.
+
+Với điều chỉnh tồn, `inventory_transactions.quantity` lưu độ lệch có dấu. API khóa bản ghi vật tư trong transaction, kiểm tra tồn sau điều chỉnh không âm, rồi ghi lịch sử và cập nhật tồn cùng lúc.
+
+---
+
+# 11.1. `supply_requests` — Yêu cầu cấp vật tư
+
+| Field | Type | Ý nghĩa |
+|---|---|---|
+| `id` | UUID | PK |
+| `farm_id` | UUID | FK → farms |
+| `supply_id` | UUID | FK → inventory_supplies |
+| `area_id` | UUID, nullable | Khu vực nhận; null nghĩa là yêu cầu toàn trại |
+| `requested_by` | TEXT | FK → users |
+| `quantity` | DECIMAL(12,3) | Số lượng cần, phải lớn hơn 0 |
+| `status` | VARCHAR(20) | `pending`, `fulfilled`, `rejected`, `cancelled` |
+| `notes` | TEXT, nullable | Ghi chú |
+| `created_at`, `updated_at` | TIMESTAMPTZ | Thời điểm tạo/cập nhật |
+
+Area Manager chỉ tạo và xem yêu cầu thuộc khu vực được phân công. Owner và Warehouse Staff xem yêu cầu trong farm. Việc duyệt/cấp phát và đổi trạng thái thuộc workflow UC07.4.
 
 ---
 
@@ -985,6 +1005,7 @@ Lưu giá cơ sở theo loài, giai đoạn, chất lượng và khoảng số l
 | 14                  | Khách hàng | `customers`              | Trại/hộ mua giống                   |
 | 15                  | Xuất bán   | `seed_sales`             | Xuất bán con giống                  |
 | 16                  | Cảnh báo   | `alerts_notifications`   | Cảnh báo môi trường/AI/kho          |
+| 24                  | Kho        | `supply_requests`        | Yêu cầu cấp vật tư                  |
 
 ### 7 bảng mở rộng nghiệp vụ
 
@@ -998,7 +1019,7 @@ Lưu giá cơ sở theo loài, giai đoạn, chất lượng và khoảng số l
 | 22 | Chăm sóc | `feed_guidelines` | Định mức thức ăn theo giai đoạn |
 | 23 | Xuất bán | `price_lists` | Bảng giá và phụ phí theo điều kiện bán |
 
-Các bảng nền tảng phân quyền `areas`, `farm_members`, `access_sessions` và `password_reset_otp_windows` đã được migrate và mô tả ở mục 2.1–2.4. `supply_requests` vẫn là bảng kế hoạch, chỉ cần bổ sung nếu giữ workflow yêu cầu cấp vật tư. Nếu cần truy vết chính xác việc một lô chiếm dụng ao/bể theo thời gian, có thể bổ sung `batch_tank_assignments`.
+Các bảng nền tảng phân quyền `areas`, `farm_members`, `access_sessions` và `password_reset_otp_windows` đã được migrate và mô tả ở mục 2.1–2.4. `supply_requests` đã được bổ sung cho UC07.3. Nếu cần truy vết chính xác việc một lô chiếm dụng ao/bể theo thời gian, có thể bổ sung `batch_tank_assignments`.
 
 ### Quy tắc phạm vi tenant
 

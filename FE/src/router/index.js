@@ -12,6 +12,7 @@ import EnvironmentThresholdsPage from '../pages/environment-thresholds/Environme
 import TreatmentLogsPage from '../pages/treatments/TreatmentLogsPage.vue'
 import InventoryUsagePage from '../pages/inventory-supplies/InventoryUsagePage.vue'
 import InventorySuppliesPage from '../pages/inventory-supplies/InventorySuppliesPage.vue'
+import InventoryRequestsPage from '../pages/inventory-supplies/InventoryRequestsPage.vue'
 import UsersPage from '../pages/users/UsersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
 import SetPasswordPage from '../pages/set-password/SetPasswordPage.vue'
@@ -35,6 +36,7 @@ const router = createRouter({
     { path: '/environment-thresholds', component: EnvironmentThresholdsPage, meta: { auth: true } },
     { path: '/treatment-logs', component: TreatmentLogsPage, meta: { auth: true } },
     { path: '/inventory-supplies', component: InventorySuppliesPage, meta: { auth: true } },
+    { path: '/inventory-requests', component: InventoryRequestsPage, meta: { auth: true } },
     { path: '/inventory-usage', component: InventoryUsagePage, meta: { auth: true } },
     { path: '/profile', component: ProfilePage, meta: { auth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },

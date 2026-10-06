@@ -21,6 +21,7 @@ const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(r
 const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
 const canViewCareLogs = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
 const canViewInventory = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
+const canViewInventoryRequests = computed(() => ['owner', 'warehouse_staff', 'area_manager'].includes(role.value))
 const canRecordInventoryUsage = computed(() => ['owner', 'technician'].includes(role.value))
 
 onMounted(async () => {
@@ -119,6 +120,7 @@ async function signOut() {
         <v-list-item v-if="canViewCareLogs" to="/environment-thresholds" prepend-icon="mdi-chart-bell-curve-cumulative" title="Ngưỡng môi trường" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/treatment-logs" prepend-icon="mdi-flask-outline" title="Nhật ký thuốc/chế phẩm" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewInventory" to="/inventory-supplies" prepend-icon="mdi-archive-outline" title="Danh mục vật tư" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewInventoryRequests" to="/inventory-requests" prepend-icon="mdi-clipboard-list-outline" title="Yêu cầu cấp vật tư" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Ghi nhận sử dụng" rounded="lg" @click="closeMobileDrawer" />
       </v-list>
       <template #append>

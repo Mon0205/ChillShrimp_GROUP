@@ -36,6 +36,7 @@ model User {
   waterParameterLogs  WaterParameterLog[]
   treatmentLogs       TreatmentLog[]
   inventoryTransactions InventoryTransaction[]
+  inventorySupplyRequests InventorySupplyRequest[] @relation("SupplyRequestRequester")
   feedGuidelinesApproved FeedGuideline[] @relation("FeedGuidelineApprover")
   environmentThresholdsCreated  EnvironmentThreshold[] @relation("EnvironmentThresholdCreator")
   environmentThresholdsApproved EnvironmentThreshold[] @relation("EnvironmentThresholdApprover")
@@ -85,6 +86,7 @@ model Farm {
   pondsTanks    PondTank[]
   seedSuppliers SeedSupplier[]
   inventorySupplies InventorySupply[]
+  inventorySupplyRequests InventorySupplyRequest[]
   feedGuidelines FeedGuideline[]
   environmentThresholds EnvironmentThreshold[]
   alertsNotifications AlertNotification[]
@@ -110,6 +112,7 @@ model Area {
   members     FarmMember[]
   invitations FarmInvitation[]
   pondsTanks  PondTank[]
+  inventorySupplyRequests InventorySupplyRequest[]
 
   @@unique([farmId, code])
   @@index([farmId, status])
@@ -326,6 +329,7 @@ model InventorySupply {
   feedingLogs FeedingLog[]
   treatmentLogs TreatmentLog[]
   transactions InventoryTransaction[]
+  requests InventorySupplyRequest[]
 
   @@index([farmId, category, name])
   @@map("inventory_supplies")
@@ -350,6 +354,29 @@ model InventoryTransaction {
   @@index([supplyId, transactionDate])
   @@index([batchId, transactionDate])
   @@map("inventory_transactions")
+}
+
+model InventorySupplyRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  farmId      String   @map("farm_id") @db.Uuid
+  supplyId    String   @map("supply_id") @db.Uuid
+  areaId      String?  @map("area_id") @db.Uuid
+  requestedBy String   @map("requested_by")
+  quantity    Decimal  @db.Decimal(12, 3)
+  status      String   @default("pending") @db.VarChar(20)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  farm      Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  supply    InventorySupply @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+  area      Area?           @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  requester User            @relation("SupplyRequestRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+
+  @@index([farmId, status, createdAt])
+  @@index([areaId, status, createdAt])
+  @@index([supplyId, createdAt])
+  @@map("supply_requests")
 }
 
 model FeedGuideline {

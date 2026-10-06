@@ -198,6 +198,39 @@ export async function requireInventoryUsageAccess(req, _res, next) {
   }
 }
 
+export async function requireInventoryRequestAccess(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager', 'warehouse_staff'].includes(membership.role)) {
+      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n xem yÃªu cáº§u cáº¥p váº­t tÆ°.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requireInventoryRequestCreator(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'area_manager'].includes(membership.role)) {
+      throw createHttpError(403, 'Chá»‰ Owner hoáº·c Area Manager Ä‘Æ°á»£c gá»­i yÃªu cáº§u cáº¥p váº­t tÆ°.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
+export async function requireInventoryAdjustmentManager(req, _res, next) {
+  try {
+    const membership = await loadMembership(req)
+    if (!['owner', 'warehouse_staff'].includes(membership.role)) {
+      throw createHttpError(403, 'Chá»‰ Owner hoáº·c Warehouse Staff Ä‘Æ°á»£c Ä‘iá»u chá»‰nh tá»“n kho.')
+    }
+    req.membership = membership
+    next()
+  } catch (error) { next(error) }
+}
+
 export async function requireFarmOwner(req, _res, next) {
   try {
     const membership = await loadMembership(req)

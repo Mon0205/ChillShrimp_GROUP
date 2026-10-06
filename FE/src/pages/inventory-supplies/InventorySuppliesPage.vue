@@ -32,11 +32,20 @@ const importForm = ref(emptyImportForm())
 const importHistoryDialog = ref(false)
 const importHistoryLoading = ref(false)
 const importHistory = ref([])
+const adjustmentDialog = ref(false)
+const adjustmentFormRef = ref(null)
+const adjusting = ref(false)
+const adjustmentTarget = ref(null)
+const adjustmentForm = ref(emptyAdjustmentForm())
+const adjustmentHistoryDialog = ref(false)
+const adjustmentHistoryLoading = ref(false)
+const adjustmentHistory = ref([])
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const role = computed(() => selectedFarm.value?.role || '')
 const canManage = computed(() => ['owner', 'warehouse_staff'].includes(role.value))
+const canRequestSupply = computed(() => ['owner', 'area_manager', 'warehouse_staff'].includes(role.value))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const categoryOptions = [
   { title: 'Thức ăn', value: 'feed' },
@@ -62,6 +71,8 @@ const descriptionRules = [(v) => String(v ?? '').length <= 4000 || 'Mô tả t�
 const importQuantityRule = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 999_999_999.999 && Math.abs(Number(value) * 1000 - Math.round(Number(value) * 1000)) < 1e-7 || 'Số lượng phải lớn hơn 0 và có tối đa 3 chữ số thập phân.'
 const importPriceRule = (value) => Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 9_999_999_999.99 && Math.abs(Number(value) * 100 - Math.round(Number(value) * 100)) < 1e-7 || 'Đơn giá phải không âm và có tối đa 2 chữ số thập phân.'
 const importDateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời gian nhập không hợp lệ.'
+const adjustmentQuantityRule = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 999_999_999.999 && Math.abs(Number(value) * 1000 - Math.round(Number(value) * 1000)) < 1e-7 || 'Số lượng phải lớn hơn 0, tối đa 3 chữ số thập phân.'
+const adjustmentDateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời điểm điều chỉnh không hợp lệ.'
 
 function emptyForm() {
   return { name: '', category: 'feed', unit: 'kg', unitPrice: '0', minThreshold: '0', description: '' }
@@ -70,6 +81,11 @@ function emptyForm() {
 function emptyImportForm() {
   const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
   return { quantity: '', unitPrice: '', transactionDate: localNow, notes: '' }
+}
+
+function emptyAdjustmentForm() {
+  const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  return { direction: 'increase', quantity: '', transactionDate: localNow, reason: '' }
 }
 
 function farmUrl(path = '') { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
@@ -173,6 +189,44 @@ async function openImportHistory(supply) {
   } finally { importHistoryLoading.value = false }
 }
 
+function openAdjustment(supply) {
+  adjustmentTarget.value = supply
+  adjustmentForm.value = emptyAdjustmentForm()
+  adjustmentDialog.value = true
+}
+
+async function submitAdjustment() {
+  const validation = await adjustmentFormRef.value?.validate()
+  if (!validation?.valid) return
+  const reason = adjustmentForm.value.reason.trim()
+  if (!reason || reason.length > 4000) return showToast('Lý do điều chỉnh là bắt buộc, tối đa 4.000 ký tự.', 'error')
+  adjusting.value = true
+  try {
+    await api(farmUrl('/inventory-transactions/adjustments'), {
+      method: 'POST',
+      body: JSON.stringify({ supplyId: adjustmentTarget.value.id, direction: adjustmentForm.value.direction, quantity: Number(adjustmentForm.value.quantity), transactionDate: new Date(adjustmentForm.value.transactionDate).toISOString(), reason }),
+    })
+    adjustmentDialog.value = false
+    showToast('Đã điều chỉnh tồn kho và ghi lịch sử.', 'success')
+    await loadSupplies()
+  } catch (err) { showToast(err.message, 'error') }
+  finally { adjusting.value = false }
+}
+
+async function openAdjustmentHistory(supply) {
+  adjustmentTarget.value = supply
+  adjustmentHistory.value = []
+  adjustmentHistoryDialog.value = true
+  adjustmentHistoryLoading.value = true
+  try {
+    const result = await api(farmUrl(`/inventory-transactions/adjustments?supplyId=${encodeURIComponent(supply.id)}&page=1&limit=100`))
+    adjustmentHistory.value = result.data.items
+  } catch (err) {
+    adjustmentHistoryDialog.value = false
+    showToast(err.message, 'error')
+  } finally { adjustmentHistoryLoading.value = false }
+}
+
 function formatDateTime(value) {
   return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
@@ -225,7 +279,10 @@ onMounted(loadPage)
           <h1>Danh mục vật tư</h1>
           <p class="subtitle">Quản lý mặt hàng, đơn vị, đơn giá và ngưỡng cảnh báo tồn kho.</p>
         </div>
-        <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm vật tư</v-btn>
+        <div class="heading-actions">
+          <v-btn v-if="canRequestSupply && farmId" to="/inventory-requests" variant="outlined" prepend-icon="mdi-clipboard-list-outline">Yêu cầu cấp</v-btn>
+          <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm vật tư</v-btn>
+        </div>
       </header>
 
       <div class="filter-row">
@@ -252,6 +309,8 @@ onMounted(loadPage)
               <td v-if="canManage" class="action-col">
                 <v-btn icon="mdi-tray-arrow-down" variant="text" size="small" :aria-label="`Nhập kho ${item.name}`" title="Nhập kho" @click="openImport(item)" />
                 <v-btn icon="mdi-history" variant="text" size="small" :aria-label="`Lịch sử nhập kho ${item.name}`" title="Lịch sử nhập kho" @click="openImportHistory(item)" />
+                <v-btn icon="mdi-swap-vertical" variant="text" size="small" :aria-label="`Điều chỉnh tồn ${item.name}`" title="Điều chỉnh tồn kho" @click="openAdjustment(item)" />
+                <v-btn icon="mdi-history" variant="text" size="small" :aria-label="`Lịch sử điều chỉnh ${item.name}`" title="Lịch sử điều chỉnh" @click="openAdjustmentHistory(item)" />
                 <v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${item.name}`" title="Cập nhật vật tư" @click="openEdit(item)" />
                 <v-btn icon="mdi-delete-outline" variant="text" size="small" color="error" :aria-label="`Xóa ${item.name}`" title="Xóa vật tư" @click="deletingSupply = item" />
               </td>
@@ -319,6 +378,40 @@ onMounted(loadPage)
         </v-card>
       </v-dialog>
 
+      <v-dialog v-model="adjustmentDialog" max-width="580">
+        <v-card class="form-card">
+          <v-card-title>Điều chỉnh tồn kho{{ adjustmentTarget ? ` · ${adjustmentTarget.name}` : '' }}</v-card-title>
+          <v-card-text>
+            <p class="adjustment-stock">Tồn hiện tại: <strong>{{ formatNumber(adjustmentTarget?.quantity) }} {{ adjustmentTarget?.unit }}</strong></p>
+            <v-form ref="adjustmentFormRef" @submit.prevent="submitAdjustment">
+              <div class="form-grid">
+                <v-select v-model="adjustmentForm.direction" :items="[{ title: 'Tăng tồn', value: 'increase' }, { title: 'Giảm tồn', value: 'decrease' }]" label="Chiều điều chỉnh *" />
+                <v-text-field :model-value="adjustmentTarget?.unit" label="Đơn vị" readonly />
+                <v-text-field v-model="adjustmentForm.quantity" type="number" min="0.001" max="999999999.999" step="0.001" label="Số lượng điều chỉnh *" :rules="[requiredRule('Số lượng'), adjustmentQuantityRule]" />
+                <v-text-field v-model="adjustmentForm.transactionDate" type="datetime-local" label="Thời điểm *" :rules="[adjustmentDateRule]" />
+                <v-textarea v-model="adjustmentForm.reason" label="Lý do điều chỉnh *" rows="2" maxlength="4000" counter="4000" class="full-width" :rules="[requiredRule('Lý do')]" />
+              </div>
+            </v-form>
+          </v-card-text>
+          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="adjusting" @click="adjustmentDialog = false">Hủy</v-btn><v-btn color="primary" :loading="adjusting" @click="submitAdjustment">Lưu điều chỉnh</v-btn></v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <v-dialog v-model="adjustmentHistoryDialog" max-width="760">
+        <v-card class="form-card">
+          <v-card-title>Lịch sử điều chỉnh{{ adjustmentTarget ? ` · ${adjustmentTarget.name}` : '' }}</v-card-title>
+          <v-card-text>
+            <div v-if="adjustmentHistoryLoading" class="state-message">Đang tải lịch sử...</div>
+            <div v-else-if="!adjustmentHistory.length" class="state-message">Chưa có giao dịch điều chỉnh.</div>
+            <div v-else class="history-table-wrap"><v-table density="comfortable">
+              <thead><tr><th>Thời gian</th><th>Biến động</th><th>Tồn thay đổi</th><th>Người ghi</th><th>Lý do</th></tr></thead>
+              <tbody><tr v-for="item in adjustmentHistory" :key="item.id"><td>{{ formatDateTime(item.transactionDate) }}</td><td>{{ Number(item.quantity) > 0 ? 'Tăng' : 'Giảm' }}</td><td>{{ formatNumber(Math.abs(Number(item.quantity))) }} {{ item.supply.unit }}</td><td>{{ item.creator.displayName || item.creator.email }}</td><td>{{ item.notes }}</td></tr></tbody>
+            </v-table></div>
+          </v-card-text>
+          <v-card-actions><v-spacer /><v-btn variant="text" @click="adjustmentHistoryDialog = false">Đóng</v-btn></v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <v-dialog :model-value="Boolean(deletingSupply)" max-width="460" @update:model-value="(value) => { if (!value && !deleting.value) deletingSupply = null }">
         <v-card class="form-card">
           <v-card-title>Xóa vật tư</v-card-title>
@@ -335,7 +428,7 @@ onMounted(loadPage)
 
 <style scoped>
 .supplies-page { color:#173f3a; }
-.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }
+.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }.heading-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .eyebrow { margin:0 0 8px; color:#078575; font-size:10px; font-weight:800; letter-spacing:1px; }
 h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .subtitle { margin:8px 0 0; color:#71827e; font-size:13px; }
@@ -347,7 +440,7 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .supplies-table :deep(td) { color:#34514c; font-size:12px; }
 .description,.low-note { display:block; margin-top:3px; max-width:260px; overflow:hidden; color:#83918e; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
 .quantity { font-weight:700; }.quantity.low,.low-note { color:#b34a32; }
-.action-col { min-width:170px; text-align:right !important; white-space:nowrap; }
+.action-col { min-width:230px; text-align:right !important; white-space:nowrap; }
 .empty-row { height:100px; color:#83918e !important; text-align:center; }
 .table-footer { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:0 14px; border-top:1px solid #e5eeeb; color:#71827e; font-size:11px; }
 .pager { display:flex; align-items:center; gap:8px; }
@@ -355,5 +448,6 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }.full-width { grid-column:1/-1; }
 .delete-note { margin-top:10px; color:#71827e; font-size:13px; }
 .import-note { margin:8px 0 0; color:#71827e; font-size:12px; line-height:1.5; }.history-table-wrap { overflow:auto; border:1px solid #dbe9e5; border-radius:6px; }.history-table-wrap :deep(th) { color:#71827e; font-size:10px; text-transform:uppercase; white-space:nowrap; }.history-table-wrap :deep(td) { color:#34514c; font-size:12px; }
+.adjustment-stock { margin:0 0 12px; color:#71827e; font-size:13px; }.adjustment-stock strong { color:#173f3a; }
 @media(max-width:760px) { .page-heading { align-items:flex-start; flex-direction:column; }.filter-row { grid-template-columns:1fr 1fr; }.filter-row .v-btn { grid-column:1/-1; }.table-wrap { overflow-x:auto; }.form-grid { grid-template-columns:1fr; }.full-width { grid-column:auto; } }
 </style>

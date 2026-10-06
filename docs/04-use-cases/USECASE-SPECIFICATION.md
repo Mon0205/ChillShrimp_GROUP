@@ -15,7 +15,7 @@
 | G1b | `farms.owner_id` được dùng như nguồn quyền thứ hai | UC02, UC03 và mọi use case của Owner | ✅ Đã loại bỏ: `farms.created_by` chỉ là người tạo; Owner được xác định bằng `farm_members.role` |
 | G2 | Phạm vi khu vực chưa đi qua dữ liệu nghiệp vụ | UC04–UC09 theo khu vực | ⚠ `areas` và `farm_members` đã có; `ponds_tanks.area_id` vẫn cần migration |
 | G3 | Tên bảng và FK invitation không khớp schema thật | UC03.1–UC03.3 | ✅ Đã chốt: dùng `farm_invitations`; `area_id` đã là FK tới `areas.id` |
-| G4 | Chưa có bảng lưu "yêu cầu cấp vật tư" (`supply_requests`) | UC07.3, UC07.4 | ⚠ Còn mở |
+| G4 | Bảng `supply_requests` và luồng tạo/xem yêu cầu đã được triển khai; xử lý yêu cầu và xuất kho vẫn thuộc luồng UC07.4 | UC07.3, UC07.4 | UC07.3 đã triển khai; UC07.4 còn thiếu workflow xử lý yêu cầu |
 | G5 | Multi-farm chưa hoàn tất ở migration, luồng mời user hiện hữu và farm selector | UC03.1, UC03.2 và mọi kiểm thử chéo farm | ⚠ Kiến trúc đã chốt; chưa sửa code/migration theo phạm vi hiện tại |
 
 Use case bị ảnh hưởng bởi G2–G5 có dòng cảnh báo trỏ về đây.
@@ -353,9 +353,9 @@ Các bảng mở rộng nghiệp vụ `seed_suppliers`, `seed_quality_checks`, `
 | Thuộc tính | Nội dung |
 |---|---|
 | Actor | Owner, Area Manager |
-| Bảng dữ liệu | ⚠ Chưa có bảng — đề xuất `supply_requests` (mục 0, G4) |
+| Bảng dữ liệu | `supply_requests`, `inventory_supplies`, `areas`, `users` |
 | Điều kiện trước | Vật tư tồn tại trong danh mục |
-| Luồng chính | 1. Area Manager chọn vật tư, số lượng cần cho khu vực.<br>2. Backend tạo yêu cầu `status = pending`, gắn `area_id`, `requested_by`.<br>3. Hiển thị cho Warehouse Staff xử lý ở UC07.4. |
+| Luồng chính | 1. Owner hoặc Area Manager chọn vật tư, số lượng cần; Area Manager gửi yêu cầu cho khu vực được phân công.<br>2. Backend xác nhận vật tư thuộc đúng farm và khu vực còn hoạt động, tạo yêu cầu `status = pending`, gắn `area_id`, `requested_by`.<br>3. Owner, Area Manager trong khu vực được phân công và Warehouse Staff xem danh sách yêu cầu. Yêu cầu chỉ chuyển sang trạng thái được xử lý khi có workflow UC07.4. |
 | Luồng thay thế/ngoại lệ | Vật tư không tồn tại → 404 |
 | Kết quả | Yêu cầu được tạo, chờ xử lý |
 | Quy tắc liên quan | ⚠ G4 |
@@ -391,7 +391,7 @@ Các bảng mở rộng nghiệp vụ `seed_suppliers`, `seed_quality_checks`, `
 | Actor | Owner, Warehouse Staff |
 | Bảng dữ liệu | `inventory_supplies`, `inventory_transactions` |
 | Điều kiện trước | Phát hiện sai lệch tồn hệ thống với thực tế |
-| Luồng chính | 1. Nhập số lượng điều chỉnh (±) và lý do.<br>2. Tạo `inventory_transactions` loại `adjustment`; cập nhật `quantity`. |
+| Luồng chính | 1. Owner hoặc Warehouse Staff chọn vật tư, chiều tăng/giảm, số lượng dương và lý do.<br>2. Backend khóa bản ghi vật tư trong transaction; từ chối nếu điều chỉnh giảm làm tồn âm.<br>3. Tạo `inventory_transactions` loại `adjustment` với `quantity` có dấu (dương là tăng, âm là giảm), cập nhật `inventory_supplies.quantity` nguyên tử và lưu lịch sử. |
 | Luồng thay thế/ngoại lệ | Không nhập lý do → 400. Điều chỉnh khiến tồn âm → 409 |
 | Kết quả | Tồn kho khớp thực tế, có lịch sử |
 | Quy tắc liên quan | BR12, BR13 |
@@ -573,7 +573,7 @@ Chi phí chung có thể phân bổ theo số ngày nuôi, thể tích ao/bể, 
 1. Hoàn thiện luồng user hiện hữu nhận thêm membership ở farm khác và kiểm thử role/trạng thái độc lập giữa các farm.
 2. Khi được phép thay đổi database, tạo migration hiệu chỉnh mới để bỏ ràng buộc legacy một-farm; không sửa migration đã áp dụng.
 3. Bổ sung `ponds_tanks.area_id` và các FK/phạm vi `farm_id` cần thiết cho module nghiệp vụ.
-4. Bổ sung bảng `supply_requests` nếu giữ UC07.3 trong phạm vi MVP; nếu không, lược bỏ use case này theo SRS §13.2.
+4. UC07.3 đã có bảng và luồng tạo/xem yêu cầu. Nếu giữ workflow duyệt, từ chối và cấp phát theo yêu cầu, cần hoàn thiện UC07.4 để cập nhật trạng thái và liên kết giao dịch kho.
 5. Tạo migration cho các bảng nghiệp vụ và dùng `TEXT` cho mọi FK trỏ tới `users`.
 6. Đồng bộ sơ đồ ERD/class sau mỗi migration và cập nhật trạng thái đã triển khai của từng use case.
 
