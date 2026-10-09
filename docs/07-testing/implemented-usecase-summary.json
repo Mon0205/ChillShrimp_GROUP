@@ -1,0 +1,207 @@
+{
+  "date": "2026-10-09",
+  "testcases": 451,
+  "implementedUsecases": 25,
+  "modules": 33,
+  "regression": 6,
+  "excludedUsecases": 7,
+  "byUC": [
+    {
+      "uc": "UC01",
+      "title": "Đăng nhập và phiên",
+      "scope": "Đã hiện thực",
+      "count": 20
+    },
+    {
+      "uc": "UC02",
+      "title": "Hồ sơ cá nhân",
+      "scope": "Đã hiện thực",
+      "count": 8
+    },
+    {
+      "uc": "UC03.1",
+      "title": "Mời/nhận/thu hồi lời mời",
+      "scope": "Đã hiện thực, giới hạn",
+      "count": 21
+    },
+    {
+      "uc": "UC03.2",
+      "title": "Quản lý thành viên",
+      "scope": "Đã hiện thực",
+      "count": 15
+    },
+    {
+      "uc": "UC03.3",
+      "title": "Danh sách nhân viên",
+      "scope": "Đã hiện thực",
+      "count": 10
+    },
+    {
+      "uc": "UC04.1",
+      "title": "Trang trại và khu vực",
+      "scope": "Đã hiện thực",
+      "count": 26
+    },
+    {
+      "uc": "UC04.2",
+      "title": "Ao/bể",
+      "scope": "Đã hiện thực",
+      "count": 18
+    },
+    {
+      "uc": "UC04.3",
+      "title": "Trạng thái ao/bể",
+      "scope": "Đã hiện thực",
+      "count": 21
+    },
+    {
+      "uc": "UC05.1",
+      "title": "Lô và nghiệp vụ liên quan",
+      "scope": "Đã hiện thực",
+      "count": 75
+    },
+    {
+      "uc": "UC05.2",
+      "title": "Trạng thái lô",
+      "scope": "Đã hiện thực",
+      "count": 32
+    },
+    {
+      "uc": "UC05.3",
+      "title": "Môi trường nước",
+      "scope": "Đã hiện thực",
+      "count": 14
+    },
+    {
+      "uc": "UC05.4",
+      "title": "Cho ăn và khuyến nghị",
+      "scope": "Đã hiện thực",
+      "count": 16
+    },
+    {
+      "uc": "UC05.5",
+      "title": "Thay nước",
+      "scope": "Đã hiện thực",
+      "count": 10
+    },
+    {
+      "uc": "UC05.6",
+      "title": "Thuốc/chế phẩm",
+      "scope": "Đã hiện thực",
+      "count": 13
+    },
+    {
+      "uc": "UC06.1",
+      "title": "Thực hiện AI inspection",
+      "scope": "Hiện thực một phần",
+      "count": 19
+    },
+    {
+      "uc": "UC06.2",
+      "title": "Lịch sử AI",
+      "scope": "Đã hiện thực",
+      "count": 8
+    },
+    {
+      "uc": "UC07.1",
+      "title": "Danh mục vật tư",
+      "scope": "Đã hiện thực",
+      "count": 14
+    },
+    {
+      "uc": "UC07.2",
+      "title": "Nhập kho",
+      "scope": "Đã hiện thực",
+      "count": 11
+    },
+    {
+      "uc": "UC07.3",
+      "title": "Yêu cầu cấp vật tư",
+      "scope": "Hiện thực tạo/xem",
+      "count": 11
+    },
+    {
+      "uc": "UC07.4",
+      "title": "Xuất/cấp kho theo yêu cầu",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC07.5",
+      "title": "Sử dụng vật tư",
+      "scope": "Đã hiện thực",
+      "count": 11
+    },
+    {
+      "uc": "UC07.6",
+      "title": "Điều chỉnh kho",
+      "scope": "Đã hiện thực",
+      "count": 12
+    },
+    {
+      "uc": "UC08.1",
+      "title": "Quản lý chi phí",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC08.2",
+      "title": "Ghi chi phí phát sinh",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC08.3",
+      "title": "Chi phí theo khu vực",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC08.4",
+      "title": "Khách hàng",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC08.5",
+      "title": "Xuất bán",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC08.6",
+      "title": "Doanh thu",
+      "scope": "Chưa hiện thực",
+      "count": 0
+    },
+    {
+      "uc": "UC09.1",
+      "title": "Dashboard",
+      "scope": "Hiện thực một phần",
+      "count": 17
+    },
+    {
+      "uc": "UC09.2",
+      "title": "Cảnh báo toàn trại",
+      "scope": "Hiện thực môi trường",
+      "count": 31
+    },
+    {
+      "uc": "UC09.3",
+      "title": "Cảnh báo khu vực",
+      "scope": "Hiện thực môi trường",
+      "count": 9
+    },
+    {
+      "uc": "UC09.4",
+      "title": "Cảnh báo kho",
+      "scope": "Hiện thực một phần",
+      "count": 9
+    }
+  ],
+  "byPriority": {
+    "P0": 85,
+    "P1": 365,
+    "P2": 1
+  }
+}
