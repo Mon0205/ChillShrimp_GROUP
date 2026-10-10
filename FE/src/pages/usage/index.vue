@@ -1,4 +1,5 @@
 <script setup>
+import Pagination from '../../components/pagination/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -18,7 +19,7 @@ const error = ref('')
 const formRef = ref(null)
 const dialog = ref(false)
 const page = ref(1)
-const pageSize = 50
+const pageSize = ref(10)
 const pagination = ref({ total: 0, pageCount: 1 })
 const form = ref(emptyForm())
 
@@ -80,7 +81,7 @@ async function loadTransactions() {
   listLoading.value = true
   error.value = ''
   try {
-    const result = await api(farmUrl(`/inventory-transactions?type=usage&page=${page.value}&limit=${pageSize}`))
+    const result = await api(farmUrl(`/inventory-transactions?type=usage&page=${page.value}&limit=${pageSize.value}`))
     transactions.value = result.data.items
     pagination.value = result.data.pagination
   } catch (err) {
@@ -130,23 +131,18 @@ watch(farmId, async () => {
 })
 
 onMounted(loadPage)
+watch(page, loadTransactions)
+watch(pageSize, () => { if (page.value === 1) loadTransactions(); else page.value = 1 })
 </script>
 
 <template>
 <AppShell>
     <section class="usage-page">
       <header class="page-heading">
-        <div>
-
-          <h1>Ghi nhận sử dụng vật tư</h1>
-          <p class="subtitle">Mỗi lần ghi sẽ tạo giao dịch sử dụng và trừ tồn kho nguyên tử.</p>
-        </div>
-        <v-btn color="primary" prepend-icon="mdi-minus-circle-outline" :disabled="!supplies.length" @click="openCreate">Ghi sử dụng</v-btn>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-package-variant-minus" size="25" /></v-avatar><h1>Lịch sử sử dụng vật tư</h1></div>
       </header>
+      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-minus-circle-outline" :disabled="!supplies.length" @click="openCreate">Ghi sử dụng</v-btn></div>
 
-      <div class="policy-note">
-        Khi chọn thức ăn tại UC05.4, hệ thống đã tự tạo giao dịch sử dụng và trừ tồn. Chỉ ghi thủ công cho lượng chưa được ghi nhận ở nhật ký cho ăn hoặc nhật ký xử lý khác.
-      </div>
 
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
@@ -167,10 +163,7 @@ onMounted(loadPage)
             <tr v-if="!listLoading && !transactions.length"><td colspan="6" class="empty-row">Chưa có giao dịch sử dụng vật tư.</td></tr>
           </tbody>
         </v-table>
-        <div class="table-footer">
-          <span>{{ pagination.total }} giao dịch</span>
-          <div class="pager"><v-btn icon="mdi-chevron-left" variant="text" aria-label="Trang trước" :disabled="page <= 1 || listLoading" @click="page--; loadTransactions()" /><span>{{ page }} / {{ pageCount }}</span><v-btn icon="mdi-chevron-right" variant="text" aria-label="Trang sau" :disabled="page >= pageCount || listLoading" @click="page++; loadTransactions()" /></div>
-        </div>
+        <Pagination v-model:page="page" v-model:page-size="pageSize" :total="pagination.total" :loading="listLoading" />
       </div>
 
       <v-dialog v-model="dialog" max-width="600">
@@ -205,7 +198,6 @@ onMounted(loadPage)
 .eyebrow { margin:0 0 8px; color:#078575; font-size:10px; font-weight:800; letter-spacing:1px; }
 h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .subtitle { margin:8px 0 0; color:#71827e; font-size:13px; }
-.policy-note { margin-bottom:16px; padding:12px 15px; border-left:3px solid #168b78; background:#eef8f5; color:#496760; font-size:12px; line-height:1.5; }
 .state-message { padding:34px 20px; border:1px solid #dbe9e5; border-radius:8px; color:#71827e; background:#fff; text-align:center; }
 .error-state { color:#a33b3b; }
 .table-wrap { overflow:hidden; border:1px solid #dbe9e5; border-radius:8px; background:#fff; }
@@ -227,7 +219,6 @@ h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .eyebrow { margin:0 0 8px; color:#078575; font-size:10px; font-weight:800; letter-spacing:1px; }
 h1 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
 .subtitle { margin:8px 0 0; color:#71827e; font-size:13px; }
-.policy-note { margin-bottom:16px; padding:12px 15px; border-left:3px solid #168b78; background:#eef8f5; color:#496760; font-size:12px; line-height:1.5; }
 .state-message { padding:34px 20px; border:1px solid #dbe9e5; border-radius:8px; color:#71827e; background:#fff; text-align:center; }
 .error-state { color:#a33b3b; }
 .table-wrap { overflow:hidden; border:1px solid #dbe9e5; border-radius:8px; background:#fff; }

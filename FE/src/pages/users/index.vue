@@ -1,9 +1,11 @@
 <script setup>
+import Pagination from '../../components/pagination/index.vue'
+const page = ref(1), pageSize = ref(10)
 import AppShell from '../../components/shell/index.vue'
 import { required, emailRule, codeRule, maxLength } from '../../utils/validation.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAuth } from '../../composables/auth.js'
-import { loadFarmContext, selectFarm, useFarmContext } from '../../composables/farm-context.js'
+import { loadFarmContext, useFarmContext } from '../../composables/farm-context.js'
 import { showToast } from '../../composables/toast.js'
 import { api } from '../../services/api.js'
 
@@ -11,8 +13,8 @@ const auth = useAuth()
 const farmContext = useFarmContext()
 const manageableFarms = computed(() => farmContext.farms.filter(farm => ['owner', 'area_manager'].includes(farm.role)))
 const search = ref('')
-const invitations = ref([]), members = ref([]), showInvitations = ref(false)
-const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
+const invitations = ref([]), members = ref([])
+const farmId = computed(() => farmContext.farmId)
 const email = ref(''), role = ref('technician'), areaId = ref('')
 const loading = ref(true), sending = ref(false), error = ref(''), success = ref('')
 const inviteDialog = ref(false)
@@ -25,7 +27,7 @@ const selectedFarm = computed(() => manageableFarms.value.find((farm) => farm.id
 const areas = computed(() => selectedFarm.value?.areas || [])
 const roleOptions = computed(() => selectedFarm.value?.role === 'owner' ? Object.entries(roleNames).map(([value, title]) => ({ title, value })) : [{ title: roleNames.technician, value: 'technician' }])
 const needsArea = computed(() => ['area_manager', 'technician'].includes(role.value))
-const userRows = computed(() => [...members.value.map((x) => ({ ...x, status: x.status || 'active', roleLabel: roleNames[x.role] })), ...(showInvitations.value ? invitations.value.map((x) => ({ ...x, status: 'pending', roleLabel: roleNames[x.role] })) : [])])
+const userRows = computed(() => [...members.value.map((x) => ({ ...x, status: x.status || 'active', roleLabel: roleNames[x.role] })), ...invitations.value.map((x) => ({ ...x, status: 'pending', roleLabel: roleNames[x.role] }))])
 const canEditUser = (item) => item.status !== 'pending' && (selectedFarm.value?.role === 'owner' || (selectedFarm.value?.role === 'area_manager' && item.role === 'technician' && item.area?.id === selectedFarm.value?.area?.id))
 const editNeedsArea = computed(() => ['area_manager', 'technician'].includes(editForm.value.role))
 const revokingInvitation = ref(false)
@@ -49,14 +51,13 @@ async function confirmAction() {
 
 async function loadFarms() {
   await loadFarmContext(true)
-  if (!manageableFarms.value.some((farm) => farm.id === farmId.value)) selectFarm(manageableFarms.value[0]?.id || '')
 }
 async function loadFarmData() {
   const targetFarm = farmId.value
   if (!selectedFarm.value) { invitations.value = []; members.value = []; return }
   const [users] = await Promise.all([
     api(`/users?farmId=${encodeURIComponent(targetFarm)}`),
-    showInvitations.value ? loadInvitations() : Promise.resolve(),
+    loadInvitations(),
   ])
   if (farmId.value !== targetFarm) return
   members.value = users.data
@@ -66,11 +67,8 @@ async function loadInvitations() {
   const targetFarm = farmId.value
   if (!selectedFarm.value) return
   const result = await api(`/users/invitations?farmId=${encodeURIComponent(targetFarm)}`)
-  if (farmId.value === targetFarm && showInvitations.value) invitations.value = result.data
+  if (farmId.value === targetFarm) invitations.value = result.data
 }
-watch(showInvitations, async value => {
-  if (value) { try { await loadInvitations() } catch (err) { error.value = err.message } }
-})
 onMounted(async () => { try { await loadFarms(); await loadFarmData() } catch (err) { error.value = err.message } finally { loading.value = false } })
 watch(farmId, async () => {
   if (loading.value) return
@@ -87,7 +85,7 @@ async function sendInvite(event) {
   try {
     await api('/users/invitations', { method: 'POST', body: JSON.stringify({ farmId: farmId.value, email: email.value, role: role.value, areaId: needsArea.value ? areaId.value : null }) })
     success.value = `Đã gửi lời mời đến ${email.value}.`; email.value = ''; inviteDialog.value = false
-    if (showInvitations.value) await loadInvitations()
+    await loadInvitations()
   } catch (err) { error.value = err.message } finally { sending.value = false }
 }
 function revoke(item) {
@@ -124,30 +122,32 @@ const formatDate = (value) => {
   const get = (type) => parts.find((part) => part.type === type)?.value || ''
   return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`
 }
+const filteredTotal = computed(() => { const term = (search.value || '').toLocaleLowerCase(); return userRows.value.filter(item => [item.email, item.displayName, item.roleLabel].some(value => String(value || '').toLocaleLowerCase().includes(term))).length })
+watch([search, farmId, pageSize], () => { page.value = 1 })
 </script>
 
 <template>
 <AppShell>
     <header class="page-header">
       <div class="page-title"><v-avatar class="page-title-icon" color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-account-group-outline" size="25" /></v-avatar><h1>Người dùng</h1></div>
-      <div class="page-actions"><v-btn v-if="manageableFarms.length" color="primary" prepend-icon="mdi-account-plus-outline" elevation="0" @click="inviteDialog = true">Thêm người dùng</v-btn></div>
     </header>
+    <div v-if="selectedFarm && !loading" class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-account-plus-outline" elevation="0" @click="inviteDialog = true">Thêm người dùng</v-btn></div>
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
     <template v-else>
-      <div v-if="!manageableFarms.length" class="permission-empty">Chức vụ hiện tại không có quyền quản lý người dùng.</div>
+      <div v-if="!selectedFarm" class="permission-empty">Chức vụ hiện tại không có quyền quản lý người dùng.</div>
       <v-card v-else class="users-card" elevation="0">
-        <div class="list-header"><div class="farm-heading"><div><span class="eyebrow">THÀNH VIÊN TRẠI</span><h2>{{ selectedFarm?.name }}</h2></div></div><v-chip color="primary" variant="tonal" prepend-icon="mdi-account-multiple-outline" size="small">{{ members.length }} thành viên</v-chip></div>
-        <div class="table-toolbar"><v-text-field v-model="search" class="member-search" placeholder="Tìm tên, email hoặc chức vụ" aria-label="Tìm thành viên" prepend-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details clearable /><v-switch class="invitation-toggle" v-model="showInvitations" label="Xem lời mời đang chờ" color="primary" density="compact" hide-details inset /></div>
-        <v-data-table class="app-data-table members-table" :search="search || ''" :filter-keys="['email', 'displayName', 'roleLabel']" :headers="tableHeaders" :items="userRows" item-value="id" :items-per-page="10" no-data-text="Chưa có người dùng. Nhấn Thêm người dùng để gửi lời mời." items-per-page-text="Số dòng" page-text="{0}–{1} / {2}" no-results-text="Không tìm thấy thành viên phù hợp.">
+        <div class="table-toolbar"><v-text-field v-model="search" class="member-search" placeholder="Tìm tên, email hoặc chức vụ" aria-label="Tìm thành viên" prepend-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details clearable /></div>
+        <v-data-table class="app-data-table members-table" :search="search || ''" :filter-keys="['email', 'displayName', 'roleLabel']" :headers="tableHeaders" :items="userRows" item-value="id" v-model:page="page" v-model:items-per-page="pageSize" no-data-text="Chưa có người dùng. Nhấn Thêm người dùng để gửi lời mời." items-per-page-text="Số dòng" page-text="{0}–{1} / {2}" no-results-text="Không tìm thấy thành viên phù hợp.">
           <template #item.email="{ item }"><div class="member-identity"><v-avatar color="primary" variant="tonal" rounded="lg" size="36">{{ (item.displayName || item.email).slice(0, 1).toUpperCase() }}</v-avatar><div class="member-copy"><strong>{{ item.displayName && item.displayName !== item.email ? item.displayName : item.email.split('@')[0] }}</strong><span>{{ item.email }}</span></div></div></template>
           <template #item.role="{ item }"><v-chip size="small" variant="tonal" color="primary">{{ roleNames[item.role] }}</v-chip></template>
           <template #item.area.name="{ item }"><span class="scope-cell"><v-icon :icon="item.area ? 'mdi-map-marker-outline' : 'mdi-home-outline'" size="16" />{{ item.area?.name || 'Toàn trại' }}</span></template>
-          <template #item.status="{ item }"><v-chip size="small" :prepend-icon="item.status === 'active' ? 'mdi-check-circle-outline' : item.status === 'suspended' ? 'mdi-pause-circle-outline' : 'mdi-clock-outline'" :color="item.status === 'active' ? 'success' : item.status === 'suspended' ? 'error' : 'warning'">{{ item.status === 'active' ? 'Đang hoạt động' : item.status === 'suspended' ? 'Ngừng hoạt động' : 'Chờ xác nhận' }}</v-chip></template>
+          <template #item.status="{ item }"><v-chip size="small" variant="tonal" :color="item.status === 'active' ? 'success' : item.status === 'suspended' ? 'default' : 'warning'">{{ item.status === 'active' ? 'Đang hoạt động' : item.status === 'suspended' ? 'Ngừng hoạt động' : 'Chờ xác nhận' }}</v-chip></template>
           <template #item.createdAt="{ item }"><span class="date-cell">{{ item.status === 'pending' ? 'Chưa tham gia' : formatDate(item.createdAt) }}</span></template>
           <template #item.actions="{ item }"><div class="d-flex align-center justify-end ga-1">
             <v-tooltip text="Chỉnh sửa thành viên" location="top"><template #activator="{ props }"><v-btn v-if="canEditUser(item)" v-bind="props" icon="mdi-pencil-outline" size="small" variant="tonal" color="primary" aria-label="Chỉnh sửa thành viên" @click="openEdit(item)" /></template></v-tooltip>
             <v-tooltip text="Thu hồi lời mời" location="top"><template #activator="{ props }"><v-btn v-if="item.status === 'pending'" v-bind="props" icon="mdi-email-remove-outline" size="small" variant="text" color="primary" aria-label="Thu hồi lời mời" :disabled="revokingInvitation" @click="revoke(item)" /></template></v-tooltip>
           </div></template>
+        <template #bottom><Pagination v-model:page="page" v-model:page-size="pageSize" :total="filteredTotal" /></template>
         </v-data-table>
       </v-card>
     </template>
@@ -163,6 +163,7 @@ const formatDate = (value) => {
 </template>
 
 <style scoped>
+.list-actions { margin-bottom: 12px; }
 h1,h2,p { margin-top: 0; }
 h1 { margin-bottom: 8px; color: #134e4a; font-size: clamp(1.75rem,3vw,2.2rem); font-weight: 700; line-height: 1.3; letter-spacing: -.025em; }
 h2 { margin-bottom: 7px; color: #134e4a; font-size: 1.25rem; }
@@ -186,7 +187,7 @@ h2 { margin-bottom: 7px; color: #134e4a; font-size: 1.25rem; }
 .first-farm-card { display: flex; align-items: center; gap: 18px; padding: 24px; border: 1px dashed #9bc7be; background: #f9fcfb; }
 .first-farm-card p { margin: 0; color: #71827f; font-size: 12px; }
 .dialog-card { padding: 30px; }
-.table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 20px 0; }
+.table-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 24px; margin: 0 0 20px; }
 .invitation-toggle { flex: 0 0 auto; }
 .member-search :deep(.v-field) { border-radius: 10px; }
 .member-search { max-width: 360px; }
@@ -237,7 +238,7 @@ h2 { margin-bottom: 7px; color: #134e4a; font-size: 1.25rem; }
 .first-farm-card { display: flex; align-items: center; gap: 18px; padding: 24px; border: 1px dashed #9bc7be; background: #f9fcfb; }
 .first-farm-card p { margin: 0; color: #71827f; font-size: 12px; }
 .dialog-card { padding: 30px; }
-.table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 20px 0; }
+.table-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 24px; margin: 0 0 20px; }
 .invitation-toggle { flex: 0 0 auto; }
 .member-search :deep(.v-field) { border-radius: 10px; }
 .member-search { max-width: 360px; }

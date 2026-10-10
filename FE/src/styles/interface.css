@@ -86,3 +86,29 @@
 @media (max-width: 420px) {
   .app-shell .main-content :is(.toolbar-card, .toolbar) { grid-template-columns: 1fr; }
 }
+.app-shell .main-content .list-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 20px 0; }
+.app-shell .main-content .list-search { flex: 1 1 280px; max-width: 360px; min-width: 0; margin-left: auto; }
+.app-shell .main-content .list-toolbar .v-field { border-radius: 10px; }
+.app-shell .main-content .list-filters { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 12px; min-width: 0; }
+.app-shell .main-content .list-filters > .v-input { flex: 1 1 160px; width: 180px; max-width: 220px; }
+@media (max-width: 1000px) {
+  .app-shell .main-content .list-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .app-shell .main-content .list-search { flex: none; max-width: none; margin-left: 0; }
+  .app-shell .main-content .list-filters { justify-content: flex-start; }
+}
+@media (max-width: 760px) {
+  .app-shell .main-content .list-filters > .v-input { max-width: none; width: auto; }
+}
+.app-shell .main-content .list-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+@media (max-width: 760px) {
+  .app-shell .main-content .list-actions > .v-btn { flex: 1 1 auto; }
+}
+.app-shell .main-content .section-page-title { display: flex; align-items: center; gap: 14px; }
+.app-shell .main-content .section-page-title h1 { margin: 0; }
+.app-shell .main-content .section-page-title .v-avatar { flex-shrink: 0; border: 1px solid #dce7e4; }
+.app-shell .main-content .care-content .alert-filters { display: flex; flex-wrap: wrap; max-width: none; }
+.app-shell .main-content .care-content .alert-filters > .v-select { flex: 0 0 auto; width: 170px; max-width: 100%; }
+.app-shell .main-content .care-content .alert-filters > .v-select:last-child { width: 200px; }
+.app-shell .main-content .care-list-card { background: #fff; border: 1px solid var(--ui-border); }
+.app-shell .main-content .care-list-card .table-wrap,
+.app-shell .main-content .care-list-card .log-table-wrap { border: 0; }

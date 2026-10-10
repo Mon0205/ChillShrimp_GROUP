@@ -1,6 +1,6 @@
 <script setup>
 const props = defineProps({ model: { type: Object, required: true } })
-const { suppliers, tanks, loading, saving, error, formDialog, certificateUploading, formRef, editingBatch, form, regenerateInternalBatchCode, regenerateSupplierFallbackCode, isTechnician, speciesOptions, broodstockOptions, requiredRule, batchCodeRules, quantityRules, documentedRules, lengthRule, dateOrderError, uploadCertificate, saveBatch, ref } = props.model
+const { canManage, transitions, statusNames, suppliers, tanks, loading, saving, error, formDialog, certificateUploading, formRef, editingBatch, form, regenerateInternalBatchCode, regenerateSupplierFallbackCode, isTechnician, speciesOptions, broodstockOptions, requiredRule, batchCodeRules, quantityRules, documentedRules, lengthRule, dateOrderError, uploadCertificate, saveBatch, ref } = props.model
 </script>
 
 <template>
@@ -14,7 +14,8 @@ const { suppliers, tanks, loading, saving, error, formDialog, certificateUploadi
           </div>
           <div class="form-grid">
             <template v-if="!isTechnician">
-              <div v-if="editingBatch" class="span-2"><label>Mã lô</label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
+              <div v-if="editingBatch"><label>Mã lô</label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
+              <div v-if="editingBatch"><label>Trạng thái lô</label><v-select v-model="form.status" :items="[{ title: statusNames[editingBatch.status], value: editingBatch.status }, ...(transitions[editingBatch.status] || [])]" :disabled="!canManage || !transitions[editingBatch.status]?.length" hide-details="auto" /></div>
               <div v-if="editingBatch"><label>Mã lô nhà cung cấp</label><v-text-field v-model="form.supplierLotCode" maxlength="80" :rules="[requiredRule('Mã lô nhà cung cấp'), lengthRule('Mã lô nhà cung cấp', 80)]" hide-details="auto" /></div>
               <div><label>Nhà cung cấp</label><v-select v-model="form.supplierId" :items="[{ title: 'Không chọn', value: '' }, ...suppliers.map((supplier) => ({ title: supplier.name, value: supplier.id }))]" placeholder="Không bắt buộc" hide-details="auto" /></div>
             </template>

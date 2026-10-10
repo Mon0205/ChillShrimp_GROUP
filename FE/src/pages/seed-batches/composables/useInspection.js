@@ -10,7 +10,7 @@ export function useInspection({ error, inspectionDialog, aiInspections, selected
     selectedAiInspection.value = null
     aiInspectionError.value = ''
     inspectionDialog.value = true
-    loadAiInspectionHistory(batch)
+    return loadAiInspectionHistory(batch)
   }
 
   async function loadAiInspectionHistory(batch) {

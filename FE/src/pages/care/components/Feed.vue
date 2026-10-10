@@ -1,4 +1,6 @@
 <script setup>
+import Pagination from '../../../components/pagination/index.vue'
+import DateRange from './Date.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { selectFarm, useFarmContext } from '../../../composables/farm-context.js'
@@ -21,7 +23,7 @@ const error = ref('')
 const formDialog = ref(false)
 const formRef = ref(null)
 const page = ref(1)
-const pageSize = 50
+const pageSize = ref(10)
 const pagination = ref({ total: 0, pageCount: 1 })
 const filters = ref({ tankId: props.tankId, from: '', to: '' })
 const form = ref(emptyForm())
@@ -133,7 +135,7 @@ function selectFeedSupply(supplyId) {
 }
 
 function buildQuery() {
-  const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize) })
+  const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
   if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
   if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
@@ -174,7 +176,7 @@ function applyFilters() {
 }
 
 function openCreate() {
-  form.value = { ...emptyForm(), tankId: filters.value.tankId || tanks.value[0]?.id || '' }
+  form.value = { ...emptyForm(), tankId: tanks.value.find(tank => tank.id === filters.value.tankId)?.id || tanks.value[0]?.id || '' }
   formDialog.value = true
 }
 
@@ -224,23 +226,19 @@ watch(() => props.tankId, async (tankId) => {
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
 })
 onMounted(loadPage)
+watch(() => [filters.value.from, filters.value.to], applyFilters)
+watch(page, loadLogs)
+watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
 </script>
 
 <template>
 <section class="feeding-page">
-      <header class="page-heading">
-        <div>
-
-          <h2>Nhật ký cho ăn</h2>
-          <p class="subtitle">Ghi nhận lượng thức ăn thực tế theo ao/bể và theo dõi lịch sử.</p>
-        </div>
-        <v-btn color="primary" prepend-icon="mdi-plus" :disabled="!canRecord || !tanks.length" @click="openCreate">Ghi lần cho ăn</v-btn>
-      </header>
+      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-plus" :disabled="loading || !canRecord" @click="openCreate">Ghi lần cho ăn</v-btn></div>
+      <v-card class="list-card care-list-card" elevation="0">
 
       <div class="filter-row">
-        <v-text-field v-model="filters.from" type="date" label="Từ ngày" density="comfortable" variant="outlined" hide-details />
-        <v-text-field v-model="filters.to" type="date" label="Đến ngày" density="comfortable" variant="outlined" hide-details />
-        <v-btn variant="tonal" prepend-icon="mdi-magnify" :loading="listLoading" @click="applyFilters">Lọc</v-btn>
+        <slot name="filters" />
+        <DateRange v-model="filters" />
       </div>
 
       <div v-if="summary.amountsByUnit.length" class="summary-row">
@@ -255,6 +253,7 @@ onMounted(loadPage)
           <small>Trên các bản ghi có số liệu</small>
         </div>
       </div>
+
 
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
@@ -276,16 +275,16 @@ onMounted(loadPage)
             </tr>
           </tbody>
         </v-table>
-        <div class="table-footer">
-          <span>{{ pagination.total }} bản ghi</span>
-          <div class="pager"><v-btn icon="mdi-chevron-left" variant="text" aria-label="Trang trước" :disabled="page <= 1 || listLoading" @click="page--; loadLogs()" /><span>{{ page }} / {{ pageCount }}</span><v-btn icon="mdi-chevron-right" variant="text" aria-label="Trang sau" :disabled="page >= pageCount || listLoading" @click="page++; loadLogs()" /></div>
-        </div>
+        <Pagination v-model:page="page" v-model:page-size="pageSize" :total="pagination.total" :loading="listLoading" />
       </div>
+
+      </v-card>
 
       <v-dialog v-model="formDialog" max-width="720">
         <v-card class="form-card">
           <v-card-title>Ghi nhận lần cho ăn</v-card-title>
           <v-card-text>
+            <p v-if="!tanks.length" class="mb-4 text-body-2">Chưa có ao/bể đang ương để ghi cho ăn. Vào trang Ao/bể để kiểm tra trạng thái ao/bể của trại này.</p>
             <v-form ref="formRef" @submit.prevent="saveLog">
               <div class="form-grid">
                 <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[requiredRule('Ao/bể')]" />
@@ -303,7 +302,7 @@ onMounted(loadPage)
               </div>
             </v-form>
           </v-card-text>
-          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="saving" @click="formDialog = false">Hủy</v-btn><v-btn color="primary" :loading="saving" @click="saveLog">Lưu nhật ký</v-btn></v-card-actions>
+          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="saving" @click="formDialog = false">Hủy</v-btn><v-btn color="primary" :loading="saving" :disabled="!tanks.length" @click="saveLog">Lưu nhật ký</v-btn></v-card-actions>
         </v-card>
       </v-dialog>
     </section>

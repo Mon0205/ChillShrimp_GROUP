@@ -2,7 +2,7 @@ import { showToast } from '../../../composables/toast.js'
 import { api } from '../../../services/api.js'
 import { uploadCloudinaryFile } from '../../../services/cloudinary.js'
 
-export function useForm({ saving, error, formDialog, certificateUploading, formRef, editingBatch, form, emptyForm, createBatchIdentifiers, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional }) {
+export function useForm({ saving, error, formDialog, certificateUploading, formRef, editingBatch, form, emptyForm, createBatchIdentifiers, canManage, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional }) {
   function regenerateInternalBatchCode() {
     form.value.batchCode = createBatchIdentifiers().batchCode
   }
@@ -43,6 +43,7 @@ export function useForm({ saving, error, formDialog, certificateUploading, formR
     editingBatch.value = batch
     form.value = {
       ...emptyForm(),
+      status: batch.status,
       batchCode: batch.batchCode,
       supplierLotCode: batch.supplierLotCode,
       supplierId: batch.supplierId || '',
@@ -108,6 +109,9 @@ export function useForm({ saving, error, formDialog, certificateUploading, formR
       await api(editingBatch.value ? batchUrl(editingBatch.value.id) : batchUrl(), {
         method: editingBatch.value ? 'PATCH' : 'POST', body: JSON.stringify(payload),
       })
+      if (editingBatch.value && canManage.value && form.value.status !== editingBatch.value.status) {
+        await api(`${batchUrl(editingBatch.value.id)}/status`, { method: 'PATCH', body: JSON.stringify({ status: form.value.status }) })
+      }
       formDialog.value = false
       showToast(editingBatch.value ? 'Đã cập nhật lô giống.' : 'Đã tiếp nhận lô giống.', 'success')
       await Promise.all([loadBatches(), loadFormOptions()])

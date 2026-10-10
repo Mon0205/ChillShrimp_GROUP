@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { listQualityHistory } from '../controllers/quality-history.controller.js'
 import { asyncHandler } from '../middlewares/async-handler.js'
 import { requireAuth, requireSeedBatchManager, requireSeedBatchViewer } from '../middlewares/auth.middleware.js'
 import { createBatchQuantityEvent, createGrowthSamplingLog, createSeedBatch, createSeedBatchUploadSignature, getBatchQuantityEvents, getGrowthSamplingLogs, getSeedBatch, listSeedBatches, updateSeedBatch, updateSeedBatchStatus } from '../controllers/seed-batch.controller.js'
@@ -8,6 +9,8 @@ import { analyzeAiInspection, createAiInspection, createAiInspectionUploadSignat
 export const seedBatchRouter = Router({ mergeParams: true })
 seedBatchRouter.use(requireAuth)
 seedBatchRouter.get('/', requireSeedBatchViewer, asyncHandler(listSeedBatches))
+seedBatchRouter.get('/quality-history', requireSeedBatchViewer, asyncHandler(listQualityHistory('checks')))
+seedBatchRouter.get('/inspection-history', requireSeedBatchViewer, asyncHandler(listQualityHistory('ai')))
 seedBatchRouter.get('/:batchId', requireSeedBatchViewer, asyncHandler(getSeedBatch))
 seedBatchRouter.get('/:batchId/quantity-events', requireSeedBatchViewer, asyncHandler(getBatchQuantityEvents))
 seedBatchRouter.post('/:batchId/quantity-events', requireSeedBatchViewer, asyncHandler(createBatchQuantityEvent))

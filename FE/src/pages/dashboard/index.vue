@@ -100,16 +100,10 @@ onMounted(loadDashboard)
 <template>
 <AppShell>
     <header class="page-header">
-      <div>
-        <span class="eyebrow">TỔNG QUAN VẬN HÀNH</span>
-        <h1>Dashboard</h1>
-        <p>Tổng quan về các trang trại và phạm vi làm việc của bạn.</p>
-      </div>
-      <div class="page-actions">
-        <v-btn to="/farms" color="primary" variant="outlined">Quản lý trang trại</v-btn>
-        <v-btn to="/users" color="primary">Quản lý người dùng</v-btn>
-      </div>
-    </header>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-view-dashboard-outline" size="25" /></v-avatar><h1>Dashboard</h1></div>
+      </header>
+      <div class="page-actions list-actions"><v-btn to="/farms" color="primary" variant="outlined">Quản lý trang trại</v-btn>
+        <v-btn to="/users" color="primary">Quản lý người dùng</v-btn></div>
 
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
     <div v-else-if="error" class="notice error-notice">Không thể tải thông tin tổng quan.</div>
@@ -121,7 +115,6 @@ onMounted(loadDashboard)
       </section>
 
       <v-card class="overview-card" elevation="0">
-        <div class="overview-heading"><div><span class="eyebrow">TRANG TRẠI ĐANG LÀM VIỆC</span><h2>{{ selectedFarm?.name || 'Chưa chọn trang trại' }}</h2></div><span class="farm-code">{{ selectedFarm?.code || '—' }}</span></div>
         <div class="overview-grid">
           <div><span class="detail-label">Địa chỉ</span><strong>{{ selectedFarm?.address || 'Chưa cập nhật' }}</strong></div>
           <div><span class="detail-label">Phạm vi</span><strong>{{ selectedScope }}</strong></div>

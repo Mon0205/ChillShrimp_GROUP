@@ -175,13 +175,9 @@ onMounted(loadPage)
 <template>
 <AppShell>
     <header class="page-header">
-      <div>
-        <span class="eyebrow">SẢN XUẤT</span>
-        <h1>Ao/bể</h1>
-        <p>Quản lý nơi ương giống theo từng trang trại và khu vực được phân quyền.</p>
-      </div>
-      <v-btn v-if="canManage && selectedFarm" color="primary" @click="openCreate">Thêm ao/bể</v-btn>
-    </header>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-waves" size="25" /></v-avatar><h1>Ao/bể</h1></div>
+      </header>
+      <div class="page-actions list-actions"><v-btn v-if="canManage && selectedFarm" color="primary" @click="openCreate">Thêm ao/bể</v-btn></div>
 
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
     <div v-else-if="error" class="notice error-notice">{{ error }}</div>
@@ -189,20 +185,16 @@ onMounted(loadPage)
       <v-card class="empty-card" elevation="0"><div class="empty-icon">+</div><h2>Chưa có trang trại</h2><p>Tạo hoặc tham gia trang trại trước khi quản lý ao/bể.</p><v-btn to="/farms" color="primary">Mở quản lý trang trại</v-btn></v-card>
     </template>
     <template v-else>
-      <v-card class="toolbar-card" elevation="0">
-        <div class="toolbar-field farm-field"><label>Trang trại</label><v-select v-model="farmId" :items="farms" item-title="name" item-value="id" hide-details /></div>
-        <div class="toolbar-field"><label>Tìm kiếm</label><v-text-field v-model="search" placeholder="Mã hoặc tên ao/bể" hide-details clearable /></div>
-        <div class="toolbar-field"><label>Trạng thái</label><v-select v-model="statusFilter" :items="[{ title: 'Tất cả', value: '' }, ...statusOptions]" hide-details /></div>
-        <div class="toolbar-field"><label>Loại</label><v-select v-model="typeFilter" :items="[{ title: 'Tất cả', value: '' }, ...typeOptions]" hide-details /></div>
-      </v-card>
-
       <v-card class="list-card" elevation="0">
-        <div class="list-heading"><div><span class="eyebrow">DANH SÁCH AO/BỂ</span><h2>{{ selectedFarm?.name }}</h2><p>{{ tanks.length }} ao/bể trong phạm vi hiện tại · {{ roleNames[selectedRole] }}</p></div><span class="count-badge">{{ tanks.length }}</span></div>
+        <div class="list-toolbar">
+          <div class="list-filters"><v-select label="Trạng thái" v-model="statusFilter" :items="[{ title: 'Tất cả', value: '' }, ...statusOptions]" variant="outlined" density="compact" hide-details /><v-select label="Loại" v-model="typeFilter" :items="[{ title: 'Tất cả', value: '' }, ...typeOptions]" variant="outlined" density="compact" hide-details /></div>
+          <v-text-field class="list-search" v-model="search" placeholder="Mã hoặc tên ao/bể" prepend-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details clearable />
+        </div>
         <v-progress-linear v-if="tanksLoading" indeterminate color="primary" rounded />
         <div v-else-if="!tanks.length" class="empty-state"><div>0</div><strong>Chưa có ao/bể phù hợp</strong><p>Thêm ao/bể mới hoặc điều chỉnh bộ lọc.</p></div>
         <div v-else class="table-wrap">
           <table class="app-data-table"><thead><tr><th>Mã</th><th>Ao/bể</th><th>Khu vực</th><th>Loại</th><th>Thể tích</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-            <tbody><tr v-for="tank in tanks" :key="tank.id" :class="{ 'deleted-row': tank.deletedAt }"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span v-if="tank.deletedAt" class="status-tag deleted">Đã xóa</span><span v-else class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><button class="icon-btn" type="button" title="Chỉnh sửa" @click="openEdit(tank)">✎</button></div></td></tr></tbody>
+            <tbody><tr v-for="tank in tanks" :key="tank.id" :class="{ 'deleted-row': tank.deletedAt }"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span v-if="tank.deletedAt" class="status-tag deleted">Đã xóa</span><span v-else class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><v-tooltip text="Chỉnh sửa ao/bể" location="top"><template #activator="{ props }"><v-btn v-bind="props" icon="mdi-pencil-outline" size="small" variant="tonal" color="primary" aria-label="Chỉnh sửa ao/bể" @click="openEdit(tank)" /></template></v-tooltip></div></td></tr></tbody>
           </table>
         </div>
       </v-card>

@@ -1,4 +1,6 @@
 <script setup>
+import Pagination from '../../../components/pagination/index.vue'
+import DateRange from './Date.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { selectFarm, useFarmContext } from '../../../composables/farm-context.js'
@@ -39,7 +41,7 @@ const error = ref('')
 const dialog = ref(false)
 const formRef = ref(null)
 const page = ref(1)
-const pageSize = 50
+const pageSize = ref(10)
 const filters = ref({ tankId: props.tankId, from: '', to: '' })
 const form = ref(emptyForm())
 
@@ -98,7 +100,7 @@ async function loadTanks() {
 }
 
 function buildQuery() {
-  const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize) })
+  const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
   if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
   if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
@@ -175,24 +177,21 @@ watch(() => props.tankId, async (tankId) => {
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
 })
 onMounted(loadPage)
+watch(() => [filters.value.from, filters.value.to], applyFilters)
+watch(page, loadLogs)
+watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
 </script>
 
 <template>
 <section class="environment-page">
-      <header class="page-heading">
-        <div>
-
-          <h2>Thông số môi trường</h2>
-          <p class="subtitle">Ghi nhận các chỉ số nước theo ao/bể và tra cứu lịch sử đo.</p>
-        </div>
-        <v-btn color="primary" prepend-icon="mdi-plus" :disabled="!canRecord || !tanks.length" @click="openCreate">Ghi kết quả đo</v-btn>
-      </header>
+      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-plus" :disabled="!canRecord || !tanks.length" @click="openCreate">Ghi kết quả đo</v-btn></div>
+      <v-card class="list-card care-list-card" elevation="0">
 
       <div class="filter-row">
-        <v-text-field v-model="filters.from" type="date" label="Từ ngày" density="comfortable" variant="outlined" hide-details />
-        <v-text-field v-model="filters.to" type="date" label="Đến ngày" density="comfortable" variant="outlined" hide-details />
-        <v-btn variant="tonal" prepend-icon="mdi-magnify" :loading="listLoading" @click="applyFilters">Lọc</v-btn>
+        <slot name="filters" />
+        <DateRange v-model="filters" />
       </div>
+
 
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
@@ -212,11 +211,10 @@ onMounted(loadPage)
             </tr>
           </tbody>
         </v-table>
-        <div class="table-footer">
-          <span>{{ pagination.total }} bản ghi</span>
-          <div class="pager"><v-btn icon="mdi-chevron-left" variant="text" aria-label="Trang trước" :disabled="page <= 1 || listLoading" @click="page--; loadLogs()" /><span>{{ page }} / {{ pageCount }}</span><v-btn icon="mdi-chevron-right" variant="text" aria-label="Trang sau" :disabled="page >= pageCount || listLoading" @click="page++; loadLogs()" /></div>
-        </div>
+        <Pagination v-model:page="page" v-model:page-size="pageSize" :total="pagination.total" :loading="listLoading" />
       </div>
+
+      </v-card>
 
       <v-dialog v-model="dialog" max-width="850">
         <v-card class="form-card">

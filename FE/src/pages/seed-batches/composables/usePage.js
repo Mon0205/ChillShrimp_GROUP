@@ -23,7 +23,7 @@ export function usePage() {
   const search = ref('')
   const statusFilter = ref('')
   const page = ref(1)
-  const pageSize = 10
+  const pageSize = ref(10)
   const pagination = ref({ total: 0, pageCount: 0 })
   const formDialog = ref(false)
   const detailDialog = ref(false)
@@ -204,7 +204,7 @@ export function usePage() {
     listLoading.value = true
     error.value = ''
     try {
-      const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize) })
+      const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
       if (search.value.trim()) params.set('q', search.value.trim())
       if (statusFilter.value) params.set('status', statusFilter.value)
       const result = await api(`${batchUrl()}?${params}`)
@@ -278,7 +278,7 @@ export function usePage() {
   const { openQualityHistory, openQualityForm, uploadQualityEvidence, saveQualityCheck, openReview, saveReview } = useQuality({ error, qualityDialog, qualityHistoryDialog, reviewDialog, qualityChecks, qualityLoading, qualitySaving, qualityUploading, reviewSaving, selectedCheck, qualityBatch, reviewForm, qualityForm, emptyQualityForm, qualityUrl })
   const { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage } = useInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue })
   const { openDetails, openQuantityForm, saveQuantityEvent, saveGrowthSample, quantityEventDelta } = useTracking({ error, detailDialog, qualityChecks, quantityEvents, growthSamples, batchHistoryLoading, quantityDialog, quantitySaving, growthDialog, growthSaving, quantityForm, growthForm, selectedBatch, emptyQuantityForm, batchUrl, loadBatches })
-  const { openCreate, openEdit, saveBatch, uploadCertificate, regenerateInternalBatchCode, regenerateSupplierFallbackCode } = useForm({ saving, error, formDialog, certificateUploading, formRef, editingBatch, form, emptyForm, createBatchIdentifiers, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional })
+  const { openCreate, openEdit, saveBatch, uploadCertificate, regenerateInternalBatchCode, regenerateSupplierFallbackCode } = useForm({ saving, error, formDialog, certificateUploading, formRef, editingBatch, form, emptyForm, createBatchIdentifiers, canManage, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional })
 
   watch(farmId, async () => {
     page.value = 1
@@ -286,7 +286,8 @@ export function usePage() {
   })
   watch([search, statusFilter], () => { page.value = 1; loadBatches() })
   watch(page, loadBatches)
+  watch(pageSize, () => { if (page.value === 1) loadBatches(); else page.value = 1 })
   onMounted(loadPage)
 
-  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pagination, formDialog, detailDialog, statusDialog, qualityDialog, qualityHistoryDialog, inspectionDialog, reviewDialog, qualityChecks, aiInspections, selectedAiInspection, quantityEvents, growthSamples, batchHistoryLoading, qualityLoading, qualitySaving, qualityUploading, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, certificateUploading, reviewSaving, quantityDialog, quantitySaving, growthDialog, growthSaving, qualityBatch, inspectionBatch, aiInspectionError, reviewForm, qualityForm, inspectionForm, quantityForm, growthForm, formRef, editingBatch, selectedBatch, form, nextStatus, regenerateInternalBatchCode, regenerateSupplierFallbackCode, emptyGrowthForm, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, broodstockOptions, statusNames, checkTypeOptions, diseaseOptions, resultOptions, resultNames, reviewNames, speciesNames, broodstockNames, requiredRule, batchCodeRules, quantityRules, documentedRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage, openQualityHistory, openQualityForm, uploadQualityEvidence, uploadCertificate, saveQualityCheck, openReview, saveReview, loadPage, openCreate, openEdit, saveBatch, openDetails, openQuantityForm, saveQuantityEvent, saveGrowthSample, quantityEventNames, quantityEventDelta, openStatus, saveStatus, ref }
+  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, qualityDialog, qualityHistoryDialog, inspectionDialog, reviewDialog, qualityChecks, aiInspections, selectedAiInspection, quantityEvents, growthSamples, batchHistoryLoading, qualityLoading, qualitySaving, qualityUploading, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, certificateUploading, reviewSaving, quantityDialog, quantitySaving, growthDialog, growthSaving, qualityBatch, inspectionBatch, aiInspectionError, reviewForm, qualityForm, inspectionForm, quantityForm, growthForm, formRef, editingBatch, selectedBatch, form, nextStatus, regenerateInternalBatchCode, regenerateSupplierFallbackCode, emptyGrowthForm, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, broodstockOptions, statusNames, checkTypeOptions, diseaseOptions, resultOptions, resultNames, reviewNames, speciesNames, broodstockNames, requiredRule, batchCodeRules, quantityRules, documentedRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage, openQualityHistory, openQualityForm, uploadQualityEvidence, uploadCertificate, saveQualityCheck, openReview, saveReview, loadPage, openCreate, openEdit, saveBatch, openDetails, openQuantityForm, saveQuantityEvent, saveGrowthSample, quantityEventNames, quantityEventDelta, openStatus, saveStatus, ref }
 }

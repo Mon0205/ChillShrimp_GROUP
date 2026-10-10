@@ -8,6 +8,7 @@ import FarmsPage from '../pages/farms/index.vue'
 import PondsTanksPage from '../pages/ponds-tanks/index.vue'
 import SeedSuppliersPage from '../pages/seed-suppliers/index.vue'
 import SeedBatchesPage from '../pages/seed-batches/index.vue'
+import QualityPage from '../pages/quality/index.vue'
 import InventoryUsagePage from '../pages/usage/index.vue'
 import InventorySuppliesPage from '../pages/inventory/index.vue'
 import InventoryRequestsPage from '../pages/requests/index.vue'
@@ -29,6 +30,7 @@ const router = createRouter({
     { path: '/ponds-tanks', component: PondsTanksPage, meta: { auth: true } },
     { path: '/seed-suppliers', component: SeedSuppliersPage, meta: { auth: true } },
     { path: '/seed-batches', component: SeedBatchesPage, meta: { auth: true } },
+    { path: '/quality-checks', component: QualityPage, meta: { auth: true } },
     { path: '/care-logs', component: CareLogsPage, meta: { auth: true } },
     { path: '/feeding-logs', redirect: (to) => ({ path: '/care-logs', query: { ...to.query, tab: 'feeding' } }) },
     { path: '/water-change-logs', redirect: (to) => ({ path: '/care-logs', query: { ...to.query, tab: 'water-changes' } }) },

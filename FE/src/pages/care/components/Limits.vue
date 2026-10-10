@@ -1,4 +1,5 @@
 <script setup>
+import Pagination from '../../../components/pagination/index.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { selectFarm, useFarmContext } from '../../../composables/farm-context.js'
@@ -34,6 +35,7 @@ const thresholds = ref([])
 const alerts = ref([])
 const alertFilters = ref({ severity: '', isRead: '' })
 const alertPage = ref(1)
+const alertSize = ref(10)
 const alertPagination = ref({ total: 0, pageCount: 1 })
 const alertsLoading = ref(false)
 const detailDialog = ref(false)
@@ -81,7 +83,7 @@ async function loadData() {
   thresholds.value = thresholdResult.data
 }
 function alertQuery() {
-  const params = new URLSearchParams({ page: String(alertPage.value), limit: '20' })
+  const params = new URLSearchParams({ page: String(alertPage.value), limit: String(alertSize.value) })
   if (alertFilters.value.severity) params.set('severity', alertFilters.value.severity)
   if (alertFilters.value.isRead !== '') params.set('isRead', alertFilters.value.isRead)
   return params.toString()
@@ -185,19 +187,18 @@ watch(farmId, async () => {
   }
 })
 onMounted(loadPage)
+watch(() => [alertFilters.value.severity, alertFilters.value.isRead], applyAlertFilters)
+watch(alertSize, applyAlertFilters)
 </script>
 
 <template>
 <section class="threshold-page">
-      <header class="page-heading">
-        <div><h2>Ngưỡng môi trường</h2><p class="subtitle">Cấu hình theo loài, giai đoạn và loại ao/bể. Chỉ ngưỡng được Owner phê duyệt mới dùng để phát cảnh báo.</p></div>
-        <v-btn v-if="canManage" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm ngưỡng</v-btn>
-      </header>
+      <div class="page-actions list-actions"><v-btn v-if="canManage" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm ngưỡng</v-btn></div>
+      <v-card class="list-card care-list-card" elevation="0">
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
       <template v-else>
         <section class="section-block">
-          <div class="section-heading"><div><h2>Cấu hình ngưỡng</h2><p>{{ thresholds.length }} cấu hình</p></div></div>
           <p v-if="!thresholds.length" class="empty-message">Chưa có ngưỡng môi trường cho trang trại này.</p>
           <div v-else class="table-wrap"><v-table density="comfortable" class="app-data-table threshold-table">
             <thead><tr><th>Thông số</th><th>Điều kiện áp dụng</th><th>Giới hạn cảnh báo</th><th>Nguồn tham chiếu</th><th>Hiệu lực</th><th>Trạng thái</th><th v-if="canManage">Thao tác</th></tr></thead>
@@ -222,24 +223,24 @@ onMounted(loadPage)
           <div class="alert-filters">
             <v-select v-model="alertFilters.severity" :items="severityFilters" item-title="title" item-value="value" label="Mức độ" density="compact" variant="outlined" hide-details />
             <v-select v-model="alertFilters.isRead" :items="readFilters" item-title="title" item-value="value" label="Trạng thái đã đọc" density="compact" variant="outlined" hide-details />
-            <v-btn variant="tonal" prepend-icon="mdi-filter-outline" :loading="alertsLoading" @click="applyAlertFilters">Lọc cảnh báo</v-btn>
           </div>
-          <div class="section-heading"><div><h2>Cảnh báo môi trường gần đây</h2><p>Cảnh báo được tạo cùng lúc với bản ghi đo vượt ngưỡng đã duyệt.</p></div></div>
           <div v-if="!alerts.length" class="empty-message">Chưa phát sinh cảnh báo môi trường.</div>
-          <div v-else class="alert-list">
-            <article v-for="item in alerts" :key="item.id" class="alert-row" :class="[item.severity, { unread: !item.isRead }]">
-              <div class="alert-actions"><v-btn size="small" variant="text" prepend-icon="mdi-eye-outline" @click="viewAlert(item)">Chi tiết</v-btn><v-btn v-if="!item.isRead" size="small" variant="text" prepend-icon="mdi-check" @click="markAlertRead(item)">Đánh dấu đã đọc</v-btn></div>
-              <span class="severity-dot" /><div class="alert-copy"><strong>{{ item.title }} · {{ item.tank?.name || 'Ao/bể' }}</strong><p>{{ item.message }}</p><small>{{ dateTimeText(item.createdAt) }}</small></div>
-              <span class="severity-label">{{ item.severity === 'critical' ? 'Nguy cấp' : 'Cảnh báo' }}</span>
-            </article>
-          </div>
-          <div v-if="alertPagination.pageCount > 1" class="alert-pager">
-            <v-btn icon="mdi-chevron-left" variant="text" aria-label="Trang trước" :disabled="alertPage <= 1 || alertsLoading" @click="changeAlertPage(alertPage - 1)" />
-            <span>{{ alertPage }} / {{ alertPagination.pageCount }}</span>
-            <v-btn icon="mdi-chevron-right" variant="text" aria-label="Trang sau" :disabled="alertPage >= alertPagination.pageCount || alertsLoading" @click="changeAlertPage(alertPage + 1)" />
-          </div>
+          <div v-else class="table-wrap"><v-table class="app-data-table" density="comfortable">
+            <thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Cảnh báo</th><th>Mức độ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody><tr v-for="item in alerts" :key="item.id">
+              <td>{{ dateTimeText(item.createdAt) }}</td>
+              <td>{{ item.tank?.name || 'Ao/bể' }}</td>
+              <td><strong>{{ item.title }}</strong><small>{{ item.message }}</small></td>
+              <td><v-chip size="small" variant="tonal" :color="item.severity === 'critical' ? 'error' : 'warning'">{{ item.severity === 'critical' ? 'Nguy cấp' : 'Cảnh báo' }}</v-chip></td>
+              <td>{{ item.isRead ? 'Đã đọc' : 'Chưa đọc' }}</td>
+              <td class="actions"><v-btn size="small" variant="text" icon="mdi-eye-outline" aria-label="Chi tiết cảnh báo" @click="viewAlert(item)" /><v-btn v-if="!item.isRead" size="small" variant="text" icon="mdi-check" aria-label="Đánh dấu đã đọc" @click="markAlertRead(item)" /></td>
+            </tr></tbody>
+          </v-table></div>
+          <Pagination :page="alertPage" v-model:page-size="alertSize" :total="alertPagination.total" :loading="alertsLoading" @update:page="changeAlertPage" />
         </section>
       </template>
+      </v-card>
+
       <v-dialog v-model="detailDialog" max-width="680"><v-card class="detail-card">
         <v-card-title>Chi tiết cảnh báo</v-card-title>
         <v-card-text>

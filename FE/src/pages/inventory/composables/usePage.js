@@ -18,7 +18,7 @@ export function usePage() {
   const categoryFilter = ref('')
   const lowStockOnly = ref(false)
   const page = ref(1)
-  const pageSize = 50
+  const pageSize = ref(10)
   const pagination = ref({ total: 0, pageCount: 1 })
   const dialog = ref(false)
   const formRef = ref(null)
@@ -104,8 +104,8 @@ export function usePage() {
     listLoading.value = true
     error.value = ''
     try {
-      const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize) })
-      if (query.value.trim()) params.set('q', query.value.trim())
+      const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
+      if (query.value?.trim()) params.set('q', query.value.trim())
       if (categoryFilter.value) params.set('category', categoryFilter.value)
       if (lowStockOnly.value) params.set('lowStock', 'true')
       const result = await api(farmUrl(`/inventory-supplies?${params}`))
@@ -272,7 +272,14 @@ async function openImportHistory(supply) {
 
 
   watch(farmId, () => { page.value = 1; loadSupplies() })
+  watch(page, loadSupplies)
+  watch(pageSize, () => { if (page.value === 1) loadSupplies(); else page.value = 1 })
+  watch([categoryFilter, lowStockOnly], applyFilters)
+  watch(query, (_value, _previous, onCleanup) => {
+    const timer = setTimeout(applyFilters, 300)
+    onCleanup(() => clearTimeout(timer))
+  })
   onMounted(loadPage)
 
-  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, farmId, canManage, canRequestSupply, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
+  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, farmId, canManage, canRequestSupply, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
 }

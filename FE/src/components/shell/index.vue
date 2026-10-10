@@ -114,10 +114,10 @@ async function signOut() {
         <v-list-item v-if="canViewPondTanks" to="/ponds-tanks" prepend-icon="mdi-waves" title="Ao/bể" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedSuppliers" to="/seed-suppliers" prepend-icon="mdi-truck-outline" title="Nhà cung cấp giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-fishbowl" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewSeedBatches" to="/quality-checks" prepend-icon="mdi-clipboard-check-outline" title="Kiểm tra chất lượng" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/care-logs" prepend-icon="mdi-notebook-outline" title="Nhật ký chăm sóc" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewInventory" to="/inventory-supplies" prepend-icon="mdi-archive-outline" title="Danh mục vật tư" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewInventoryRequests" to="/inventory-requests" prepend-icon="mdi-clipboard-list-outline" title="Yêu cầu cấp vật tư" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Ghi nhận sử dụng" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Lịch sử sử dụng vật tư" rounded="lg" @click="closeMobileDrawer" />
       </v-list>
       <template #append>
         <v-menu location="top start" :offset="10">

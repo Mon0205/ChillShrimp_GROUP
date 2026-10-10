@@ -1,11 +1,10 @@
 <script setup>
-import LoadingIndicator from '../../components/loading/index.vue'
-import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { selectFarm, useFarmContext } from '../../composables/farm-context.js'
-import { showToast } from '../../composables/toast.js'
-import { api } from '../../services/api.js'
+import { selectFarm, useFarmContext } from '../../../composables/farm-context.js'
+import { showToast } from '../../../composables/toast.js'
+import { api } from '../../../services/api.js'
 
+const emit = defineEmits(['close'])
 const farmContext = useFarmContext()
 const farms = ref([])
 const supplies = ref([])
@@ -74,19 +73,7 @@ async function submit() {
 watch(farmId, () => { form.value = { supplyId: '', areaId: '', quantity: '', notes: '' }; loadFarmData().catch((error) => showToast(error.message, 'error')) })
 onMounted(load)
 </script>
-
-<template>
-<AppShell>
-    <section class="requests-page">
-      <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-clipboard-list-outline" size="25" /></v-avatar><h1>Yêu cầu cấp vật tư</h1></div>
-      </header>
-      <LoadingIndicator v-if="loading" />
-      <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem yêu cầu.</div>
-      <template v-else>
-        <section v-if="canCreate" class="request-form">
-          <h2>Tạo yêu cầu</h2>
-          <v-form ref="formRef" @submit.prevent="submit">
+<template><v-card class="form-card"><v-card-title>Yêu cầu cấp vật tư</v-card-title><v-card-text><v-progress-circular v-if="loading" indeterminate color="primary" /><div v-else><v-form ref="formRef" @submit.prevent="submit">
             <div class="form-grid">
               <v-select v-model="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Vật tư *" :rules="[required]" />
               <v-select v-if="role === 'owner'" v-model="form.areaId" :items="areas" item-title="name" item-value="id" label="Khu vực" clearable />
@@ -94,27 +81,5 @@ onMounted(load)
               <v-textarea v-model="form.notes" label="Ghi chú" rows="1" maxlength="4000" counter="4000" />
               <v-btn color="primary" prepend-icon="mdi-send-outline" :loading="submitting" @click="submit">Gửi yêu cầu</v-btn>
             </div>
-          </v-form>
-        </section>
-        <section class="request-list">
-          <h2>Danh sách yêu cầu <span>{{ requests.length }}</span></h2>
-          <div class="table-wrap"><v-table class="app-data-table" density="comfortable">
-            <thead><tr><th>Ngày gửi</th><th>Vật tư</th><th>Khu vực</th><th>Số lượng</th><th>Người yêu cầu</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
-            <tbody>
-              <tr v-for="item in requests" :key="item.id">
-                <td>{{ dateTime(item.createdAt) }}</td><td><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
-                <td>{{ item.area?.name || 'Toàn trại' }}</td><td>{{ quantity(item.quantity) }} {{ item.supply.unit }}</td>
-                <td>{{ item.requester.displayName || item.requester.email }}</td><td><v-chip size="small" color="warning" variant="tonal">{{ item.status === 'pending' ? 'Chờ xử lý' : item.status }}</v-chip></td><td>{{ item.notes || '—' }}</td>
-              </tr>
-              <tr v-if="!requests.length"><td colspan="7" class="empty-row">Chưa có yêu cầu cấp vật tư.</td></tr>
-            </tbody>
-          </v-table></div>
-        </section>
-      </template>
-    </section>
-  </AppShell>
-</template>
-
-<style scoped>
-.requests-page{color:#173f3a}.page-heading{margin-bottom:22px}.eyebrow{margin:0 0 8px;color:#078575;font-size:10px;font-weight:800;letter-spacing:1px}h1{margin:0;font-size:29px;line-height:1.2;font-weight:800}.subtitle{margin:8px 0 0;color:#71827e;font-size:13px}.request-form,.request-list{padding:20px 0;border-top:1px solid #dbe9e5}h2{display:flex;justify-content:space-between;margin:0 0 14px;font-size:17px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:8px 14px}.table-wrap{overflow:auto;border:1px solid #dbe9e5;border-radius:8px;background:#fff}.table-wrap :deep(th){color:#71827e;font-size:10px;text-transform:uppercase;white-space:nowrap}.table-wrap :deep(td){color:#34514c;font-size:12px}.table-wrap small{display:block;color:#83918e;font-size:10px}.empty-row{height:90px;text-align:center;color:#83918e!important}.state-message{padding:34px;text-align:center;color:#71827e}@media(max-width:760px){.form-grid{grid-template-columns:1fr}}
-</style>
+          </v-form></div></v-card-text><v-card-actions><v-spacer /><v-btn :disabled="submitting" @click="emit('close')">Đóng</v-btn></v-card-actions></v-card></template>
+<style scoped>.form-grid { display: grid; gap: 12px; }</style>

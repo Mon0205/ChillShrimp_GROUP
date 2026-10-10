@@ -15,6 +15,7 @@ const router = useRouter()
 const farmContext = useFarmContext()
 const tankId = ref('')
 const tanks = ref([])
+const tankSelectWidth = computed(() => Math.min(320, Math.max(150, (tanks.value.find(tank => tank.id === tankId.value)?.name?.length || 5) * 8 + 90)))
 const loadingTanks = ref(false)
 const tankError = ref('')
 let tankRequest = 0
@@ -60,20 +61,17 @@ onMounted(async () => {
 <AppShell>
     <section class="care-page">
       <header>
-        <h1>Nhật ký chăm sóc</h1>
-        <p>Theo dõi cho ăn, thay nước, môi trường và sử dụng thuốc/chế phẩm.</p>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-notebook-outline" size="25" /></v-avatar><h1>Nhật ký chăm sóc</h1></div>
       </header>
-      <div class="care-filters">
-        <v-select v-model="farmId" :items="farmContext.farms" item-title="name" item-value="id" label="Trang trại" variant="outlined" density="comfortable" hide-details />
-        <v-select v-if="activeTab !== 'thresholds'" v-model="tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể" clearable :loading="loadingTanks" :disabled="!canView" variant="outlined" density="comfortable" hide-details />
-      </div>
       <v-alert v-if="tankError" type="error" variant="tonal" class="mb-4">{{ tankError }}</v-alert>
       <template v-if="canView">
         <v-tabs v-model="activeTab" color="primary" show-arrows class="care-tabs" aria-label="Loại nhật ký chăm sóc">
           <v-tab v-for="tab in tabs" :key="tab.value" :value="tab.value" rounded="0">{{ tab.title }}</v-tab>
         </v-tabs>
         <div class="care-content" role="tabpanel" :aria-label="tabs.find(tab => tab.value === activeTab).title">
-          <component :is="activeComponent" :key="`${farmId}:${activeTab}`" v-bind="activeTab === 'thresholds' ? {} : { tankId: tankId || '' }" />
+          <component :is="activeComponent" :key="`${farmId}:${activeTab}`" v-bind="activeTab === 'thresholds' ? {} : { tankId: tankId || '' }">
+            <template #filters><v-select :style="{ width: tankSelectWidth + 'px' }" v-model="tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể" clearable :loading="loadingTanks" :disabled="!canView" variant="outlined" density="compact" hide-details /></template>
+          </component>
         </div>
       </template>
       <v-alert v-else-if="farmContext.ready" type="info" variant="tonal">{{ farmId ? 'Bạn không có quyền xem nhật ký chăm sóc của trang trại này.' : 'Chọn trang trại để xem nhật ký chăm sóc.' }}</v-alert>
@@ -85,7 +83,7 @@ onMounted(async () => {
 .care-page { display: grid; gap: 24px; }
 h1 { font-size: 28px; margin: 0 0 8px; }
 header p { color: #64748b; margin: 0; }
-.care-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 860px; }
+.care-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 420px; }
 .care-tabs { border-bottom: 1px solid #dce6e2; }
 .care-tabs :deep(.v-tab) { font-size: 14px; padding-inline: 20px; }
 .care-tabs :deep(.v-tab--selected) { font-weight: 700; }
@@ -93,7 +91,10 @@ header p { color: #64748b; margin: 0; }
 .care-content :deep(.page-heading) { margin-bottom: 20px; }
 .care-content :deep(.page-heading h2) { font-size: 20px; }
 .care-content :deep(.page-heading .subtitle) { max-width: 700px; }
-.care-content :deep(.filter-row) { max-width: 860px; }
+.care-content :deep(.filter-row) { display: flex; flex-wrap: wrap; max-width: none; }
+.care-content :deep(.filter-row > .v-input) { flex: 0 0 auto; width: 175px; max-width: 100%; }
+.care-content :deep(.filter-row .date-range) { width: 300px; }
+@media (max-width: 760px) { .care-content :deep(.filter-row) { grid-template-columns: repeat(2, minmax(0, 1fr)); } .care-content :deep(.filter-row > .v-select) { grid-column: 1 / -1; } }
 .care-content { min-width: 0; }
 @media (max-width: 600px) { .care-filters { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
 </style>

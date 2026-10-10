@@ -1,4 +1,5 @@
 <script setup>
+import Pagination from '../../components/pagination/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { selectFarm, useFarmContext } from '../../composables/farm-context.js'
@@ -16,7 +17,7 @@ const detailLoading = ref(false)
 const error = ref('')
 const query = ref('')
 const page = ref(1)
-const limit = 10
+const limit = ref(10)
 const pagination = ref({ total: 0, pageCount: 0 })
 const supplierDialog = ref(false)
 const detailDialog = ref(false)
@@ -27,6 +28,7 @@ const supplierFormRef = ref(null)
 const form = ref({ name: '', licenseNo: '', phone: '', address: '', broodstockInformation: '', notes: '' })
 const historyItems = ref([])
 const historyPage = ref(1)
+const historySize = ref(10)
 const historyPagination = ref({ total: 0, pageCount: 0 })
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
@@ -66,7 +68,7 @@ async function loadSuppliers() {
   listLoading.value = true
   error.value = ''
   try {
-    const params = new URLSearchParams({ page: String(page.value), limit: String(limit) })
+    const params = new URLSearchParams({ page: String(page.value), limit: String(limit.value) })
     const searchTerm = String(query.value || '').trim()
     if (searchTerm) params.set('q', searchTerm)
     const result = await api(`${supplierUrl()}?${params}`)
@@ -156,7 +158,7 @@ async function loadHistory() {
   if (!selectedSupplier.value || !farmId.value) return
   historyLoading.value = true
   try {
-    const params = new URLSearchParams({ page: String(historyPage.value), limit: '8' })
+    const params = new URLSearchParams({ page: String(historyPage.value), limit: String(historySize.value) })
     const result = await api(`${supplierUrl(selectedSupplier.value.id)}/seed-batches?${params}`)
     historyItems.value = result.data.items
     historyPagination.value = result.data.pagination
@@ -202,20 +204,16 @@ watch(query, () => {
 watch(page, loadSuppliers)
 watch(historyPage, loadHistory)
 onMounted(loadPage)
+watch(limit, () => { if (page.value === 1) loadSuppliers(); else page.value = 1 })
+watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else historyPage.value = 1 })
 </script>
 
 <template>
 <AppShell>
     <header class="page-header">
-      <div>
-        <span class="eyebrow">ĐẦU VÀO SẢN XUẤT</span>
-        <h1>Nhà cung cấp giống</h1>
-        <p>Quản lý thông tin cơ sở cung cấp và tra cứu các lô giống đã tiếp nhận.</p>
-      </div>
-      <div class="page-actions">
-        <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm nhà cung cấp</v-btn>
-      </div>
-    </header>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-truck-outline" size="25" /></v-avatar><h1>Nhà cung cấp giống</h1></div>
+      </header>
+      <div class="page-actions list-actions"><v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm nhà cung cấp</v-btn></div>
 
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
     <template v-else-if="!farms.length">
@@ -229,14 +227,10 @@ onMounted(loadPage)
       <div class="permission-empty">Vai trò hiện tại không có quyền xem danh sách nhà cung cấp giống.</div>
     </template>
     <template v-else>
-      <section class="toolbar" aria-label="Bộ lọc nhà cung cấp">
-        <div class="farm-control"><label for="supplier-farm">Trang trại</label><v-select id="supplier-farm" v-model="farmId" :items="farms" item-title="name" item-value="id" density="compact" variant="outlined" hide-details /></div>
-        <div class="search-control"><label for="supplier-search">Tìm nhà cung cấp</label><v-text-field id="supplier-search" v-model="query" placeholder="Tên, số giấy phép hoặc điện thoại" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details /></div>
-        <div class="result-count"><strong>{{ pagination.total }}</strong><span>nhà cung cấp</span></div>
-      </section>
-
       <v-card class="list-card" elevation="0">
-        <div class="list-heading"><div><span class="eyebrow">DANH BẠ GIỐNG</span><h2>{{ selectedFarm?.name || 'Trang trại đang chọn' }}</h2><p>Nhà cung cấp được lưu riêng trong phạm vi trang trại.</p></div><span class="count-badge">{{ pagination.total }}</span></div>
+        <div class="list-toolbar">
+          <v-text-field class="list-search" id="supplier-search" v-model="query" placeholder="Tên, số giấy phép hoặc điện thoại" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+        </div>
         <v-progress-linear v-if="listLoading" class="list-progress" indeterminate color="primary" rounded />
         <div v-else-if="error" class="notice error-notice" role="alert"><span>{{ error }}</span><v-btn size="small" variant="text" color="error" @click="loadSuppliers">Thử lại</v-btn></div>
         <div v-else-if="!suppliers.length" class="empty-state">
@@ -260,7 +254,7 @@ onMounted(loadPage)
             </tbody>
           </table>
         </div>
-        <div v-if="!listLoading && pagination.pageCount > 1" class="pagination-row"><span>{{ pagination.total }} kết quả · Trang {{ page }}/{{ pageCount }}</span><v-pagination v-model="page" :length="pageCount" :total-visible="5" density="compact" rounded="lg" /></div>
+        <Pagination v-model:page="page" v-model:page-size="limit" :total="pagination.total" :loading="listLoading" />
       </v-card>
     </template>
 
@@ -300,7 +294,7 @@ onMounted(loadPage)
           <thead><tr><th>Mã lô</th><th>Mã nhà cung cấp</th><th>Loài / giai đoạn</th><th>Ao/bể</th><th>Số lượng đầu</th><th>Trạng thái</th><th>Tiếp nhận</th></tr></thead>
           <tbody><tr v-for="batch in historyItems" :key="batch.id"><td><strong>{{ batch.batchCode }}</strong></td><td>{{ batch.supplierLotCode || '—' }}</td><td>{{ batch.species }} · {{ batch.developmentStage }}</td><td>{{ batch.tank?.code }} · {{ batch.tank?.name }}</td><td>{{ Number(batch.initialQuantity || 0).toLocaleString('vi-VN') }}</td><td><span class="batch-status" :class="`batch-status--${batch.status}`">{{ batchStatus[batch.status] || batch.status }}</span></td><td>{{ formatDate(batch.receivedAt || batch.stockedDate) }}</td></tr></tbody>
         </table></div>
-        <div class="dialog-actions history-actions"><v-pagination v-if="historyPagination.pageCount > 1" v-model="historyPage" :length="historyPageCount" :total-visible="5" density="compact" rounded="lg" /><v-btn variant="text" @click="historyDialog = false">Đóng</v-btn></div>
+        <div class="dialog-actions history-actions"><Pagination v-model:page="historyPage" v-model:page-size="historySize" :total="historyPagination.total" :loading="historyLoading" /><v-btn variant="text" @click="historyDialog = false">Đóng</v-btn></div>
       </v-card>
     </v-dialog>
 
