@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { loadUser, useAuth } from '../composables/auth.js'
 import DashboardPage from '../pages/dashboard/DashboardPage.vue'
+import CustomersPage from '../pages/customers/CustomersPage.vue'
 import FarmsPage from '../pages/farms/FarmsPage.vue'
 import PondsTanksPage from '../pages/ponds-tanks/PondsTanksPage.vue'
 import SeedSuppliersPage from '../pages/seed-suppliers/SeedSuppliersPage.vue'
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage, meta: { guest: true } },
     { path: '/set-password', component: SetPasswordPage, meta: { public: true } },
     { path: '/dashboard', component: DashboardPage, meta: { auth: true } },
+    { path: '/customers', component: CustomersPage, meta: { auth: true } },
     { path: '/users', component: UsersPage, meta: { auth: true } },
     { path: '/farms', component: FarmsPage, meta: { auth: true } },
     { path: '/ponds-tanks', component: PondsTanksPage, meta: { auth: true } },

@@ -39,6 +39,11 @@ Thư mục `docs/` được tổ chức theo mục đích sử dụng để nhó
 | Tài liệu | Nội dung |
 | --- | --- |
 | [WORKFLOWS.md](./05-business-domain/WORKFLOWS.md) | Workflow vận hành tổng quát của hệ thống |
+| [CUSTOMER-MANAGEMENT.md](./05-business-domain/CUSTOMER-MANAGEMENT.md) | UC08.4 đã triển khai: API, xóa mềm, migration và giới hạn lịch sử mua |
+| [ACCOUNTANT-INTERVIEW-QUESTIONS.md](./05-business-domain/ACCOUNTANT-INTERVIEW-QUESTIONS.md) | Câu hỏi phỏng vấn kế toán trại về chi phí, giá vốn, bán giống, thu–chi và công nợ |
+| [TECHNICIAN-INTERVIEW-QUESTIONS.md](./05-business-domain/TECHNICIAN-INTERVIEW-QUESTIONS.md) | Câu hỏi phỏng vấn kỹ thuật viên về nhật ký, giai đoạn, kiểm đếm, hao hụt và điều kiện bán |
+| [WAREHOUSE-INTERVIEW-QUESTIONS.md](./05-business-domain/WAREHOUSE-INTERVIEW-QUESTIONS.md) | Câu hỏi trò chuyện với người giữ kho về cấp phát, tiêu hao, trả vật tư và kiểm kê |
+| [INTERVIEW-QUESTIONS.xlsx](./05-business-domain/INTERVIEW-QUESTIONS.xlsx) | File Excel ba bộ câu hỏi, gợi mở và các cột ghi kết quả phỏng vấn |
 | [tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md](./05-business-domain/tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md) | Nguồn tham khảo quy chuẩn, môi trường và công thức quản lý tôm giống |
 
 ## 06. Kế hoạch phát triển
@@ -52,6 +57,7 @@ Thư mục `docs/` được tổ chức theo mục đích sử dụng để nhó
 | Tài liệu | Nội dung |
 | --- | --- |
 | [Warning/README.md](./Warning/README.md) | Danh sách vấn đề nghiệp vụ, rủi ro và quyết định cần thống nhất với partner |
+| [06-PROJECT-CLARIFICATION-CHECKLIST.md](./Warning/06-PROJECT-CLARIFICATION-CHECKLIST.md) | Tổng hợp câu hỏi cần làm rõ toàn dự án, dữ liệu cần khảo sát và thứ tự chốt nghiệp vụ |
 
 ## Quy ước quản lý tài liệu
 

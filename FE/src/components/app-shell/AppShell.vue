@@ -108,6 +108,7 @@ async function signOut() {
       :rail-width="72"
     >
       <v-list nav class="sidebar-links pa-3" aria-label="Điều hướng chính">
+        <v-list-item v-if="role === 'owner'" to="/customers" prepend-icon="mdi-account-group-outline" title="Khách hàng" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item to="/dashboard" prepend-icon="mdi-view-dashboard-outline" title="Dashboard" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item to="/users" prepend-icon="mdi-account-group-outline" title="Người dùng" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item to="/farms" prepend-icon="mdi-home-city-outline" title="Trang trại" rounded="lg" @click="closeMobileDrawer" />

@@ -911,7 +911,11 @@ Trong phạm vi MVP, hệ thống **không bắt buộc** workflow xử lý cả
 
 ---
 
-## 4.18. UC18 — Dashboard và thống kê
+## 4.18. UC09.1 — Xem Dashboard theo phạm vi quyền
+
+Mã use case chính thức là **UC09.1**, thuộc UC09 — Quản lý thống kê và cảnh báo; số mục 4.18 chỉ là vị trí trong SRS. Luồng chi tiết, ngoại lệ và sơ đồ tham chiếu tại [USECASE-SPECIFICATION.md](../04-use-cases/USECASE-SPECIFICATION.md#75-uc091--xem-dashboard-theo-phạm-vi-quyền), [ACTIVITY-DIAGRAMS.md](../04-use-cases/ACTIVITY-DIAGRAMS.md#5-uc091--xem-dashboard-theo-phạm-vi-quyền) và [SEQUENCE-DIAGRAMS.md](../04-use-cases/SEQUENCE-DIAGRAMS.md#5-uc091--xem-dashboard-theo-phạm-vi-quyền).
+
+Các chỉ tiêu dưới đây là phạm vi yêu cầu, không phải xác nhận đã hiện thực đầy đủ. Mỗi chỉ tiêu chỉ hiển thị khi có dữ liệu nguồn và quyền phù hợp; thiếu dữ liệu để tính phải thể hiện chưa xác định, không mặc định bằng 0.
 
 ### Owner
 
@@ -1716,6 +1720,15 @@ hệ thống có thể tạo cảnh báo `inventory_low`.
 
 Trong phạm vi 15 tuần, ưu tiên dashboard thay vì hệ thống báo cáo phức tạp.
 
+### 11.1. Ánh xạ và luồng thống nhất
+
+- **UC09.1:** chọn farm và thời gian/bộ lọc → kiểm tra phiên, membership và phạm vi → tổng hợp KPI → trả biểu đồ/thời điểm cập nhật → mở chi tiết và truy về bản ghi nguồn.
+- **UC08.1, UC08.3:** xem/tổng hợp chi phí theo phạm vi; **UC08.6:** tổng hợp doanh thu theo tháng/lô/khách hàng. Các báo cáo này giữ nguyên mã riêng, không gộp mọi nghiệp vụ vào UC09.1.
+- **UC09.2–UC09.4:** xem cảnh báo theo phạm vi; trạng thái đã đọc không đồng nghĩa đã khắc phục.
+- Hiện trạng triển khai đối chiếu tại [WF32–WF33](../05-business-domain/WORKFLOWS.md#dashboard-báo-cáo-và-cảnh-báo): đã có báo cáo cho ăn; chưa có workflow tài chính đầy đủ. Thu–chi và công nợ là nhu cầu cần chốt thêm, chưa tự trở thành chức năng MVP.
+
+### 11.2. Chỉ tiêu yêu cầu
+
 Các thống kê chính:
 
 - Ao/bể theo trạng thái.
@@ -1732,6 +1745,17 @@ Các thống kê chính:
 - Giá vốn, lợi nhuận gộp và ROI khi đã có đủ dữ liệu chi phí.
 
 Xuất PDF được xem là chức năng mở rộng nếu thời gian triển khai cho phép, không phải yêu cầu bắt buộc của MVP.
+
+### 11.3. Các điểm cần xác nhận trước khi triển khai báo cáo
+
+Với mỗi báo cáo, cần chốt: người xem và phạm vi; mục đích; chỉ tiêu và công thức; dữ liệu nguồn; đơn vị/làm tròn; khoảng thời gian và ngày ghi nhận; cách xử lý thiếu dữ liệu; sửa hồi tố/chốt kỳ; truy chi tiết; mẫu xuất và đối soát. Không coi danh sách KPI là đặc tả công thức đã hoàn tất.
+
+Các câu hỏi khảo sát đã có tại:
+
+- [Kế toán Q18–Q21, Q26, Q35–Q38](../05-business-domain/ACCOUNTANT-INTERVIEW-QUESTIONS.md): giá vốn, thời điểm doanh thu, kỳ chốt, báo cáo tài chính và nghiệm thu.
+- [Kỹ thuật KT20–KT25, KT33–KT35](../05-business-domain/TECHNICIAN-INTERVIEW-QUESTIONS.md): số lượng, tỷ lệ sống, báo cáo chăm sóc và nguồn xác nhận.
+- [Kho KHO22–KHO30](../05-business-domain/WAREHOUSE-INTERVIEW-QUESTIONS.md): kiểm kê, mốc tồn, báo cáo nhập/cấp/dùng/trả và đối soát.
+- [Checklist REPORT-01, DASH-01–03](../Warning/06-PROJECT-CLARIFICATION-CHECKLIST.md): các quyết định chưa chốt. Cần người phụ trách xác nhận mẫu thực tế trước khi cập nhật công thức hoặc schema.
 
 ---
 
@@ -1888,22 +1912,24 @@ Các actor phải chỉ truy cập được dữ liệu và chức năng đúng 
 
 | Use Case | Bảng dữ liệu chính |
 |---|---|
-| UC01 Xác thực | `users` |
-| UC02 Trang trại | `farms` |
-| UC03 Thành viên & invitation | `users`, `farm_members`, `farm_invitations`, `areas` |
-| UC04 Ao/bể | `ponds_tanks` |
-| UC05 Lô giống | `seed_batches` |
-| UC06 Môi trường | `water_parameter_logs` |
-| UC07 Cho ăn | `feeding_logs`, `inventory_supplies`, `inventory_transactions` |
-| UC08 Thay nước | `water_change_logs` |
-| UC09 Thuốc/chế phẩm | `treatment_logs`, `inventory_supplies`, `inventory_transactions` |
-| UC10–UC11 AI | `ai_inspections` |
-| UC12–UC13 Kho | `inventory_supplies`, `inventory_transactions` |
-| UC14 Chi phí | `expense_records` |
-| UC15 Khách hàng | `customers` |
-| UC16 Xuất bán | `seed_sales`, `customers`, `seed_batches` |
-| UC17 Cảnh báo | `alerts_notifications` |
-| UC18 Dashboard | Tổng hợp các bảng nghiệp vụ |
+| UC01 Đăng nhập | `users`, `access_sessions`, `farm_members`; Neon Auth |
+| UC02 Hồ sơ cá nhân | `users` |
+| UC03.1–UC03.3 Nhân viên và lời mời | `users`, `farm_members`, `farm_invitations`, `areas` |
+| UC04.1 Trang trại | `farms`, `farm_members`, `areas` |
+| UC04.2–UC04.3 Ao/bể | `ponds_tanks`, `areas` |
+| UC05.1–UC05.2 Lô giống | `seed_batches`, `seed_suppliers`, `batch_quantity_events`, `growth_sampling_logs`, `seed_quality_checks` |
+| UC05.3 Môi trường | `water_parameter_logs`, `environment_thresholds`, `alerts_notifications` |
+| UC05.4 Cho ăn | `feeding_logs`, `feed_guidelines`, `inventory_supplies`, `inventory_transactions` |
+| UC05.5 Thay nước | `water_change_logs` |
+| UC05.6 Thuốc/chế phẩm | `treatment_logs`, `inventory_supplies`, `inventory_transactions` |
+| UC06.1–UC06.2 AI | `ai_inspections`, `seed_batches` |
+| UC07.1–UC07.6 Kho | `inventory_supplies`, `inventory_transactions`, `supply_requests` |
+| UC08.1–UC08.3 Chi phí | `expense_records` |
+| UC08.4 Khách hàng | `customers` |
+| UC08.5 Xuất bán | `seed_sales`, `customers`, `seed_batches`, `price_lists`, `batch_quantity_events` |
+| UC08.6 Doanh thu | `seed_sales` |
+| UC09.1 Dashboard | Tổng hợp các bảng nghiệp vụ trong phạm vi quyền |
+| UC09.2–UC09.4 Cảnh báo | `alerts_notifications`, `inventory_supplies` và dữ liệu nguồn theo loại cảnh báo |
 | FR19.1 Tiếp nhận lô | `seed_suppliers`, `seed_batches` |
 | FR19.2 Kiểm tra chất lượng | `seed_quality_checks`, `seed_batches`, `users` |
 | FR19.3 Ngưỡng môi trường | `environment_thresholds`, `water_parameter_logs` |
