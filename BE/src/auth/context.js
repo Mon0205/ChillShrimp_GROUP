@@ -12,7 +12,11 @@ export function createExpressRequestContext() {
   const { req, res } = store
   return {
     getCookies: () => req.headers.cookie || '',
-    setCookie: (name, value, options) => res.cookie(name, value, options),
+    // Neon uses Set-Cookie seconds; Express res.cookie expects milliseconds.
+    setCookie: (name, value, options) => res.cookie(name, value, {
+      ...options,
+      ...(options?.maxAge !== undefined ? { maxAge: options.maxAge * 1000 } : {}),
+    }),
     getHeader: (name) => req.get(name) || null,
     getOrigin: () => req.get('origin') || `${req.protocol}://${req.get('host')}`,
     getFramework: () => 'express',

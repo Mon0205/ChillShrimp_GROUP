@@ -8,6 +8,9 @@ import { accountAccess } from './access.js'
 export async function readNeonSession(req, res) {
   return withAuthContext(req, res, async () => {
     const { data, error } = await neonAuth.getSession()
+    if (error && Number(error.status) !== 401) {
+      throw createHttpError(503, 'Tạm thời không thể kiểm tra phiên đăng nhập. Vui lòng thử lại.')
+    }
     if (error || !data?.user) throw createHttpError(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.')
     return data
   })

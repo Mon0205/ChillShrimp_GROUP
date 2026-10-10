@@ -25,8 +25,8 @@ async function loadMembership(req, { allowArchivedFarm = false } = {}) {
   })
   if (!membership) throw createHttpError(403, 'Bạn không thuộc trại này.')
   if (membership.status === 'suspended') throw createHttpError(403, 'Tài khoản của bạn đã bị ngưng sử dụng tại trại này.')
-  if (!allowArchivedFarm && membership.farm.status === 'archived') {
-    throw createHttpError(409, 'Trang trại đã được lưu trữ. Hãy khôi phục trang trại trước khi tiếp tục.')
+  if (!allowArchivedFarm && ['inactive', 'archived'].includes(membership.farm.status)) {
+    throw createHttpError(409, 'Trang trại đã ngừng hoạt động. Hãy kích hoạt lại trang trại trước khi tiếp tục.')
   }
   return membership
 }
