@@ -2,5 +2,5 @@
 set -e
 
 echo "Applying Prisma migrations..."
-npx prisma migrate deploy
+node scripts/migrate.js deploy
 exec node src/server.js

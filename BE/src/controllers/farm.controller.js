@@ -4,10 +4,14 @@ import { createHttpError, sendData } from '../utils/http.js'
 
 const normalizeCode = (value) => value?.trim().toUpperCase()
 const validCode = (value) => /^[A-Z0-9][A-Z0-9_-]{1,29}$/.test(value || '')
-const FARM_STATUSES = ['active', 'archived']
+const FARM_STATUSES = ['active', 'inactive', 'archived']
 
 export async function listFarms(req, res) {
   const includeArchived = req.query.includeArchived === 'true'
+  const includeInactive = req.query.includeInactive === 'true'
+  if (req.query.includeInactive !== undefined && !['true', 'false'].includes(req.query.includeInactive)) {
+    throw createHttpError(400, 'Tham số includeInactive không hợp lệ.')
+  }
   if (req.query.includeArchived !== undefined && !['true', 'false'].includes(req.query.includeArchived)) {
     throw createHttpError(400, 'Tham số includeArchived không hợp lệ.')
   }
@@ -17,7 +21,9 @@ export async function listFarms(req, res) {
       userId: req.auth.id,
       status: 'active',
       ...(roles ? { role: { in: roles } } : {}),
-      ...(includeArchived
+      ...(includeInactive
+        ? { OR: [{ farm: { status: { in: ['active', 'inactive'] } } }, { role: 'owner', farm: { status: 'archived' } }] }
+        : includeArchived
         ? { OR: [{ farm: { status: 'active' } }, { role: 'owner', farm: { status: 'archived' } }] }
         : { farm: { status: 'active' } }),
     },
@@ -66,6 +72,12 @@ export async function updateFarm(req, res) {
     data.name = name
   }
   if (typeof req.body.address === 'string' || req.body.address === null) data.address = req.body.address?.trim() || null
+  if (req.body.status !== undefined) {
+    if (!['active', 'inactive'].includes(req.body.status)) throw createHttpError(400, 'Trạng thái trang trại không hợp lệ.')
+    data.status = req.body.status
+    data.archivedAt = null
+    data.archivedBy = null
+  }
   try {
     return sendData(res, await prisma.farm.update({ where: { id: req.params.farmId }, data }))
   } catch (error) {
@@ -104,7 +116,7 @@ export async function updateFarmStatus(req, res) {
   if (status === 'archived') return sendData(res, await archiveFarm(req))
   return sendData(res, await prisma.farm.update({
     where: { id: farm.id },
-    data: { status: 'active', archivedAt: null, archivedBy: null },
+    data: { status, archivedAt: null, archivedBy: null },
   }))
 }
 

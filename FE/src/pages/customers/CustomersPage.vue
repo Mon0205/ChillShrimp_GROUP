@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import AppShell from '../../components/app-shell/AppShell.vue'
+import AppShell from '../../components/shell/index.vue'
 import { useFarmContext } from '../../composables/farm-context.js'
 import { api } from '../../services/api.js'
 import { showToast } from '../../composables/toast.js'

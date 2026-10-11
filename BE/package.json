@@ -9,8 +9,8 @@
     "test:coverage": "node --test --experimental-test-isolation=none --test-concurrency=1 --experimental-test-coverage",
     "prisma:generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "migrate:status": "prisma migrate status",
+    "migrate:deploy": "node scripts/migrate.js deploy",
+    "migrate:status": "node scripts/migrate.js status",
     "seed:admin": "node prisma/seed-admin.js"
   },
   "dependencies": {
