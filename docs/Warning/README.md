@@ -11,6 +11,7 @@ Thư mục này ghi nhận các điểm chưa thống nhất hoặc có rủi ro
 | Vòng đời trang trại và khu vực | [03-FARM-AREA-LIFECYCLE.md](./03-FARM-AREA-LIFECYCLE.md) | High |
 | Quản lý ao/bể | [04-POND-TANK-BUSINESS-RULES.md](./04-POND-TANK-BUSINESS-RULES.md) | High |
 | Kiểm thử, thông báo và tính nhất quán API | [05-TESTING-ERROR-HANDLING.md](./05-TESTING-ERROR-HANDLING.md) | Medium |
+| Tổng hợp toàn dự án: câu hỏi cần chốt và dữ liệu khảo sát trại | [06-PROJECT-CLARIFICATION-CHECKLIST.md](./06-PROJECT-CLARIFICATION-CHECKLIST.md) | P0–P2 |
 
 ## Bảng quyết định tổng hợp
 

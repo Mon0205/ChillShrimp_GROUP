@@ -180,7 +180,7 @@ onMounted(loadPage)
 <AppShell>
     <header class="page-header">
       <div class="farm-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-home-city-outline" size="25" /></v-avatar><h1>Trang trại</h1></div>
-      
+
     </header>
       <div class="page-actions list-actions"><v-btn v-if="canCreateFarm" color="primary" variant="outlined" prepend-icon="mdi-home-plus-outline" @click="createDialog = true">Tạo trại</v-btn></div>
 

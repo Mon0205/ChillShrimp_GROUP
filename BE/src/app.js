@@ -1,4 +1,5 @@
 import cors from 'cors'
+import { customerRouter } from './routes/customer.routes.js'
 import express from 'express'
 import { authRouter } from './auth/index.js'
 import { farmRouter } from './routes/farm.routes.js'
@@ -23,6 +24,7 @@ app.use(express.json())
 app.get('/api/health', (_req, res) => res.json({ data: { status: 'ok' } }))
 app.use('/api/auth', authRouter)
 app.use('/api/users', userRouter)
+app.use('/api/farms/:farmId/customers', customerRouter)
 app.use('/api/farms/:farmId/areas', areaRouter)
 app.use('/api/farms/:farmId/ponds-tanks', pondTankRouter)
 app.use('/api/farms/:farmId/seed-suppliers', seedSupplierRouter)

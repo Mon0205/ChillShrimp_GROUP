@@ -16,6 +16,7 @@ import UsersPage from '../pages/users/index.vue'
 import LoginPage from '../pages/login/index.vue'
 import SetPasswordPage from '../pages/set-password/index.vue'
 import ProfilePage from '../pages/profile/index.vue'
+import CustomersPage from '../pages/customers/CustomersPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +25,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage, meta: { guest: true } },
     { path: '/set-password', component: SetPasswordPage, meta: { public: true } },
     { path: '/dashboard', component: DashboardPage, meta: { auth: true } },
+    { path: '/customers', component: CustomersPage, meta: { auth: true } },
     { path: '/select-farm', component: SelectFarmPage, meta: { auth: true } },
     { path: '/users', component: UsersPage, meta: { auth: true } },
     { path: '/farms', component: FarmsPage, meta: { auth: true } },

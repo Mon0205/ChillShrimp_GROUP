@@ -53,8 +53,8 @@ const { farms, batches, loading, listLoading, error, search, statusFilter, page,
 
     <Form :model="model" />
     <Details :model="model" />
-    
-    
+
+
     <Quality :model="model" />
     <Inspection :model="model" />
     <History :model="model" />

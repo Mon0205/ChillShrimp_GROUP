@@ -268,7 +268,7 @@ async function openImportHistory(supply) {
     } finally { adjustmentHistoryLoading.value = false }
   }
 
-  
+
 
 
   watch(farmId, () => { page.value = 1; loadSupplies() })
