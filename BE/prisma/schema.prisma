@@ -85,6 +85,7 @@ model Farm {
   areas         Area[]
   pondsTanks    PondTank[]
   seedSuppliers SeedSupplier[]
+  customers Customer[]
   inventorySupplies InventorySupply[]
   inventorySupplyRequests InventorySupplyRequest[]
   feedGuidelines FeedGuideline[]
@@ -98,6 +99,23 @@ model Farm {
 enum MembershipStatus {
   active
   suspended
+}
+
+model Customer {
+  id           String    @id @default(uuid()) @db.Uuid
+  farmId       String    @map("farm_id") @db.Uuid
+  name         String    @db.VarChar(150)
+  phone        String?   @db.VarChar(20)
+  address      String?
+  customerType String    @map("customer_type") @db.VarChar(30)
+  notes        String?
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farm         Farm      @relation(fields: [farmId], references: [id], onDelete: Restrict)
+
+  @@index([farmId, deletedAt, name])
+  @@map("customers")
 }
 
 model Area {

@@ -112,7 +112,8 @@ Backend kiểm tra phiên, membership và phạm vi lô trước khi gọi AI Se
 | Hiệu chỉnh số đếm thủ công | WF25–26 / UC06 | Chưa có API cập nhật manualCount dù UI hiển thị trường kết quả. |
 | Phục hồi tác vụ processing sau restart | WF25 / UC06.1 | Chưa có lease/deadline và cơ chế thu hồi tác vụ. |
 | Duyệt, xuất/cấp và hoàn tất request kho | WF28 / UC07.4 | Mới tạo/xem yêu cầu; chưa workflow xử lý yêu cầu. |
-| Chi phí, khách hàng, xuất bán và doanh thu | UC08.1–UC08.6 | Chưa có workflow nghiệp vụ đầy đủ; status sold chưa phải giao dịch bán. |
+| Chi phí, xuất bán và doanh thu | UC08.1–UC08.3, UC08.5–UC08.6 | Chưa có workflow nghiệp vụ đầy đủ; status sold chưa phải giao dịch bán. |
+| Khách hàng | UC08.4 | Đã thêm tạo/xem/sửa/xóa mềm, tìm tên/điện thoại và lọc loại cho Owner theo trại. Cần áp dụng migration customers; lịch sử mua chờ UC08.5. Xem [CUSTOMER-MANAGEMENT.md](./CUSTOMER-MANAGEMENT.md). |
 | Notification/lịch sử cảnh báo kho và cảnh báo AI tự động | WF31 / UC09 | Kho hiện là flag/filter; không giả định đã có notification hoặc alert AI. |
 
 ## Workflow tích hợp để kiểm thử/demo
