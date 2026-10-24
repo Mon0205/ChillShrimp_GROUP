@@ -97,8 +97,8 @@ flowchart TB
 - `farms` là tenant. Một tài khoản có thể tạo hoặc tham gia nhiều farm.
 - `farm_members` là nguồn duy nhất để xác định quyền nghiệp vụ, với khóa chính ghép `(farm_id, user_id)`.
 - Mỗi membership có đúng một `role`, một `status` và có thể có `area_id`. Cùng một user có thể giữ role khác nhau ở các farm khác nhau.
-- Bốn role nghiệp vụ là `owner`, `area_manager`, `technician`, `warehouse_staff`. Không có role `admin`, `manager`, `staff` hoặc `viewer` trong kiến trúc đã chốt.
-- `ADMIN_EMAIL` chỉ là cơ chế bootstrap cho tài khoản đầu tiên được phép tạo farm; nó không phải role và không thay thế `farm_members`.
+- Năm role nghiệp vụ là `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`. Không có role `admin`, `manager`, `staff` hoặc `viewer` trong kiến trúc đã chốt.
+- `ADMIN_EMAIL` xác định tài khoản quản trị toàn hệ thống qua email của phiên đăng nhập đã xác thực. Tài khoản này được tạo trại và quản lý mọi trại với quyền tương đương owner mà không cần bản ghi `farm_members`; các tài khoản còn lại vẫn kiểm tra phân công theo từng trại. Trại ngừng hoạt động vẫn phải được kích hoạt trước khi thao tác nghiệp vụ.
 - `farms.created_by` chỉ dùng để truy vết người tạo. Về nguyên tắc, quyền Owner phải được lấy từ membership `active` của chính farm đang thao tác.
 
 ## 3. Luồng xác thực và ủy quyền
@@ -128,3 +128,5 @@ Các điểm sau chưa khớp hoàn toàn với kiến trúc đã chốt:
 - Các bảng nghiệp vụ chuyên ngành và `ponds_tanks.area_id` vẫn thuộc lộ trình triển khai.
 
 Theo yêu cầu hiện tại, không sửa hoặc thêm migration. Khi được triển khai sau này, phải tạo migration hiệu chỉnh mới; không sửa migration đã chạy trên Neon.
+
+Quyền `farm_manager` (Quản lý trại) quản lý toàn bộ khu vực, ao/bể, nghiệp vụ và người dùng thuộc đúng trại được phân công. Không có quyền toàn hệ thống, tạo trại mới hay cấp quyền `owner`; không cần `area_id`. Tài khoản này vẫn chịu kiểm tra trạng thái membership/trại và giới hạn một trại tại database.

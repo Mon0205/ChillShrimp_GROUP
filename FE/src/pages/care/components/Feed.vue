@@ -13,12 +13,10 @@ const farms = ref([])
 const tanks = ref([])
 const feedSupplies = ref([])
 const logs = ref([])
-const summary = ref({ amountsByUnit: [], averageFeedingRatePercent: null })
+const summary = ref({ amountsByUnit: [] })
 const loading = ref(true)
 const listLoading = ref(false)
 const saving = ref(false)
-const recommendationLoading = ref(false)
-const recommendationMessage = ref('')
 const error = ref('')
 const formDialog = ref(false)
 const formRef = ref(null)
@@ -27,25 +25,22 @@ const pageSize = ref(10)
 const pagination = ref({ total: 0, pageCount: 1 })
 const filters = ref({ tankId: props.tankId, from: '', to: '' })
 const form = ref(emptyForm())
-let recommendationRequest = 0
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const role = computed(() => selectedFarm.value?.role || '')
-const canRecord = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
+const canRecord = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const requiredRule = (label) => (value) => String(value ?? '').trim().length > 0 || `${label} là bắt buộc.`
 const positiveNumberRule = (label) => (value) => (value !== '' && Number.isFinite(Number(value)) && Number(value) > 0) || `${label} phải lớn hơn 0.`
-const optionalNonNegativeRule = (label) => (value) => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0) || `${label} không được âm.`
-const optionalPositiveRule = (label) => (value) => value === '' || (Number.isFinite(Number(value)) && Number(value) > 0) || `${label} phải lớn hơn 0.`
 const feedNameRules = [requiredRule('Tên thức ăn'), (v) => String(v || '').trim().length <= 150 || 'Tên thức ăn tối đa 150 ký tự.']
 const amountRules = [requiredRule('Lượng thức ăn'), positiveNumberRule('Lượng thức ăn')]
 const unitRules = [requiredRule('Đơn vị'), (v) => String(v || '').trim().length <= 20 || 'Đơn vị tối đa 20 ký tự.']
 
 function emptyForm() {
   return {
-    tankId: '', supplyId: '', feedName: '', amount: '', unit: 'kg', biomassSnapshotKg: '',
-    feedingRatePercent: '', recommendedAmount: '', feedCheckStatus: 'not_checked',
+    tankId: '', supplyId: '', feedName: '', amount: '', unit: 'kg',
+    feedCheckStatus: '',
     feedingTime: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), notes: '',
   }
 }
@@ -85,43 +80,7 @@ async function loadFeedSupplies() {
   feedSupplies.value = []
   if (!farmId.value) return
   const result = await api(farmUrl('/inventory-supplies?category=feed&limit=100'))
-  feedSupplies.value = result.data.items.filter((item) => Number(item.quantity) > 0)
-}
-
-function convertRecommendation(recommendation, targetUnit) {
-  if (!recommendation || !targetUnit) return null
-  const source = recommendation.unit.trim().toLowerCase()
-  const target = targetUnit.trim().toLowerCase()
-  if (source === target) return recommendation.amount
-  if (source === 'kg' && target === 'g') return Number((recommendation.amount * 1000).toFixed(3))
-  if (source === 'g' && target === 'kg') return Number((recommendation.amount / 1000).toFixed(3))
-  return null
-}
-
-async function loadRecommendation() {
-  const requestId = ++recommendationRequest
-  recommendationMessage.value = ''
-  if (!farmId.value || !form.value.tankId) return
-  recommendationLoading.value = true
-  try {
-    const params = new URLSearchParams({ tankId: form.value.tankId })
-    if (form.value.biomassSnapshotKg !== '') params.set('biomassSnapshotKg', String(form.value.biomassSnapshotKg))
-    const result = await api(farmUrl(`/feeding-logs/recommendation?${params}`))
-    if (requestId !== recommendationRequest) return
-    const data = result.data
-    recommendationMessage.value = data.message || ''
-    if (!data.recommendation) return
-    const supply = feedSupplies.value.find((item) => item.id === form.value.supplyId)
-    const amount = convertRecommendation(data.recommendation, supply?.unit || form.value.unit)
-    if (amount !== null) form.value.recommendedAmount = String(amount)
-    if (data.recommendation.ratePercent !== null) form.value.feedingRatePercent = String(data.recommendation.ratePercent)
-    if (form.value.biomassSnapshotKg === '' && data.biomassSnapshotKg) form.value.biomassSnapshotKg = String(data.biomassSnapshotKg)
-    recommendationMessage.value = `${data.recommendation.mealsPerDay ? `Định mức tham khảo ${data.recommendation.mealsPerDay} cữ/ngày. ` : ''}${data.recommendation.sourceReference}${data.recommendation.adjustmentNotes ? ` · ${data.recommendation.adjustmentNotes}` : ''}`
-  } catch (err) {
-    if (requestId === recommendationRequest) recommendationMessage.value = err.message
-  } finally {
-    if (requestId === recommendationRequest) recommendationLoading.value = false
-  }
+  feedSupplies.value = result.data.items
 }
 
 function selectFeedSupply(supplyId) {
@@ -131,7 +90,6 @@ function selectFeedSupply(supplyId) {
     form.value.feedName = supply.name
     form.value.unit = supply.unit
   }
-  loadRecommendation()
 }
 
 function buildQuery() {
@@ -176,7 +134,7 @@ function applyFilters() {
 }
 
 function openCreate() {
-  form.value = { ...emptyForm(), tankId: tanks.value.find(tank => tank.id === filters.value.tankId)?.id || tanks.value[0]?.id || '' }
+  form.value = emptyForm()
   formDialog.value = true
 }
 
@@ -184,8 +142,6 @@ async function saveLog() {
   const validation = await formRef.value?.validate()
   if (!validation?.valid) return showToast('Vui lòng kiểm tra các trường chưa hợp lệ.', 'error')
   if (form.value.notes.length > 4000) return showToast('Ghi chú tối đa 4.000 ký tự.', 'error')
-  const rate = form.value.feedingRatePercent
-  if (rate !== '' && (Number(rate) < 0 || Number(rate) > 100)) return showToast('Tỷ lệ cho ăn phải từ 0 đến 100%.', 'error')
 
   saving.value = true
   try {
@@ -194,9 +150,6 @@ async function saveLog() {
       supplyId: form.value.supplyId || null,
       feedName: feedSupplies.value.find((item) => item.id === form.value.supplyId)?.name || form.value.feedName,
       amount: Number(form.value.amount),
-      biomassSnapshotKg: form.value.biomassSnapshotKg === '' ? null : Number(form.value.biomassSnapshotKg),
-      feedingRatePercent: rate === '' ? null : Number(rate),
-      recommendedAmount: form.value.recommendedAmount === '' ? null : Number(form.value.recommendedAmount),
       feedingTime: new Date(form.value.feedingTime).toISOString(),
       notes: form.value.notes.trim() || null,
     }
@@ -215,9 +168,6 @@ watch(farmId, async () => {
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
 })
 
-watch(() => [form.value.tankId, form.value.biomassSnapshotKg], () => {
-  if (formDialog.value) loadRecommendation()
-})
 
 watch(() => props.tankId, async (tankId) => {
   filters.value.tankId = tankId
@@ -245,13 +195,8 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
         <div v-for="item in summary.amountsByUnit" :key="item.unit" class="summary-item">
           <span>Tổng đã dùng ({{ item.unit }})</span>
           <strong>{{ formatAmount(item.actualAmount) }}</strong>
-          <small>Khuyến nghị: {{ formatAmount(item.recommendedAmount) }} {{ item.unit }}</small>
         </div>
-        <div v-if="summary.averageFeedingRatePercent" class="summary-item">
-          <span>Tỷ lệ cho ăn trung bình</span>
-          <strong>{{ formatAmount(summary.averageFeedingRatePercent, 2) }}%</strong>
-          <small>Trên các bản ghi có số liệu</small>
-        </div>
+
       </div>
 
 
@@ -262,14 +207,13 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
       <p v-else-if="!listLoading && !logs.length" class="empty-message">Không có nhật ký trong khoảng lọc này.</p>
       <div v-else class="log-table-wrap">
         <v-table class="app-data-table log-table" density="comfortable">
-          <thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Thức ăn</th><th>Lượng thực tế</th><th>Khuyến nghị</th><th>Sàng ăn</th><th>Người ghi</th></tr></thead>
+          <thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Thức ăn</th><th>Lượng thực tế</th><th>Sàng ăn</th><th>Người ghi</th></tr></thead>
           <tbody>
             <tr v-for="item in logs" :key="item.id">
               <td>{{ formatDateTime(item.feedingTime) }}</td>
               <td>{{ item.tank.code }} · {{ item.tank.name }}</td>
               <td><strong>{{ item.feedName }}</strong><small v-if="item.notes" class="cell-note">{{ item.notes }}</small></td>
               <td>{{ formatAmount(item.amount) }} {{ item.unit }}</td>
-              <td>{{ item.recommendedAmount == null ? '—' : `${formatAmount(item.recommendedAmount)} ${item.unit}` }}</td>
               <td><span class="status-label">{{ statusLabel(item.feedCheckStatus) }}</span></td>
               <td>{{ item.performer.displayName || item.performer.email }}</td>
             </tr>
@@ -289,14 +233,9 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
               <div class="form-grid">
                 <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[requiredRule('Ao/bể')]" />
                 <v-text-field v-model="form.feedingTime" type="datetime-local" label="Thời gian *" :rules="[requiredRule('Thời gian')]" />
-                <v-select :model-value="form.supplyId" :items="feedSupplies" item-title="name" item-value="id" label="Lấy thức ăn từ kho (tùy chọn)" clearable @update:model-value="selectFeedSupply" />
+                <v-select :model-value="form.supplyId" :items="feedSupplies" item-title="name" item-value="id" label="Thức ăn trong danh mục (tùy chọn)" clearable @update:model-value="selectFeedSupply" />
                 <v-text-field v-model="form.feedName" label="Tên thức ăn *" :rules="feedNameRules" :readonly="Boolean(form.supplyId)" />
                 <div class="amount-unit"><v-text-field v-model="form.amount" type="number" min="0.001" step="0.001" label="Lượng thực tế *" :rules="amountRules" /><v-text-field v-model="form.unit" label="Đơn vị *" :rules="unitRules" :readonly="Boolean(form.supplyId)" /></div>
-                <v-text-field v-model="form.biomassSnapshotKg" type="number" min="0.001" step="0.001" label="Sinh khối tại thời điểm ghi (kg)" :rules="[optionalPositiveRule('Sinh khối')]" />
-                <v-text-field v-model="form.feedingRatePercent" type="number" min="0" max="100" step="0.001" label="Tỷ lệ cho ăn (%)" />
-                <v-text-field v-model="form.recommendedAmount" type="number" min="0" step="0.001" label="Lượng khuyến nghị" :rules="[optionalNonNegativeRule('Lượng khuyến nghị')]" />
-                <p v-if="recommendationLoading" class="recommendation-note">Đang tra định mức thức ăn…</p>
-                <p v-else-if="recommendationMessage" class="recommendation-note">{{ recommendationMessage }}</p>
                 <v-select v-model="form.feedCheckStatus" label="Kiểm tra sàng ăn" :items="[{ title: 'Chưa kiểm tra', value: 'not_checked' }, { title: 'Đã ăn hết', value: 'consumed' }, { title: 'Còn thức ăn', value: 'leftover' }]" clearable />
                 <v-textarea v-model="form.notes" label="Ghi chú" rows="2" maxlength="4000" counter="4000" class="full-width" />
               </div>

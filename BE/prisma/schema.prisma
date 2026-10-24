@@ -9,6 +9,7 @@ datasource db {
 
 enum FarmRole {
   owner
+  farm_manager
   area_manager
   technician
   warehouse_staff
@@ -21,6 +22,7 @@ enum InvitationStatus {
 }
 
 model User {
+  supplyRequestsProcessed InventorySupplyRequest[] @relation("SupplyRequestProcessor")
   id                  String           @id
   email               String           @unique
   username            String?          @unique
@@ -29,21 +31,16 @@ model User {
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   farmsCreated        Farm[]           @relation("FarmCreator")
-  farmsArchived       Farm[]           @relation("FarmArchiver")
   pondsTanksDeleted   PondTank[]       @relation("PondTankDeleter")
+  pondsTanksResponsible PondTank[]     @relation("PondTankResponsible")
   feedingLogs         FeedingLog[]
   waterChangeLogs     WaterChangeLog[]
   waterParameterLogs  WaterParameterLog[]
   treatmentLogs       TreatmentLog[]
   inventoryTransactions InventoryTransaction[]
   inventorySupplyRequests InventorySupplyRequest[] @relation("SupplyRequestRequester")
-  feedGuidelinesApproved FeedGuideline[] @relation("FeedGuidelineApprover")
   environmentThresholdsCreated  EnvironmentThreshold[] @relation("EnvironmentThresholdCreator")
   environmentThresholdsApproved EnvironmentThreshold[] @relation("EnvironmentThresholdApprover")
-  seedQualityChecksCreated  SeedQualityCheck[] @relation("SeedQualityCheckChecker")
-  seedQualityChecksReviewed SeedQualityCheck[] @relation("SeedQualityCheckReviewer")
-  batchQuantityEvents BatchQuantityEvent[]
-  growthSamplingLogs  GrowthSamplingLog[]
   aiInspectionsCreated AiInspection[] @relation("AiInspectionCreator")
   memberships         FarmMember[]
   invitationsSent     FarmInvitation[] @relation("InvitationSender")
@@ -59,12 +56,9 @@ model Farm {
   address       String?
   status        String           @default("active") @db.VarChar(20)
   createdBy     String           @map("created_by")
-  archivedBy    String?          @map("archived_by")
-  archivedAt    DateTime?        @map("archived_at") @db.Timestamptz(6)
   createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   creator       User             @relation("FarmCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  archiver      User?            @relation("FarmArchiver", fields: [archivedBy], references: [id], onDelete: SetNull)
   members       FarmMember[]
   invitations   FarmInvitation[]
   areas         Area[]
@@ -72,7 +66,6 @@ model Farm {
   seedSuppliers SeedSupplier[]
   inventorySupplies InventorySupply[]
   inventorySupplyRequests InventorySupplyRequest[]
-  feedGuidelines FeedGuideline[]
   environmentThresholds EnvironmentThreshold[]
   alertsNotifications AlertNotification[]
 
@@ -105,9 +98,11 @@ model Area {
 }
 
 model PondTank {
+  supplyRequests InventorySupplyRequest[]
   id          String    @id @default(uuid()) @db.Uuid
   farmId      String    @map("farm_id") @db.Uuid
   areaId      String?   @map("area_id") @db.Uuid
+  responsibleUserId String? @map("responsible_user_id")
   code        String    @db.VarChar(50)
   name        String    @db.VarChar(100)
   tankType    String    @default("nursery_tank") @map("tank_type") @db.VarChar(30)
@@ -122,19 +117,19 @@ model PondTank {
   farm        Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
   area        Area?       @relation(fields: [areaId], references: [id], onDelete: Restrict)
   deleter     User?       @relation("PondTankDeleter", fields: [deletedBy], references: [id], onDelete: SetNull)
+  responsibleUser User?   @relation("PondTankResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   seedBatches SeedBatch[]
   feedingLogs FeedingLog[]
   waterChangeLogs WaterChangeLog[]
   waterParameterLogs WaterParameterLog[]
   environmentalAlerts AlertNotification[]
   treatmentLogs TreatmentLog[]
-  quantityEventsFrom BatchQuantityEvent[] @relation("QuantityEventFromTank")
-  quantityEventsTo   BatchQuantityEvent[] @relation("QuantityEventToTank")
 
   @@unique([farmId, code])
   @@index([farmId, areaId])
   @@index([farmId, status])
   @@index([farmId, deletedAt])
+  @@index([responsibleUserId, deletedAt])
   @@map("ponds_tanks")
 }
 
@@ -146,9 +141,6 @@ model FeedingLog {
   feedName           String   @map("feed_name") @db.VarChar(150)
   amount             Decimal  @db.Decimal(12, 3)
   unit               String   @db.VarChar(20)
-  biomassSnapshotKg  Decimal? @map("biomass_snapshot_kg") @db.Decimal(12, 3)
-  feedingRatePercent Decimal? @map("feeding_rate_percent") @db.Decimal(7, 3)
-  recommendedAmount  Decimal? @map("recommended_amount") @db.Decimal(12, 3)
   feedCheckStatus    String?  @map("feed_check_status") @db.VarChar(20)
   feedingTime        DateTime @map("feeding_time") @db.Timestamptz(6)
   notes              String?
@@ -226,7 +218,6 @@ model EnvironmentThreshold {
   warningMax       Decimal? @map("warning_max") @db.Decimal(12, 3)
   dangerMin        Decimal? @map("danger_min") @db.Decimal(12, 3)
   dangerMax        Decimal? @map("danger_max") @db.Decimal(12, 3)
-  sourceReference  String   @map("source_reference")
   effectiveFrom    DateTime @map("effective_from") @db.Date
   effectiveTo      DateTime? @map("effective_to") @db.Date
   isActive         Boolean  @default(true) @map("is_active")
@@ -321,6 +312,8 @@ model InventorySupply {
 }
 
 model InventoryTransaction {
+  supplyRequestId String? @unique @map("supply_request_id") @db.Uuid
+  supplyRequest InventorySupplyRequest? @relation(fields: [supplyRequestId], references: [id], onDelete: Restrict)
   id              String   @id @default(uuid()) @db.Uuid
   supplyId        String   @map("supply_id") @db.Uuid
   batchId         String?  @map("batch_id") @db.Uuid
@@ -342,6 +335,13 @@ model InventoryTransaction {
 }
 
 model InventorySupplyRequest {
+  processedBy String? @map("processed_by")
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  rejectionReason String? @map("rejection_reason")
+  processor User? @relation("SupplyRequestProcessor", fields: [processedBy], references: [id], onDelete: SetNull)
+  tankId String? @map("tank_id") @db.Uuid
+  tank PondTank? @relation(fields: [tankId], references: [id], onDelete: Restrict)
+  transaction InventoryTransaction?
   id          String   @id @default(uuid()) @db.Uuid
   farmId      String   @map("farm_id") @db.Uuid
   supplyId    String   @map("supply_id") @db.Uuid
@@ -360,48 +360,18 @@ model InventorySupplyRequest {
 
   @@index([farmId, status, createdAt])
   @@index([areaId, status, createdAt])
+  @@index([tankId, createdAt])
   @@index([supplyId, createdAt])
   @@map("supply_requests")
 }
 
-model FeedGuideline {
-  id                     String   @id @default(uuid()) @db.Uuid
-  farmId                 String   @map("farm_id") @db.Uuid
-  species                String   @db.VarChar(50)
-  developmentStage       String   @map("development_stage") @db.VarChar(50)
-  tankType               String   @map("tank_type") @db.VarChar(30)
-  feedingRateMinPercent  Decimal? @map("feeding_rate_min_percent") @db.Decimal(7, 3)
-  feedingRateMaxPercent  Decimal? @map("feeding_rate_max_percent") @db.Decimal(7, 3)
-  feedPer1000SeedG       Decimal? @map("feed_per_1000_seed_g") @db.Decimal(12, 3)
-  mealsPerDay            Int?     @map("meals_per_day")
-  adjustmentNotes        String?  @map("adjustment_notes")
-  sourceReference        String   @map("source_reference")
-  approvedBy             String?  @map("approved_by")
-  approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
-  effectiveFrom          DateTime @map("effective_from") @db.Date
-  effectiveTo            DateTime? @map("effective_to") @db.Date
-  isActive               Boolean  @default(false) @map("is_active")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  farm       Farm  @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  approver   User? @relation("FeedGuidelineApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
-
-  @@index([farmId, species, developmentStage, tankType, isActive])
-  @@map("feed_guidelines")
-}
 
 model SeedSupplier {
   id                    String   @id @default(uuid()) @db.Uuid
   farmId                String   @map("farm_id") @db.Uuid
   name                  String   @db.VarChar(150)
-  licenseNo             String?  @map("license_no") @db.VarChar(80)
   phone                 String?  @db.VarChar(20)
   address               String?
-  broodstockInformation String?  @map("broodstock_information")
-  notes                 String?
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   farm        Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
   seedBatches SeedBatch[]
@@ -415,21 +385,10 @@ model SeedBatch {
   tankId                   String    @map("tank_id") @db.Uuid
   supplierId               String?   @map("supplier_id") @db.Uuid
   batchCode                String    @unique @map("batch_code") @db.VarChar(50)
-  supplierLotCode          String    @map("supplier_lot_code") @db.VarChar(80)
   species                  String    @db.VarChar(50)
   developmentStage         String    @map("development_stage") @db.VarChar(50)
-  broodstockLine           String?   @map("broodstock_line") @db.VarChar(100)
-  broodstockStatus         String    @default("unknown") @map("broodstock_status") @db.VarChar(20)
-  source                   String    @db.VarChar(150)
-  documentedQuantity       Int       @map("documented_quantity")
   initialQuantity          Int       @map("initial_quantity")
   currentEstimatedQuantity Int       @map("current_estimated_quantity")
-  productionDate           DateTime? @map("production_date") @db.Date
-  receivedAt               DateTime? @map("received_at") @db.Timestamptz(6)
-  transportDurationMinutes Int?      @map("transport_duration_minutes")
-  healthCertificateUrl     String?   @map("health_certificate_url")
-    healthCertificatePublicId String?  @map("health_certificate_public_id") @db.VarChar(100)
-    healthCertificateFormat  String?   @map("health_certificate_format") @db.VarChar(10)
   stockedDate              DateTime  @map("stocked_date") @db.Date
   expectedSaleDate         DateTime  @map("expected_sale_date") @db.Date
   status                   String    @default("active") @db.VarChar(30)
@@ -439,9 +398,6 @@ model SeedBatch {
 
   tank     PondTank      @relation(fields: [tankId], references: [id], onDelete: Restrict)
   supplier SeedSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  qualityChecks SeedQualityCheck[]
-  quantityEvents BatchQuantityEvent[]
-  growthSamples GrowthSamplingLog[]
   aiInspections AiInspection[]
   inventoryTransactions InventoryTransaction[]
   alerts AlertNotification[]
@@ -484,97 +440,8 @@ model AiInspection {
   @@map("ai_inspections")
 }
 
-model SeedQualityCheck {
-  id                  String   @id @default(uuid()) @db.Uuid
-  batchId             String   @map("batch_id") @db.Uuid
-  checkedBy           String   @map("checked_by")
-  checkType           String   @map("check_type") @db.VarChar(30)
-  diseaseCode         String?  @map("disease_code") @db.VarChar(20)
-  sampleSize          Int      @map("sample_size")
-  liveCount           Int?     @map("live_count")
-  abnormalCount       Int?     @map("abnormal_count")
-  survivalRate        Decimal? @map("survival_rate") @db.Decimal(5, 2)
-  deformityRate       Decimal? @map("deformity_rate") @db.Decimal(5, 2)
-  lengthMinMm         Decimal? @map("length_min_mm") @db.Decimal(8, 3)
-  lengthMaxMm         Decimal? @map("length_max_mm") @db.Decimal(8, 3)
-  uniformityScore     Decimal? @map("uniformity_score") @db.Decimal(5, 2)
-  testMethod          String   @map("test_method") @db.VarChar(100)
-  protocolParameters  Json?    @map("protocol_parameters")
-  result              String   @db.VarChar(20)
-  labName             String?  @map("lab_name") @db.VarChar(150)
-  evidenceUrl         String?  @map("evidence_url")
-    evidencePublicId    String?  @map("evidence_public_id") @db.VarChar(100)
-    evidenceFormat       String?  @map("evidence_format") @db.VarChar(10)
-  checkedAt           DateTime @map("checked_at") @db.Timestamptz(6)
-  notes               String?
-  reviewStatus        String   @default("pending") @map("review_status") @db.VarChar(20)
-  reviewedBy          String?  @map("reviewed_by")
-  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  reviewNotes         String?  @map("review_notes")
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  batch    SeedBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
-  checker  User      @relation("SeedQualityCheckChecker", fields: [checkedBy], references: [id], onDelete: Restrict)
-  reviewer User?     @relation("SeedQualityCheckReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
 
-  @@index([batchId, checkedAt])
-  @@index([checkedBy])
-  @@map("seed_quality_checks")
-}
-
-model BatchQuantityEvent {
-  id            String    @id @default(uuid()) @db.Uuid
-  batchId       String    @map("batch_id") @db.Uuid
-  fromTankId    String?   @map("from_tank_id") @db.Uuid
-  toTankId      String?   @map("to_tank_id") @db.Uuid
-  createdBy     String    @map("created_by")
-  eventType     String    @map("event_type") @db.VarChar(30)
-  adjustmentDirection String?   @map("adjustment_direction") @db.VarChar(10)
-  quantity      Int
-  occurredAt    DateTime  @map("occurred_at") @db.Timestamptz(6)
-  reason        String?
-  referenceType String?   @map("reference_type") @db.VarChar(30)
-  referenceId   String?   @map("reference_id") @db.Uuid
-  notes         String?
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  batch     SeedBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
-  creator   User      @relation(fields: [createdBy], references: [id], onDelete: Restrict)
-  fromTank  PondTank? @relation("QuantityEventFromTank", fields: [fromTankId], references: [id], onDelete: SetNull)
-  toTank    PondTank? @relation("QuantityEventToTank", fields: [toTankId], references: [id], onDelete: SetNull)
-
-  @@index([batchId, occurredAt])
-  @@index([createdBy])
-  @@index([fromTankId])
-  @@index([toTankId])
-  @@map("batch_quantity_events")
-}
-
-model GrowthSamplingLog {
-  id                 String   @id @default(uuid()) @db.Uuid
-  batchId            String   @map("batch_id") @db.Uuid
-  sampledBy          String   @map("sampled_by")
-  sampledAt          DateTime @map("sampled_at") @db.Timestamptz(6)
-  method             String   @db.VarChar(20)
-  sampleCount        Int      @map("sample_count")
-  totalSampleWeightG Decimal? @map("total_sample_weight_g") @db.Decimal(12, 3)
-  averageWeightG     Decimal? @map("average_weight_g") @db.Decimal(10, 4)
-  averageLengthMm    Decimal? @map("average_length_mm") @db.Decimal(8, 3)
-  lengthMinMm        Decimal? @map("length_min_mm") @db.Decimal(8, 3)
-  lengthMaxMm        Decimal? @map("length_max_mm") @db.Decimal(8, 3)
-  estimatedQuantity  Int?     @map("estimated_quantity")
-  biomassKg          Decimal? @map("biomass_kg") @db.Decimal(12, 3)
-  uniformityScore    Decimal? @map("uniformity_score") @db.Decimal(5, 2)
-  notes              String?
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  batch    SeedBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
-  sampler  User      @relation(fields: [sampledBy], references: [id], onDelete: Restrict)
-
-  @@index([batchId, sampledAt])
-  @@index([sampledBy])
-  @@map("growth_sampling_logs")
-}
 
 model FarmMember {
   farmId    String           @map("farm_id") @db.Uuid

@@ -9,46 +9,15 @@ import { api } from '../../services/api.js'
 
 const farmContext = useFarmContext()
 const farms = ref([])
-const supplies = ref([])
-const batches = ref([])
 const transactions = ref([])
 const loading = ref(true)
 const listLoading = ref(false)
-const saving = ref(false)
 const error = ref('')
-const formRef = ref(null)
-const dialog = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const pagination = ref({ total: 0, pageCount: 1 })
-const form = ref(emptyForm())
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
-const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
-const role = computed(() => selectedFarm.value?.role || '')
-const isTechnician = computed(() => role.value === 'technician')
-const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
-const chosenSupply = computed(() => supplies.value.find((supply) => supply.id === form.value.supplyId))
-const supplyRule = (value) => Boolean(value) || 'Vui lòng chọn vật tư.'
-const quantityRule = (value) => {
-  if (value === '' || !Number.isFinite(Number(value)) || Number(value) <= 0) return 'Số lượng phải lớn hơn 0.'
-  if (Math.abs(Number(value) * 1000 - Math.round(Number(value) * 1000)) > 1e-7) return 'Tối đa 3 chữ số thập phân.'
-  if (chosenSupply.value && Number(value) > Number(chosenSupply.value.quantity)) return 'Số lượng vượt tồn kho hiện tại.'
-  return true
-}
-const batchRule = (value) => !isTechnician.value || Boolean(value) || 'Technician phải chọn lô trong khu vực được phân công.'
-const dateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời điểm sử dụng không hợp lệ.'
-
-function emptyForm() {
-  return {
-    supplyId: '',
-    batchId: '',
-    quantity: '',
-    transactionDate: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-    notes: '',
-  }
-}
-
 function farmUrl(path = '') { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
 function formatNumber(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) }
 function formatDateTime(value) {
@@ -61,19 +30,6 @@ async function loadFarms() {
   farmContext.farms = farms.value
   farmContext.ready = true
   if (!farms.value.some((farm) => farm.id === farmId.value)) selectFarm(farms.value[0]?.id || '')
-}
-
-async function loadOptions() {
-  supplies.value = []
-  batches.value = []
-  if (!farmId.value) return
-  const [supplyResult, activeResult, readyResult] = await Promise.all([
-    api(farmUrl('/inventory-supplies?limit=100')),
-    api(farmUrl('/seed-batches?status=active&limit=100')),
-    api(farmUrl('/seed-batches?status=ready_for_sale&limit=100')),
-  ])
-  supplies.value = supplyResult.data.items
-  batches.value = [...activeResult.data.items, ...readyResult.data.items]
 }
 
 async function loadTransactions() {
@@ -94,39 +50,14 @@ async function loadTransactions() {
 async function loadPage() {
   loading.value = true
   error.value = ''
-  try { await loadFarms(); await Promise.all([loadOptions(), loadTransactions()]) }
+  try { await loadFarms(); await loadTransactions() }
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
   finally { loading.value = false }
 }
 
-function openCreate() { form.value = { ...emptyForm(), batchId: batches.value[0]?.id || '' }; dialog.value = true }
-
-async function saveUsage() {
-  const validation = await formRef.value?.validate()
-  if (!validation?.valid) return showToast('Vui lòng kiểm tra các trường chưa hợp lệ.', 'error')
-  if (form.value.notes.length > 4000) return showToast('Ghi chú tối đa 4.000 ký tự.', 'error')
-  saving.value = true
-  try {
-    await api(farmUrl('/inventory-transactions/usage'), {
-      method: 'POST',
-      body: JSON.stringify({
-        supplyId: form.value.supplyId,
-        batchId: form.value.batchId || null,
-        quantity: Number(form.value.quantity),
-        transactionDate: new Date(form.value.transactionDate).toISOString(),
-        notes: form.value.notes.trim() || null,
-      }),
-    })
-    dialog.value = false
-    showToast('Đã ghi nhận sử dụng vật tư và trừ tồn kho.', 'success')
-    await Promise.all([loadOptions(), loadTransactions()])
-  } catch (err) { showToast(err.message, 'error') }
-  finally { saving.value = false }
-}
-
 watch(farmId, async () => {
   page.value = 1
-  try { await Promise.all([loadOptions(), loadTransactions()]) }
+  try { await loadTransactions() }
   catch (err) { error.value = err.message; showToast(err.message, 'error') }
 })
 
@@ -139,9 +70,9 @@ watch(pageSize, () => { if (page.value === 1) loadTransactions(); else page.valu
 <AppShell>
     <section class="usage-page">
       <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-package-variant-minus" size="25" /></v-avatar><h1>Lịch sử sử dụng vật tư</h1></div>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-package-variant-minus" size="25" /></v-avatar><h1>Lịch sử cấp vật tư</h1></div>
       </header>
-      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-minus-circle-outline" :disabled="!supplies.length" @click="openCreate">Ghi sử dụng</v-btn></div>
+      <p class="subtitle">Yêu cầu được duyệt sẽ tự động ghi vào lịch sử và trừ tồn kho. Các giao dịch cũ vẫn được giữ lại.</p>
 
 
       <LoadingIndicator v-if="loading" />
@@ -149,45 +80,25 @@ watch(pageSize, () => { if (page.value === 1) loadTransactions(); else page.valu
       <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem giao dịch.</div>
       <div v-else class="table-wrap">
         <v-table class="app-data-table usage-table" density="comfortable">
-          <thead><tr><th>Thời gian</th><th>Vật tư</th><th>Số lượng sử dụng</th><th>Lô/ao/bể</th><th>Người ghi</th><th>Ghi chú</th></tr></thead>
+          <thead><tr><th>Thời gian</th><th>Vật tư</th><th>Số lượng cấp</th><th>Khu vực / lô</th><th>Người duyệt / ghi</th><th>Ghi chú</th></tr></thead>
           <tbody>
             <tr v-for="item in transactions" :key="item.id">
               <td>{{ formatDateTime(item.transactionDate) }}</td>
               <td><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
               <td>{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td>
-              <td v-if="item.batch"><strong>{{ item.batch.batchCode }}</strong><small>{{ item.batch.tank.name }} · {{ item.batch.tank.code }}</small></td>
+              <td v-if="item.supplyRequest">{{ item.supplyRequest.area?.name || 'Toàn trại' }}<small v-if="item.supplyRequest.tank">{{ item.supplyRequest.tank.code }} · {{ item.supplyRequest.tank.name }}</small><small>Người yêu cầu: {{ item.supplyRequest.requester.displayName || item.supplyRequest.requester.email }}</small></td>
+              <td v-else-if="item.batch"><strong>{{ item.batch.batchCode }}</strong><small>{{ item.batch.tank.name }} · {{ item.batch.tank.code }}</small></td>
               <td v-else>Trang trại</td>
               <td>{{ item.creator.displayName || item.creator.email }}</td>
               <td class="notes-cell">{{ item.notes || '—' }}</td>
             </tr>
-            <tr v-if="!listLoading && !transactions.length"><td colspan="6" class="empty-row">Chưa có giao dịch sử dụng vật tư.</td></tr>
+            <tr v-if="!listLoading && !transactions.length"><td colspan="6" class="empty-row">Chưa có lịch sử cấp vật tư.</td></tr>
           </tbody>
         </v-table>
         <Pagination v-model:page="page" v-model:page-size="pageSize" :total="pagination.total" :loading="listLoading" />
       </div>
 
-      <v-dialog v-model="dialog" max-width="600">
-        <v-card class="form-card">
-          <v-card-title>Ghi nhận sử dụng</v-card-title>
-          <v-card-text>
-            <v-form ref="formRef" @submit.prevent="saveUsage">
-              <v-select v-model="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Vật tư *" :rules="[supplyRule]">
-                <template #item="{ props, item }"><v-list-item v-bind="props" :subtitle="`${item.raw.category} · Tồn ${formatNumber(item.raw.quantity)} ${item.raw.unit}`" /></template>
-              </v-select>
-              <v-alert v-if="chosenSupply?.category === 'feed'" type="info" variant="tonal" density="compact" class="form-alert">
-                Nếu lượng thức ăn đã ghi trong UC05.4, không ghi lại ở đây để tránh trừ tồn hai lần.
-              </v-alert>
-              <v-text-field v-model="form.quantity" type="number" min="0.001" step="0.001" :label="`Số lượng sử dụng${chosenSupply ? ` (${chosenSupply.unit})` : ''} *`" :rules="[quantityRule]" :hint="chosenSupply ? `Tồn hiện tại: ${formatNumber(chosenSupply.quantity)} ${chosenSupply.unit}` : ''" persistent-hint />
-              <v-select v-model="form.batchId" :items="batches" item-title="batchCode" item-value="id" label="Lô giống liên quan" clearable :rules="[batchRule]">
-                <template #item="{ props, item }"><v-list-item v-bind="props" :subtitle="`${item.raw.tank.name} · ${item.raw.tank.code} · ${item.raw.species}`" /></template>
-              </v-select>
-              <v-text-field v-model="form.transactionDate" type="datetime-local" label="Thời điểm sử dụng *" :rules="[dateRule]" />
-              <v-textarea v-model="form.notes" label="Ghi chú" rows="2" maxlength="4000" counter="4000" />
-            </v-form>
-          </v-card-text>
-          <v-card-actions><v-spacer /><v-btn variant="text" :disabled="saving" @click="dialog = false">Hủy</v-btn><v-btn color="primary" :loading="saving" @click="saveUsage">Ghi và trừ tồn</v-btn></v-card-actions>
-        </v-card>
-      </v-dialog>
+
     </section>
   </AppShell>
 </template>

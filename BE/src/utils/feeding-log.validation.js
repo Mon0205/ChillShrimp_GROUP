@@ -18,7 +18,7 @@ function optionalNumber(value, field, { min = 0, max = Number.MAX_SAFE_INTEGER }
 export function normalizeFeedingLogInput(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Dữ liệu nhật ký không hợp lệ.')
 
-  const allowedFields = new Set(['tankId', 'supplyId', 'feedName', 'amount', 'unit', 'biomassSnapshotKg', 'feedingRatePercent', 'recommendedAmount', 'feedCheckStatus', 'feedingTime', 'notes'])
+  const allowedFields = new Set(['tankId', 'supplyId', 'feedName', 'amount', 'unit', 'feedCheckStatus', 'feedingTime', 'notes'])
   const unknownField = Object.keys(body).find((field) => !allowedFields.has(field))
   if (unknownField) throw new Error(`Trường ${unknownField} không được hỗ trợ.`)
 
@@ -34,9 +34,8 @@ export function normalizeFeedingLogInput(body) {
   }
 
   const amount = optionalNumber(body.amount, 'Lượng thức ăn', { min: 0.001, max: 1_000_000_000 })
-  const biomassSnapshotKg = optionalNumber(body.biomassSnapshotKg, 'Sinh khối', { min: 0.001, max: 1_000_000_000 })
-  const feedingRatePercent = optionalNumber(body.feedingRatePercent, 'Tỷ lệ cho ăn', { min: 0, max: 100 })
-  const recommendedAmount = optionalNumber(body.recommendedAmount, 'Lượng khuyến nghị', { max: 1_000_000_000 })
+
+  if (amount === null) throw new Error('Lượng thức ăn là bắt buộc.')
 
   const feedingTime = new Date(body.feedingTime)
   if (typeof body.feedingTime !== 'string' || !body.feedingTime.trim() || Number.isNaN(feedingTime.getTime())) {
@@ -51,5 +50,5 @@ export function normalizeFeedingLogInput(body) {
   const notes = body.notes == null ? null : typeof body.notes === 'string' ? body.notes.trim() || null : undefined
   if (notes === undefined || (notes && notes.length > 4000)) throw new Error('Ghi chú phải là chuỗi và tối đa 4.000 ký tự.')
 
-  return { supplyId, feedName, amount, unit, biomassSnapshotKg, feedingRatePercent, recommendedAmount, feedCheckStatus, feedingTime, notes }
+  return { supplyId, feedName, amount, unit, feedCheckStatus, feedingTime, notes }
 }

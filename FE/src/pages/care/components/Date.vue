@@ -40,7 +40,7 @@ function clear() {
 <template>
   <v-menu v-model="menu" :close-on-content-click="false">
     <template #activator="{ props: activator }">
-      <v-text-field v-bind="activator" class="date-range" :model-value="label" label="Khoảng ngày" placeholder="Chọn khoảng ngày" prepend-inner-icon="mdi-calendar-range" readonly clearable density="compact" variant="outlined" hide-details @click:clear.stop="clear" />
+      <v-text-field v-bind="activator" class="date-range" :model-value="label" label="Khoảng ngày" prepend-inner-icon="mdi-calendar-range" readonly clearable density="compact" variant="outlined" hide-details @click:clear.stop="clear" />
     </template>
     <v-card>
       <v-date-picker :model-value="dates" multiple="range" hide-header show-adjacent-months @update:model-value="select" />

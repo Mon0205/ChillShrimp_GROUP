@@ -11,15 +11,16 @@ export async function createInvitation(req, res) {
   const email = req.body.email?.trim().toLowerCase()
   const { farmId, role } = req.body
   let areaId = req.body.areaId || null
-  const allowedRoles = ['owner', 'area_manager', 'technician', 'warehouse_staff']
+  const allowedRoles = ['owner', 'farm_manager', 'area_manager', 'technician', 'warehouse_staff']
   if (!validEmail(email) || !allowedRoles.includes(role)) throw createHttpError(400, 'Email hoặc chức vụ không hợp lệ.')
+  if (req.membership.role === 'farm_manager' && role === 'owner') throw createHttpError(403, 'Quản lý trại không được cấp quyền Chủ trại.')
   if (req.membership.role === 'area_manager') {
     if (role !== 'technician') throw createHttpError(403, 'Quản lý khu vực chỉ được mời Nhân viên kỹ thuật trong khu vực của mình.')
     areaId = req.membership.areaId
   }
-  if (req.membership.role !== 'owner' && role === 'warehouse_staff') throw createHttpError(403, 'Chỉ Owner được mời Warehouse Staff.')
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && role === 'warehouse_staff') throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được mời Nhân viên kho.')
   if (['area_manager', 'technician'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
-  if (['owner', 'warehouse_staff'].includes(role)) areaId = null
+  if (['owner', 'farm_manager', 'warehouse_staff'].includes(role)) areaId = null
   if (areaId) {
     const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' } })
     if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trại.')

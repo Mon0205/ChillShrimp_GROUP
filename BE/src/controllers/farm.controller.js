@@ -1,3 +1,4 @@
+import { isSystemAdmin } from '../auth/access.js'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
@@ -15,21 +16,30 @@ export async function listFarms(req, res) {
   if (req.query.includeArchived !== undefined && !['true', 'false'].includes(req.query.includeArchived)) {
     throw createHttpError(400, 'Tham số includeArchived không hợp lệ.')
   }
-  const roles = req.query.manageable === 'true' ? ['owner', 'area_manager'] : undefined
+  if (isSystemAdmin(req.auth)) {
+    const statuses = includeInactive ? FARM_STATUSES : includeArchived ? ['active', 'archived'] : ['active']
+    const farms = await prisma.farm.findMany({ where: { status: { in: statuses } }, orderBy: { createdAt: 'desc' } })
+    const areas = farms.length ? await prisma.area.findMany({
+      where: { farmId: { in: farms.map(farm => farm.id) }, status: 'active' },
+      select: { id: true, farmId: true, code: true, name: true }, orderBy: { name: 'asc' },
+    }) : []
+    return sendData(res, farms.map(farm => ({ ...farm, role: 'owner', area: null, areas: areas.filter(area => area.farmId === farm.id) })))
+  }
+  const roles = req.query.manageable === 'true' ? ['owner', 'farm_manager', 'area_manager'] : undefined
   const memberships = await prisma.farmMember.findMany({
     where: {
       userId: req.auth.id,
       status: 'active',
       ...(roles ? { role: { in: roles } } : {}),
       ...(includeInactive
-        ? { OR: [{ farm: { status: { in: ['active', 'inactive'] } } }, { role: 'owner', farm: { status: 'archived' } }] }
+        ? { OR: [{ farm: { status: { in: ['active', 'inactive'] } } }, { role: { in: ['owner', 'farm_manager'] }, farm: { status: 'archived' } }] }
         : includeArchived
-        ? { OR: [{ farm: { status: 'active' } }, { role: 'owner', farm: { status: 'archived' } }] }
+        ? { OR: [{ farm: { status: 'active' } }, { role: { in: ['owner', 'farm_manager'] }, farm: { status: 'archived' } }] }
         : { farm: { status: 'active' } }),
     },
     include: { farm: true, area: { select: { id: true, code: true, name: true } } }, orderBy: { farm: { createdAt: 'desc' } },
   })
-  const ownerFarmIds = memberships.filter(member => member.role === 'owner').map(member => member.farmId)
+  const ownerFarmIds = memberships.filter(member => ['owner', 'farm_manager'].includes(member.role)).map(member => member.farmId)
   const managerAreaIds = memberships.filter(member => member.role === 'area_manager' && member.areaId).map(member => member.areaId)
   const areas = ownerFarmIds.length || managerAreaIds.length ? await prisma.area.findMany({
     where: { OR: [{ farmId: { in: ownerFarmIds } }, { id: { in: managerAreaIds } }] },
@@ -75,8 +85,6 @@ export async function updateFarm(req, res) {
   if (req.body.status !== undefined) {
     if (!['active', 'inactive'].includes(req.body.status)) throw createHttpError(400, 'Trạng thái trang trại không hợp lệ.')
     data.status = req.body.status
-    data.archivedAt = null
-    data.archivedBy = null
   }
   try {
     return sendData(res, await prisma.farm.update({ where: { id: req.params.farmId }, data }))
@@ -102,7 +110,7 @@ async function archiveFarm(req) {
   }
   return prisma.farm.update({
     where: { id: farmId },
-    data: { status: 'archived', archivedAt: new Date(), archivedBy: req.auth.id },
+    data: { status: 'archived' },
   })
 }
 
@@ -116,7 +124,7 @@ export async function updateFarmStatus(req, res) {
   if (status === 'archived') return sendData(res, await archiveFarm(req))
   return sendData(res, await prisma.farm.update({
     where: { id: farm.id },
-    data: { status, archivedAt: null, archivedBy: null },
+    data: { status },
   }))
 }
 

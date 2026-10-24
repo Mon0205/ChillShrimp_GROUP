@@ -16,13 +16,13 @@ const sidebarMode = ref(localStorage.getItem('sidebarMode') || 'expanded')
 const initials = computed(() => (auth.user?.displayName || auth.user?.email || 'U').trim().slice(0, 2).toUpperCase())
 const selectedFarm = computed(() => farmContext.farms.find((farm) => farm.id === farmContext.farmId))
 const role = computed(() => selectedFarm.value?.role)
-const canViewPondTanks = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
-const canViewSeedSuppliers = computed(() => ['owner', 'area_manager'].includes(role.value))
-const canViewSeedBatches = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
-const canViewCareLogs = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
-const canViewInventory = computed(() => ['owner', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
-const canViewInventoryRequests = computed(() => ['owner', 'warehouse_staff', 'area_manager'].includes(role.value))
-const canRecordInventoryUsage = computed(() => ['owner', 'technician'].includes(role.value))
+const canViewPondTanks = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
+const canViewSeedSuppliers = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(role.value))
+const canViewSeedBatches = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
+const canViewCareLogs = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
+const canViewInventory = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
+const canViewInventoryRequests = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager'].includes(role.value))
+const canRecordInventoryUsage = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
 
 onMounted(async () => {
   try { await loadFarmContext(true) }
@@ -114,10 +114,11 @@ async function signOut() {
         <v-list-item v-if="canViewPondTanks" to="/ponds-tanks" prepend-icon="mdi-waves" title="Ao/bể" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedSuppliers" to="/seed-suppliers" prepend-icon="mdi-truck-outline" title="Nhà cung cấp giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-fishbowl" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewSeedBatches" to="/quality-checks" prepend-icon="mdi-clipboard-check-outline" title="Kiểm tra chất lượng" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewSeedBatches" to="/quality-checks" prepend-icon="mdi-clipboard-check-outline" title="Kiểm tra AI" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/care-logs" prepend-icon="mdi-notebook-outline" title="Nhật ký chăm sóc" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewInventory" to="/inventory-supplies" prepend-icon="mdi-archive-outline" title="Danh mục vật tư" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Lịch sử sử dụng vật tư" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewInventoryRequests" to="/inventory-requests" prepend-icon="mdi-clipboard-list-outline" title="Yêu cầu vật tư" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Lịch sử cấp vật tư" rounded="lg" @click="closeMobileDrawer" />
       </v-list>
       <template #append>
         <v-menu location="top start" :offset="10">

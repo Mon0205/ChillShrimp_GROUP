@@ -45,8 +45,7 @@ export function usePage() {
   const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
   const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
   const role = computed(() => selectedFarm.value?.role || '')
-  const canManage = computed(() => ['owner', 'warehouse_staff'].includes(role.value))
-  const canRequestSupply = computed(() => ['owner', 'area_manager', 'warehouse_staff'].includes(role.value))
+  const canManage = computed(() => ['owner', 'farm_manager', 'warehouse_staff'].includes(role.value))
   const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
   const categoryOptions = [
     { title: 'Thức ăn', value: 'feed' },
@@ -76,7 +75,7 @@ export function usePage() {
   const adjustmentDateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời điểm điều chỉnh không hợp lệ.'
 
   function emptyForm() {
-    return { name: '', category: 'feed', unit: 'kg', unitPrice: '0', minThreshold: '0', description: '' }
+    return { name: '', category: '', unit: 'kg', unitPrice: '0', minThreshold: '0', description: '' }
   }
 
   function emptyImportForm() {
@@ -86,7 +85,7 @@ export function usePage() {
 
   function emptyAdjustmentForm() {
     const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-    return { direction: 'increase', quantity: '', transactionDate: localNow, reason: '' }
+    return { direction: '', quantity: '', transactionDate: localNow, reason: '' }
   }
 
   function farmUrl(path = '') { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
@@ -268,7 +267,7 @@ async function openImportHistory(supply) {
     } finally { adjustmentHistoryLoading.value = false }
   }
 
-  
+
 
 
   watch(farmId, () => { page.value = 1; loadSupplies() })
@@ -281,5 +280,5 @@ async function openImportHistory(supply) {
   })
   onMounted(loadPage)
 
-  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, farmId, canManage, canRequestSupply, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
+  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, farmId, canManage, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
 }

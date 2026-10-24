@@ -49,7 +49,7 @@ const editingId = ref('')
 const formRef = ref(null)
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
-const canManage = computed(() => selectedFarm.value?.role === 'owner')
+const canManage = computed(() => ['owner', 'farm_manager'].includes(selectedFarm.value?.role))
 const parameterTitle = (code) => parameters.find((item) => item.value === code)?.title || code
 const tankTypeTitle = (code) => tankTypes.find((item) => item.value === code)?.title || code
 const speciesTitle = (code) => speciesOptions.find((item) => item.value === code)?.title || code
@@ -62,9 +62,9 @@ const boundText = (item) => [
   item.dangerMax !== null ? `Nguy cấp trên ${item.dangerMax}` : '',
 ].filter(Boolean).join(' · ')
 const blankForm = () => ({
-  species: 'all', developmentStage: 'all', tankType: 'all', parameterCode: 'temperature', unit: '°C',
+  species: '', developmentStage: '', tankType: '', parameterCode: '', unit: '',
   optimalMin: '', optimalMax: '', warningMin: '', warningMax: '', dangerMin: '', dangerMax: '',
-  sourceReference: '', effectiveFrom: new Date().toISOString().slice(0, 10), effectiveTo: '',
+  effectiveFrom: new Date().toISOString().slice(0, 10), effectiveTo: '',
 })
 const form = ref(blankForm())
 const requiredRule = (value) => Boolean(String(value ?? '').trim()) || 'Trường này là bắt buộc.'
@@ -112,7 +112,7 @@ function openEdit(item) {
     parameterCode: item.parameterCode, unit: item.unit,
     optimalMin: item.optimalMin ?? '', optimalMax: item.optimalMax ?? '', warningMin: item.warningMin ?? '',
     warningMax: item.warningMax ?? '', dangerMin: item.dangerMin ?? '', dangerMax: item.dangerMax ?? '',
-    sourceReference: item.sourceReference, effectiveFrom: new Date(item.effectiveFrom).toISOString().slice(0, 10),
+    effectiveFrom: new Date(item.effectiveFrom).toISOString().slice(0, 10),
     effectiveTo: item.effectiveTo ? new Date(item.effectiveTo).toISOString().slice(0, 10) : '',
   }
   dialog.value = true
@@ -201,13 +201,12 @@ watch(alertSize, applyAlertFilters)
         <section class="section-block">
           <p v-if="!thresholds.length" class="empty-message">Chưa có ngưỡng môi trường cho trang trại này.</p>
           <div v-else class="table-wrap"><v-table density="comfortable" class="app-data-table threshold-table">
-            <thead><tr><th>Thông số</th><th>Điều kiện áp dụng</th><th>Giới hạn cảnh báo</th><th>Nguồn tham chiếu</th><th>Hiệu lực</th><th>Trạng thái</th><th v-if="canManage">Thao tác</th></tr></thead>
+            <thead><tr><th>Thông số</th><th>Điều kiện áp dụng</th><th>Giới hạn cảnh báo</th><th>Hiệu lực</th><th>Trạng thái</th><th v-if="canManage">Thao tác</th></tr></thead>
             <tbody>
               <tr v-for="item in thresholds" :key="item.id">
                 <td><strong>{{ parameterTitle(item.parameterCode) }}</strong><small>Đơn vị: {{ item.unit || 'không có' }}</small></td>
                 <td>{{ speciesTitle(item.species) }} · {{ item.developmentStage }}<small>{{ tankTypeTitle(item.tankType) }}</small></td>
                 <td>{{ boundText(item) }}<small v-if="item.optimalMin !== null || item.optimalMax !== null">Tối ưu: {{ item.optimalMin ?? '−∞' }} đến {{ item.optimalMax ?? '+∞' }}</small></td>
-                <td class="source-cell">{{ item.sourceReference }}</td>
                 <td>{{ dateText(item.effectiveFrom) }}<small>đến {{ dateText(item.effectiveTo) }}</small></td>
                 <td><span class="status" :class="{ approved: item.approvedAt && item.isActive, inactive: !item.isActive }">{{ !item.isActive ? 'Ngừng áp dụng' : item.approvedAt ? 'Đã duyệt' : 'Chờ duyệt' }}</span></td>
                 <td v-if="canManage" class="actions">
@@ -255,7 +254,6 @@ watch(alertSize, applyAlertFilters)
               <div><dt>Lô giống</dt><dd>{{ selectedAlert.batch?.batchCode || 'Không có lô đang chiếm dụng' }}</dd></div>
               <div><dt>Quy tắc áp dụng</dt><dd>{{ selectedAlert.threshold ? `${speciesTitle(selectedAlert.threshold.species)} · ${selectedAlert.threshold.developmentStage} · ${tankTypeTitle(selectedAlert.threshold.tankType)}` : 'Không còn thông tin ngưỡng' }}</dd></div>
               <div><dt>Giới hạn ngưỡng</dt><dd>{{ selectedAlert.threshold ? boundText(selectedAlert.threshold) : '—' }}</dd></div>
-              <div v-if="selectedAlert.threshold" class="detail-wide"><dt>Nguồn tham chiếu</dt><dd>{{ selectedAlert.threshold.sourceReference }}</dd></div>
               <div v-if="selectedAlert.sourceLog" class="detail-wide"><dt>Phương pháp đo</dt><dd>{{ selectedAlert.sourceLog.measurementMethod }}<span v-if="selectedAlert.sourceLog.measurementDevice"> · {{ selectedAlert.sourceLog.measurementDevice }}</span></dd></div>
             </dl>
           </div>
@@ -266,12 +264,11 @@ watch(alertSize, applyAlertFilters)
         <v-card-title>{{ editingId ? 'Cập nhật ngưỡng môi trường' : 'Thêm ngưỡng môi trường' }}</v-card-title>
         <v-card-text><p class="form-note">Ngưỡng mới sẽ ở trạng thái chờ Owner duyệt. Sửa ngưỡng đã duyệt sẽ ngừng áp dụng cấu hình cũ cho đến khi được duyệt lại.</p>
           <v-form ref="formRef" @submit.prevent="saveThreshold"><div class="form-grid">
-            <v-select v-model="form.species" :items="speciesOptions" item-title="title" item-value="value" label="Loài *" />
+            <v-select v-model="form.species" :items="speciesOptions" item-title="title" item-value="value" label="Loài *" :rules="[requiredRule]" />
             <v-combobox v-model="form.developmentStage" :items="stageOptions" label="Giai đoạn *" />
-            <v-select v-model="form.tankType" :items="tankTypes" item-title="title" item-value="value" label="Loại ao/bể *" />
-            <v-select :model-value="form.parameterCode" :items="parameters" item-title="title" item-value="value" label="Thông số *" @update:model-value="changeParameter" />
+            <v-select v-model="form.tankType" :items="tankTypes" item-title="title" item-value="value" label="Loại ao/bể *" :rules="[requiredRule]" />
+            <v-select :model-value="form.parameterCode" :items="parameters" item-title="title" item-value="value" label="Thông số *" :rules="[requiredRule]" @update:model-value="changeParameter" />
             <v-text-field v-model="form.unit" label="Đơn vị *" maxlength="20" :rules="[requiredRule]" />
-            <v-text-field v-model="form.sourceReference" label="Nguồn tham chiếu/quyết định *" maxlength="4000" :rules="[requiredRule]" />
             <v-text-field v-model="form.optimalMin" type="number" step="0.001" label="Tối ưu từ" :rules="[boundRule]" />
             <v-text-field v-model="form.optimalMax" type="number" step="0.001" label="Tối ưu đến" :rules="[boundRule]" />
             <v-text-field v-model="form.warningMin" type="number" step="0.001" label="Cảnh báo dưới" :rules="[boundRule]" />

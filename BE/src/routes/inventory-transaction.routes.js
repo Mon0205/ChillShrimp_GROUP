@@ -14,20 +14,20 @@ import {
   listInventoryUsageTransactions,
   recordInventoryAdjustment,
   recordInventoryImport,
-  recordInventoryUsage,
 } from '../controllers/inventory-transaction.controller.js'
-import { createInventorySupplyRequest, listInventorySupplyRequests } from '../controllers/inventory-request.controller.js'
+import { approveInventorySupplyRequest, createInventorySupplyRequest, listInventorySupplyRequests, rejectInventorySupplyRequest } from '../controllers/inventory-request.controller.js'
 
 export function createInventoryTransactionRouter({ authenticate = requireAuth } = {}) {
   const router = Router({ mergeParams: true })
   router.use(authenticate)
   router.get('/', requireInventoryUsageAccess, asyncHandler(listInventoryUsageTransactions))
-  router.post('/usage', requireInventoryUsageAccess, asyncHandler(recordInventoryUsage))
   router.get('/imports', requireInventorySupplyManager, asyncHandler(listInventoryImports))
   router.post('/imports', requireInventorySupplyManager, asyncHandler(recordInventoryImport))
   router.get('/adjustments', requireInventoryAdjustmentManager, asyncHandler(listInventoryAdjustments))
   router.post('/adjustments', requireInventoryAdjustmentManager, asyncHandler(recordInventoryAdjustment))
   router.get('/requests', requireInventoryRequestAccess, asyncHandler(listInventorySupplyRequests))
+  router.post('/requests/:requestId/approve', requireInventorySupplyManager, asyncHandler(approveInventorySupplyRequest))
+  router.post('/requests/:requestId/reject', requireInventorySupplyManager, asyncHandler(rejectInventorySupplyRequest))
   router.post('/requests', requireInventoryRequestCreator, asyncHandler(createInventorySupplyRequest))
   return router
 }

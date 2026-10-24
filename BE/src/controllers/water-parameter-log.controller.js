@@ -24,11 +24,11 @@ function parsePagination(query) {
 }
 
 function scopedTankWhere(req, extra = {}) {
-  if (req.membership.role !== 'owner' && !req.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && !req.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   return {
     farmId: req.params.farmId,
     deletedAt: null,
-    ...(req.membership.role === 'owner' ? {} : { areaId: req.membership.areaId }),
+    ...(['owner', 'farm_manager'].includes(req.membership.role) ? {} : { areaId: req.membership.areaId }),
     ...extra,
   }
 }

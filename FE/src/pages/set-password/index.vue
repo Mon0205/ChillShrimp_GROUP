@@ -9,7 +9,7 @@ const route = useRoute(), router = useRouter()
 const token = typeof route.query.token === 'string' ? route.query.token : ''
 const invitation = ref(null), password = ref(''), confirmPassword = ref('')
 const loading = ref(true), submitting = ref(false), error = ref('')
-const roleNames = { owner: 'Chủ trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
 const mismatch = computed(() => confirmPassword.value && password.value !== confirmPassword.value)
 watch(error, (message) => { if (message) { showToast(message, 'error'); error.value = '' } })
 
@@ -43,9 +43,9 @@ async function submit(event) {
           <label class="auth-field-label">Email</label>
           <v-text-field :model-value="invitation.email" disabled hide-details="auto" />
           <label class="auth-field-label" for="new-password">Mật khẩu</label>
-          <v-text-field id="new-password" :rules="[passwordRule]" v-model="password" placeholder="Tối thiểu 8 ký tự" type="password" autocomplete="new-password" hide-details="auto" required />
+          <v-text-field id="new-password" :rules="[passwordRule]" v-model="password" type="password" autocomplete="new-password" hide-details="auto" required />
           <label class="auth-field-label" for="confirm-password">Xác nhận mật khẩu</label>
-          <v-text-field id="confirm-password" :rules="[required('xác nhận mật khẩu'), matchingPassword(() => password)]" v-model="confirmPassword" placeholder="Nhập lại mật khẩu" type="password" autocomplete="new-password" :error-messages="mismatch ? 'Mật khẩu không khớp' : ''" hide-details="auto" required />
+          <v-text-field id="confirm-password" :rules="[required('xác nhận mật khẩu'), matchingPassword(() => password)]" v-model="confirmPassword" type="password" autocomplete="new-password" :error-messages="mismatch ? 'Mật khẩu không khớp' : ''" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="submitting" :disabled="!!mismatch">Chấp nhận lời mời</v-btn>
         </v-form>
       </template>

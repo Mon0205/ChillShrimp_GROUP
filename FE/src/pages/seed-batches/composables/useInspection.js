@@ -71,6 +71,7 @@ export function useInspection({ error, inspectionDialog, aiInspections, selected
   async function saveInspectionImage() {
     const form = inspectionForm.value
     if (!inspectionBatch.value) return
+    if (!['ai', 'manual', 'combined'].includes(form.samplingMethod)) return showToast('Vui lòng chọn phương pháp lấy mẫu.', 'error')
     if (!form.mediaPublicId) return showToast('Hãy tải ảnh kiểm tra lên trước khi lưu.', 'error')
     const sampleVolumeMl = form.sampleVolumeMl === '' ? null : Number(form.sampleVolumeMl)
     if (sampleVolumeMl !== null && (!Number.isFinite(sampleVolumeMl) || sampleVolumeMl <= 0 || sampleVolumeMl > 1000000)) {

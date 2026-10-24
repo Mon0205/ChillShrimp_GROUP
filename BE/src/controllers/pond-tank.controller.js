@@ -4,6 +4,11 @@ import { createHttpError, sendData } from '../utils/http.js'
 
 const TANK_TYPES = ['nursery_tank', 'pond', 'other']
 const TANK_STATUSES = ['empty', 'active', 'cleaning', 'inactive']
+const MAX_ASSIGNED_TANKS = 5
+const tankInclude = {
+  area: { select: { id: true, code: true, name: true } },
+  responsibleUser: { select: { id: true, displayName: true, email: true } },
+}
 const STATUS_TRANSITIONS = {
   empty: ['empty', 'active', 'cleaning', 'inactive'],
   active: ['active', 'cleaning', 'inactive'],
@@ -47,7 +52,7 @@ async function assertAreaBelongsToFarm(farmId, areaId) {
 }
 
 function requireScopedArea(req) {
-  if (req.membership.role !== 'owner' && !req.membership.areaId) {
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && !req.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
 }
@@ -56,13 +61,49 @@ function scopedWhere(req, extra = {}) {
   requireScopedArea(req)
   return {
     farmId: req.params.farmId,
-    ...(req.membership.role === 'owner' ? {} : { areaId: req.membership.areaId }),
+    ...(['owner', 'farm_manager'].includes(req.membership.role) ? {} : { areaId: req.membership.areaId }),
     ...extra,
   }
 }
 
 function serializeTank(tank) {
   return { ...tank, volumeM3: tank.volumeM3.toString() }
+}
+
+async function validateResponsibleUser(tx, farmId, areaId, userId, excludeTankId) {
+  if (userId == null || (typeof userId === 'string' && !userId.trim())) return null
+  if (typeof userId !== 'string') throw createHttpError(400, 'Mã nhân viên phụ trách không hợp lệ.')
+  userId = userId.trim()
+  if (!areaId) throw createHttpError(400, 'Chọn khu vực trước khi phân công người phụ trách.')
+  // Serialize assignments across farms so concurrent requests cannot exceed five tanks.
+  await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`
+  const member = await tx.farmMember.findFirst({
+    where: { farmId, userId, role: 'technician', status: 'active', areaId },
+  })
+  if (!member) throw createHttpError(400, 'Người phụ trách phải là nhân viên kỹ thuật đang hoạt động trong cùng khu vực.')
+  const count = await tx.pondTank.count({
+    where: { responsibleUserId: userId, deletedAt: null, ...(excludeTankId ? { id: { not: excludeTankId } } : {}) },
+  })
+  if (count >= MAX_ASSIGNED_TANKS) throw createHttpError(409, 'Nhân viên kỹ thuật đã phụ trách đủ 5 ao/bể. Vui lòng chọn người khác.')
+  return userId
+}
+
+export async function listAvailableTechnicians(req, res) {
+  const areaId = ensureAreaId(req, req.query.areaId, { required: true })
+  await assertAreaBelongsToFarm(req.params.farmId, areaId)
+  const members = await prisma.farmMember.findMany({
+    where: { farmId: req.params.farmId, areaId, role: 'technician', status: 'active' },
+    select: { userId: true, user: { select: { id: true, displayName: true, email: true } } },
+    orderBy: { user: { email: 'asc' } },
+  })
+  const loads = await prisma.pondTank.groupBy({
+    by: ['responsibleUserId'],
+    where: { responsibleUserId: { in: members.map(member => member.userId) }, deletedAt: null },
+    _count: { _all: true },
+  })
+  const counts = new Map(loads.map(load => [load.responsibleUserId, load._count._all]))
+  return sendData(res, members.map(member => ({ ...member.user, assignedTankCount: counts.get(member.userId) || 0 }))
+    .filter(user => user.assignedTankCount < MAX_ASSIGNED_TANKS))
 }
 
 export async function listPondTanks(req, res) {
@@ -78,14 +119,14 @@ export async function listPondTanks(req, res) {
   }
   if (tankType) where.tankType = validateType(tankType)
 
-  if (req.membership.role === 'owner' && req.query.areaId) {
+  if (['owner', 'farm_manager'].includes(req.membership.role) && req.query.areaId) {
     await assertAreaBelongsToFarm(req.params.farmId, req.query.areaId)
     where.areaId = req.query.areaId
   }
 
   const tanks = await prisma.pondTank.findMany({
     where: scopedWhere(req, where),
-    include: { area: { select: { id: true, code: true, name: true } } },
+    include: tankInclude,
     orderBy: [{ status: 'asc' }, { code: 'asc' }],
   })
   return sendData(res, tanks.map(serializeTank))
@@ -94,7 +135,7 @@ export async function listPondTanks(req, res) {
 export async function getPondTank(req, res) {
   const tank = await prisma.pondTank.findFirst({
     where: scopedWhere(req, { id: req.params.tankId, deletedAt: null }),
-    include: { area: { select: { id: true, code: true, name: true } } },
+    include: tankInclude,
   })
   if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
   return sendData(res, serializeTank(tank))
@@ -113,9 +154,12 @@ export async function createPondTank(req, res) {
   await assertAreaBelongsToFarm(req.params.farmId, areaId)
 
   try {
-    const tank = await prisma.pondTank.create({
-      data: { farmId: req.params.farmId, areaId, code, name, tankType, volumeM3, description: req.body.description?.trim() || null },
-      include: { area: { select: { id: true, code: true, name: true } } },
+    const tank = await prisma.$transaction(async tx => {
+      const responsibleUserId = await validateResponsibleUser(tx, req.params.farmId, areaId, req.body.responsibleUserId)
+      return tx.pondTank.create({
+        data: { farmId: req.params.farmId, areaId, responsibleUserId, code, name, tankType, volumeM3, description: req.body.description?.trim() || null },
+        include: tankInclude,
+      })
     })
     return sendData(res, serializeTank(tank), 201)
   } catch (error) {
@@ -158,10 +202,20 @@ export async function updatePondTank(req, res) {
   }
 
   try {
-    const tank = await prisma.pondTank.update({
-      where: { id: existing.id },
-      data,
-      include: { area: { select: { id: true, code: true, name: true } } },
+    const tank = await prisma.$transaction(async tx => {
+      // Lock before re-reading: a simultaneous edit may have changed area or assignee.
+      await tx.$queryRaw`SELECT "id" FROM "ponds_tanks" WHERE "id" = ${existing.id}::uuid FOR UPDATE`
+      const current = await tx.pondTank.findFirst({ where: scopedWhere(req, { id: existing.id, deletedAt: null }) })
+      if (!current) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
+      if (data.status && !STATUS_TRANSITIONS[current.status]?.includes(data.status)) throw createHttpError(409, 'Không thể chuyển trạng thái ao/bể.')
+      const changingAssignee = Object.prototype.hasOwnProperty.call(req.body, 'responsibleUserId')
+      const changingArea = Object.prototype.hasOwnProperty.call(data, 'areaId') && data.areaId !== current.areaId
+      if (changingAssignee || changingArea) {
+        const userId = changingAssignee ? req.body.responsibleUserId : current.responsibleUserId
+        const areaId = Object.prototype.hasOwnProperty.call(data, 'areaId') ? data.areaId : current.areaId
+        data.responsibleUserId = await validateResponsibleUser(tx, req.params.farmId, areaId, userId, existing.id)
+      }
+      return tx.pondTank.update({ where: { id: existing.id }, data, include: tankInclude })
     })
     return sendData(res, serializeTank(tank))
   } catch (error) {
@@ -182,7 +236,7 @@ export async function updatePondTankStatus(req, res) {
   const tank = await prisma.pondTank.update({
     where: { id: existing.id },
     data: { status },
-    include: { area: { select: { id: true, code: true, name: true } } },
+    include: tankInclude,
   })
   return sendData(res, serializeTank(tank))
 }

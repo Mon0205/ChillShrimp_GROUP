@@ -38,7 +38,7 @@ function dateOnly(value, field, optional = false) {
 
 export function normalizeEnvironmentThresholdInput(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Threshold data must be an object.')
-  const allowed = new Set(['species', 'developmentStage', 'tankType', 'parameterCode', 'unit', ...RANGE_FIELDS, 'sourceReference', 'effectiveFrom', 'effectiveTo'])
+  const allowed = new Set(['species', 'developmentStage', 'tankType', 'parameterCode', 'unit', ...RANGE_FIELDS, 'effectiveFrom', 'effectiveTo'])
   const unknown = Object.keys(body).find((key) => !allowed.has(key))
   if (unknown) throw new Error(`Unsupported field: ${unknown}.`)
 
@@ -47,13 +47,11 @@ export function normalizeEnvironmentThresholdInput(body) {
   const tankType = body.tankType
   const parameterCode = body.parameterCode
   const unit = typeof body.unit === 'string' ? body.unit.trim() : ''
-  const sourceReference = typeof body.sourceReference === 'string' ? body.sourceReference.trim() : ''
   if (!species || species.length > 50) throw new Error('Species is required and must not exceed 50 characters.')
   if (!developmentStage || developmentStage.length > 50) throw new Error('Development stage is required and must not exceed 50 characters.')
   if (!TANK_TYPES.has(tankType)) throw new Error('Tank type is invalid.')
   if (!Object.hasOwn(ENVIRONMENT_PARAMETERS, parameterCode)) throw new Error('Parameter code is invalid.')
   if (!unit || unit.length > 20) throw new Error('Unit is required and must not exceed 20 characters.')
-  if (!sourceReference || sourceReference.length > 4000) throw new Error('Source reference is required and must not exceed 4000 characters.')
 
   const bounds = Object.fromEntries(RANGE_FIELDS.map((field) => [field, optionalBound(body[field], field)]))
   if (['temperature', 'ph'].includes(parameterCode)) {
@@ -79,7 +77,7 @@ export function normalizeEnvironmentThresholdInput(body) {
   const effectiveTo = dateOnly(body.effectiveTo, 'effectiveTo', true)
   if (effectiveTo && effectiveTo < effectiveFrom) throw new Error('effectiveTo must be on or after effectiveFrom.')
 
-  return { species, developmentStage, tankType, parameterCode, unit, ...bounds, sourceReference, effectiveFrom, effectiveTo }
+  return { species, developmentStage, tankType, parameterCode, unit, ...bounds, effectiveFrom, effectiveTo }
 }
 
 export function classifyEnvironmentMeasurement(value, threshold) {

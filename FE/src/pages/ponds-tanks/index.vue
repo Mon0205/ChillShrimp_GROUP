@@ -18,7 +18,11 @@ const tankFormRef = ref(null)
 const codeApiError = ref('')
 const editing = ref(false)
 const editingTank = ref(null)
-const form = ref({ code: '', name: '', areaId: '', tankType: 'nursery_tank', volumeM3: '', description: '' })
+const technicians = ref([])
+const techniciansLoading = ref(false)
+const technicianError = ref('')
+let technicianRequest = 0
+const form = ref({ code: '', name: '', areaId: '', responsibleUserId: '', tankType: '', volumeM3: '', description: '' })
 const search = ref('')
 const statusFilter = ref('')
 const typeFilter = ref('')
@@ -26,9 +30,9 @@ const typeFilter = ref('')
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const selectedRole = computed(() => selectedFarm.value?.role || '')
-const canManage = computed(() => ['owner', 'area_manager'].includes(selectedRole.value))
+const canManage = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(selectedRole.value))
 const isAreaManager = computed(() => selectedRole.value === 'area_manager')
-const roleNames = { owner: 'Chủ trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
 const typeOptions = [
   { title: 'Bể ương', value: 'nursery_tank' },
   { title: 'Ao', value: 'pond' },
@@ -43,7 +47,14 @@ const statusOptions = [
 const statusNames = Object.fromEntries(statusOptions.map((item) => [item.value, item.title]))
 const typeNames = Object.fromEntries(typeOptions.map((item) => [item.value, item.title]))
 const areaOptions = computed(() => areas.value.map((area) => ({ title: `${area.code} · ${area.name}`, value: area.id })))
-const areaRequired = computed(() => isAreaManager.value)
+const technicianOptions = computed(() => {
+  const options = technicians.value.map(user => ({ title: user.displayName || '', value: user.id }))
+  const current = editingTank.value?.responsibleUser
+  if (editing.value && current && form.value.areaId === editingTank.value.areaId && !options.some(option => option.value === current.id)) {
+    options.unshift({ title: current.displayName || '', value: current.id })
+  }
+  return options
+})
 const validTankTypes = typeOptions.map((item) => item.value)
 const requiredRule = (label) => (value) => String(value ?? '').trim().length > 0 || `${label} là bắt buộc.`
 const codeRules = [
@@ -66,7 +77,7 @@ const volumeRules = [
   (value) => Number(value) > 0 || 'Thể tích phải lớn hơn 0 m³.',
   (value) => Number(value) <= 1000000 || 'Thể tích không được vượt quá 1.000.000 m³.',
 ]
-const areaRules = computed(() => areaRequired.value ? [requiredRule('Khu vực')] : [])
+const areaRules = [requiredRule('Khu vực')]
 const descriptionRules = [
   (value) => String(value ?? '').length <= 2000 || 'Mô tả không được vượt quá 2.000 ký tự.',
 ]
@@ -115,7 +126,24 @@ async function loadPage() {
 }
 
 function resetForm() {
-  form.value = { code: '', name: '', areaId: isAreaManager.value ? selectedFarm.value?.area?.id || '' : '', tankType: 'nursery_tank', volumeM3: '', description: '' }
+  form.value = { code: '', name: '', areaId: '', responsibleUserId: '', tankType: '', volumeM3: '', description: '' }
+}
+
+async function loadTechnicians() {
+  const requestId = ++technicianRequest
+  technicians.value = []
+  technicianError.value = ''
+  techniciansLoading.value = false
+  if (!farmId.value || !form.value.areaId) return
+  techniciansLoading.value = true
+  try {
+    const result = await api(`/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/available-technicians?areaId=${encodeURIComponent(form.value.areaId)}`)
+    if (requestId === technicianRequest) technicians.value = result.data
+  } catch (err) {
+    if (requestId === technicianRequest) technicianError.value = err.message
+  } finally {
+    if (requestId === technicianRequest) techniciansLoading.value = false
+  }
 }
 
 async function openCreate() {
@@ -124,6 +152,7 @@ async function openCreate() {
   codeApiError.value = ''
   resetForm()
   farmDialog.value = true
+  void loadTechnicians()
   await nextTick()
   tankFormRef.value?.resetValidation()
 }
@@ -132,8 +161,9 @@ async function openEdit(tank) {
   editing.value = true
   editingTank.value = tank
   codeApiError.value = ''
-  form.value = { code: tank.code, name: tank.name, areaId: tank.area?.id || '', tankType: tank.tankType, volumeM3: tank.volumeM3, description: tank.description || '', status: tank.status }
+  form.value = { code: tank.code, name: tank.name, areaId: tank.area?.id || '', responsibleUserId: tank.responsibleUserId || '', tankType: tank.tankType, volumeM3: tank.volumeM3, description: tank.description || '', status: tank.status }
   farmDialog.value = true
+  void loadTechnicians()
   await nextTick()
   tankFormRef.value?.resetValidation()
 }
@@ -144,7 +174,7 @@ async function saveTank() {
     showToast('Vui lòng kiểm tra lại các trường chưa hợp lệ.', 'error')
     return
   }
-  const payload = { ...form.value, code: form.value.code.trim().toUpperCase(), name: form.value.name.trim(), volumeM3: form.value.volumeM3 === '' ? '' : Number(form.value.volumeM3), areaId: form.value.areaId || null }
+  const payload = { ...form.value, code: form.value.code.trim().toUpperCase(), name: form.value.name.trim(), volumeM3: form.value.volumeM3 === '' ? '' : Number(form.value.volumeM3), areaId: form.value.areaId || null, responsibleUserId: form.value.responsibleUserId || null }
   saving.value = true
   try {
     const path = editing.value ? `/farms/${encodeURIComponent(farmId.value)}/ponds-tanks/${encodeURIComponent(editingTank.value.id)}` : `/farms/${encodeURIComponent(farmId.value)}/ponds-tanks`
@@ -154,6 +184,10 @@ async function saveTank() {
     await loadTanks()
   } catch (err) {
     if (err.status === 409 && err.message.toLowerCase().includes('mã ao/bể')) codeApiError.value = err.message
+    if (err.status === 409 && err.message.includes('5 ao/bể')) {
+      form.value.responsibleUserId = ''
+      await loadTechnicians()
+    }
     showToast(err.message, 'error')
   }
   finally { saving.value = false }
@@ -164,9 +198,16 @@ function formatVolume(value) {
 }
 
 watch(farmId, async () => {
+  farmDialog.value = false
+  technicianRequest++
   error.value = ''
   await Promise.all([loadAreas(), loadTanks()])
 })
+watch(() => form.value.areaId, () => {
+  if (!farmDialog.value) return
+  form.value.responsibleUserId = ''
+  void loadTechnicians()
+}, { flush: 'sync' })
 watch(() => form.value.code, () => { codeApiError.value = '' })
 watch([search, statusFilter, typeFilter], loadTanks)
 onMounted(loadPage)
@@ -188,13 +229,13 @@ onMounted(loadPage)
       <v-card class="list-card" elevation="0">
         <div class="list-toolbar">
           <div class="list-filters"><v-select label="Trạng thái" v-model="statusFilter" :items="[{ title: 'Tất cả', value: '' }, ...statusOptions]" variant="outlined" density="compact" hide-details /><v-select label="Loại" v-model="typeFilter" :items="[{ title: 'Tất cả', value: '' }, ...typeOptions]" variant="outlined" density="compact" hide-details /></div>
-          <v-text-field class="list-search" v-model="search" placeholder="Mã hoặc tên ao/bể" prepend-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details clearable />
+          <v-text-field label="Tìm ao/bể" class="list-search" v-model="search" prepend-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details clearable />
         </div>
         <v-progress-linear v-if="tanksLoading" indeterminate color="primary" rounded />
         <div v-else-if="!tanks.length" class="empty-state"><div>0</div><strong>Chưa có ao/bể phù hợp</strong><p>Thêm ao/bể mới hoặc điều chỉnh bộ lọc.</p></div>
         <div v-else class="table-wrap">
-          <table class="app-data-table"><thead><tr><th>Mã</th><th>Ao/bể</th><th>Khu vực</th><th>Loại</th><th>Thể tích</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-            <tbody><tr v-for="tank in tanks" :key="tank.id" :class="{ 'deleted-row': tank.deletedAt }"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span v-if="tank.deletedAt" class="status-tag deleted">Đã xóa</span><span v-else class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><v-tooltip text="Chỉnh sửa ao/bể" location="top"><template #activator="{ props }"><v-btn v-bind="props" icon="mdi-pencil-outline" size="small" variant="tonal" color="primary" aria-label="Chỉnh sửa ao/bể" @click="openEdit(tank)" /></template></v-tooltip></div></td></tr></tbody>
+          <table class="app-data-table"><thead><tr><th>Mã</th><th>Ao/bể</th><th>Khu vực</th><th>Người phụ trách</th><th>Loại</th><th>Thể tích</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody><tr v-for="tank in tanks" :key="tank.id" :class="{ 'deleted-row': tank.deletedAt }"><td><strong class="tank-code">{{ tank.code }}</strong></td><td><strong>{{ tank.name }}</strong><small>{{ tank.description || 'Chưa có mô tả' }}</small></td><td>{{ tank.area?.name || 'Toàn trại' }}</td><td>{{ tank.responsibleUser?.displayName || tank.responsibleUser?.email || 'Chưa phân công' }}</td><td>{{ typeNames[tank.tankType] }}</td><td>{{ formatVolume(tank.volumeM3) }}</td><td><span v-if="tank.deletedAt" class="status-tag deleted">Đã xóa</span><span v-else class="status-tag" :class="tank.status">{{ statusNames[tank.status] }}</span></td><td><div v-if="canManage" class="row-actions"><v-tooltip text="Chỉnh sửa ao/bể" location="top"><template #activator="{ props }"><v-btn v-bind="props" icon="mdi-pencil-outline" size="small" variant="tonal" color="primary" aria-label="Chỉnh sửa ao/bể" @click="openEdit(tank)" /></template></v-tooltip></div></td></tr></tbody>
           </table>
         </div>
       </v-card>
@@ -210,7 +251,6 @@ onMounted(loadPage)
               <label>Mã ao/bể</label>
               <v-text-field
                 v-model="form.code"
-                placeholder="B01"
                 maxlength="50"
                 counter="50"
                 :rules="codeRules"
@@ -224,7 +264,6 @@ onMounted(loadPage)
               <label>Tên ao/bể</label>
               <v-text-field
                 v-model="form.name"
-                placeholder="Bể ương số 01"
                 maxlength="100"
                 counter="100"
                 :rules="nameRules"
@@ -256,14 +295,22 @@ onMounted(loadPage)
             :items="areaOptions"
             :rules="areaRules"
             clearable
-            :disabled="isAreaManager"
-            :placeholder="areaRequired ? 'Chọn khu vực' : 'Không bắt buộc'"
             hide-details="auto"
           />
           <template v-if="editing">
             <label>Trạng thái</label>
             <v-select v-model="form.status" :items="statusOptions" hide-details="auto" />
           </template>
+          <label>Nhân viên phụ trách</label>
+          <v-select
+            v-model="form.responsibleUserId"
+            clearable
+            :items="technicianOptions"
+            :loading="techniciansLoading"
+            :disabled="!form.areaId || techniciansLoading"
+            no-data-text="Không có nhân viên kỹ thuật còn chỗ trong khu vực này."
+          />
+          <div v-if="technicianError" class="error-notice" role="alert">{{ technicianError }}</div>
           <label>Mô tả</label>
           <v-textarea
             v-model="form.description"
@@ -276,7 +323,7 @@ onMounted(loadPage)
           />
           <div class="dialog-actions">
             <v-btn variant="text" @click="farmDialog = false">Hủy</v-btn>
-            <v-btn type="submit" color="primary" :loading="saving">{{ editing ? 'Lưu thay đổi' : 'Tạo ao/bể' }}</v-btn>
+            <v-btn type="submit" color="primary" :loading="saving" :disabled="techniciansLoading">{{ editing ? 'Lưu thay đổi' : 'Tạo ao/bể' }}</v-btn>
           </div>
         </v-form>
       </v-card>

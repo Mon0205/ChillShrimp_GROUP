@@ -15,7 +15,7 @@ const password = ref({ currentPassword: '', newPassword: '', confirmPassword: ''
 const otp = ref({ code: '', newPassword: '', confirmPassword: '' })
 const otpSent = ref(false)
 const tab = ref('current')
-const roleNames = { owner: 'Chủ trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
 const roleText = computed(() => profile.value?.memberships?.map((item) => `${roleNames[item.role]} · ${item.farm.name}${item.area ? ` · ${item.area.name}` : ''}`).join('\n') || 'Chưa được phân quyền')
 watch(error, (message) => { if (message) { showToast(message, 'error'); error.value = '' } })
 watch(success, (message) => { if (message) { showToast(message, 'success'); success.value = '' } })
@@ -85,7 +85,7 @@ async function resetWithOtp(event) {
             <label>Họ và tên</label><v-text-field :rules="[required('họ tên'), maxLength(100)]" v-model="form.displayName" hide-details="auto" required />
             <label>Email</label><v-text-field :model-value="profile.email" disabled hide-details="auto" />
             <label>Chức vụ và phạm vi quản lý</label><v-text-field class="role-scope-field" :model-value="roleText" disabled hide-details="auto" />
-            <label>Số điện thoại</label><v-text-field :rules="[maxLength(30)]" v-model="form.phone" placeholder="Chưa cập nhật" hide-details="auto" />
+            <label>Số điện thoại</label><v-text-field :rules="[maxLength(30)]" v-model="form.phone" hide-details="auto" />
             <v-btn type="submit" color="primary" :loading="saving">Lưu thay đổi</v-btn>
           </v-form>
         </v-card>
@@ -97,7 +97,7 @@ async function resetWithOtp(event) {
             <v-window-item value="current">
               <v-form class="profile-form security-form" @submit.prevent="changePassword">
                 <label>Mật khẩu hiện tại</label><v-text-field :rules="[required('mật khẩu')]" v-model="password.currentPassword" type="password" autocomplete="current-password" hide-details="auto" required />
-                <label>Mật khẩu mới</label><v-text-field :rules="[passwordRule]" v-model="password.newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
+                <label>Mật khẩu mới</label><v-text-field :rules="[passwordRule]" v-model="password.newPassword" type="password" autocomplete="new-password" required />
                 <label>Xác nhận mật khẩu mới</label><v-text-field :rules="[required('xác nhận mật khẩu'), matchingPassword(() => password.newPassword)]" v-model="password.confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
                 <v-btn type="submit" color="primary" :loading="changing">Đổi mật khẩu</v-btn>
               </v-form>

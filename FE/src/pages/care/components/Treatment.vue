@@ -27,7 +27,7 @@ const form = ref(emptyForm())
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
-const canRecord = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canRecord = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const tankRule = (value) => Boolean(value) || 'Vui lòng chọn ao/bể.'
 const requiredText = (label, max) => (value) => Boolean(value?.trim()) && value.trim().length <= max || `${label} là bắt buộc và tối đa ${max} ký tự.`
@@ -97,7 +97,7 @@ function selectSupply(id) {
   const supply = supplies.value.find((item) => item.id === id)
   if (supply) { form.value.productName = supply.name; form.value.unit = supply.unit }
 }
-function openCreate() { form.value = { ...emptyForm(), tankId: filters.value.tankId || tanks.value[0]?.id || '' }; dialog.value = true }
+function openCreate() { form.value = emptyForm(); dialog.value = true }
 
 async function saveLog() {
   const validation = await formRef.value?.validate()
@@ -159,7 +159,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
           <tbody>
             <tr v-for="item in logs" :key="item.id">
               <td>{{ formatDateTime(item.performedAt) }}</td><td><strong>{{ item.tank.name }}</strong><small>{{ item.tank.code }}</small></td>
-              <td>{{ item.productName }}<small v-if="item.supply">Từ kho · {{ item.supply.category }}</small></td>
+              <td>{{ item.productName }}<small v-if="item.supply">Vật tư · {{ item.supply.category }}</small></td>
               <td>{{ formatNumber(item.amount) }} {{ item.unit }}</td><td class="text-cell">{{ item.purpose }}</td>
               <td>{{ item.performer.displayName || item.performer.email }}</td><td class="text-cell">{{ item.notes || '—' }}</td>
             </tr>
@@ -174,13 +174,13 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
           <v-form ref="formRef" @submit.prevent="saveLog"><div class="form-grid">
             <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[tankRule]" />
             <v-text-field v-model="form.performedAt" type="datetime-local" label="Thời điểm thực hiện *" :rules="[dateRule]" />
-            <v-select :model-value="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Lấy sản phẩm từ kho (không bắt buộc)" clearable @update:model-value="selectSupply" />
+            <v-select :model-value="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Sản phẩm trong danh mục (không bắt buộc)" clearable @update:model-value="selectSupply" />
             <v-text-field v-model="form.productName" label="Tên thuốc/chế phẩm *" maxlength="150" :readonly="Boolean(form.supplyId)" :rules="[requiredText('Tên sản phẩm', 150)]" />
             <v-text-field v-model="form.amount" type="number" min="0.001" max="999999999.999" step="0.001" label="Liều lượng *" :rules="[amountRule]" />
             <v-text-field v-model="form.unit" label="Đơn vị *" maxlength="20" :readonly="Boolean(form.supplyId)" :rules="[requiredText('Đơn vị', 20)]" />
             <v-textarea v-model="form.purpose" label="Mục đích sử dụng *" rows="2" maxlength="4000" counter="4000" class="full-width" :rules="[requiredText('Mục đích', 4000)]" />
             <v-textarea v-model="form.notes" label="Ghi chú" rows="2" maxlength="4000" counter="4000" class="full-width" />
-          </div><v-alert v-if="form.supplyId" type="info" variant="tonal" density="compact" class="inventory-hint">Khi lưu, hệ thống kiểm tra tồn và ghi giao dịch sử dụng kho cùng nhật ký trong một thao tác.</v-alert></v-form>
+          </div><v-alert v-if="form.supplyId" type="info" variant="tonal" density="compact" class="inventory-hint">Nhật ký chỉ ghi lượng thực tế sử dụng. Tồn kho đã được trừ khi yêu cầu cấp vật tư được duyệt.</v-alert></v-form>
         </v-card-text><v-card-actions><v-spacer /><v-btn variant="text" :disabled="saving" @click="dialog = false">Hủy</v-btn><v-btn color="primary" :loading="saving" @click="saveLog">Lưu nhật ký</v-btn></v-card-actions></v-card>
       </v-dialog>
     </section>

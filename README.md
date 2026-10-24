@@ -81,7 +81,7 @@ Người dùng đăng nhập email/mật khẩu qua Neon Auth
 
 Neon Auth quản lý password và cookie xác thực. `users` chỉ lưu danh tính dùng chung; role và trạng thái nằm trong `farm_members`. Một tài khoản được thiết kế để tham gia nhiều farm và có thể giữ role khác nhau ở từng farm.
 
-Bốn role nghiệp vụ là `owner`, `area_manager`, `technician`, `warehouse_staff`. `ADMIN_EMAIL` chỉ dùng để bootstrap tài khoản đầu tiên và không tạo ra role `admin`. Xem quyết định chuẩn và các khoảng cách hiện thực còn lại tại [ARCHITECTURE.md](./docs/02-architecture/ARCHITECTURE.md).
+Năm role nghiệp vụ là `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`. `ADMIN_EMAIL` xác định tài khoản quản trị toàn hệ thống: được xem và quản lý mọi trại với quyền tương đương chủ trại, kể cả khi chưa có phân công tại trại. Quyền này được kiểm tra ở backend qua email của phiên đăng nhập; không bổ sung role `admin` vào `farm_members`. Xem quyết định chuẩn và các khoảng cách hiện thực còn lại tại [ARCHITECTURE.md](./docs/02-architecture/ARCHITECTURE.md).
 
 ## Chuẩn bị Neon
 
@@ -326,3 +326,5 @@ docker compose exec backend npx prisma migrate resolve --rolled-back <timestamp>
 | GET/POST | `/api/users/invitations` | Xem hoặc tạo lời mời; `farmId` nằm ở query khi GET và body khi POST |
 
 Neon Auth session được giữ bằng cookie `HttpOnly`; frontend gửi request API với `credentials: include`. Không lưu JWT trong `localStorage`.
+
+Quyền `farm_manager` (Quản lý trại) quản lý toàn bộ khu vực, ao/bể, nghiệp vụ và người dùng thuộc đúng trại được phân công. Không có quyền toàn hệ thống, tạo trại mới hay cấp quyền `owner`; không cần `area_id`. Tài khoản này vẫn chịu kiểm tra trạng thái membership/trại và giới hạn một trại tại database.

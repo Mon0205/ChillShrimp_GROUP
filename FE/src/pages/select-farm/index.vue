@@ -32,7 +32,7 @@ onMounted(() => { if (!farms.ready) retry() })
       <LoadingIndicator v-if="farms.loading" />
       <div v-else-if="error"><p role="alert">{{ error }}</p><v-btn @click="retry">Thử lại</v-btn></div>
       <form v-else class="farm-selection" @submit.prevent="choose">
-        <v-select v-model="selectedFarmId" :items="farms.farms" item-title="name" item-value="id" label="Trang trại" placeholder="Chọn tên trại" variant="outlined" hide-details />
+        <v-select v-model="selectedFarmId" :items="farms.farms" item-title="name" item-value="id" label="Trang trại" variant="outlined" hide-details />
         <v-btn type="submit" color="primary" :disabled="!selectedFarmId" block>Tiếp tục</v-btn>
       </form>
     </v-card>

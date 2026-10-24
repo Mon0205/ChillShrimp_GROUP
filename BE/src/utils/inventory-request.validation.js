@@ -2,10 +2,11 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 export function normalizeInventoryRequestInput(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Dá»¯ liá»‡u yÃªu cáº§u khÃ´ng há»£p lá»‡.')
-  const allowed = new Set(['supplyId', 'areaId', 'quantity', 'notes'])
+  const allowed = new Set(['supplyId', 'areaId', 'tankId', 'quantity', 'notes'])
   const unknown = Object.keys(body).find((key) => !allowed.has(key))
   if (unknown) throw new Error(`TrÆ°á»ng ${unknown} khÃ´ng Ä‘Æ°á»£c há»— trá»£.`)
   if (typeof body.supplyId !== 'string' || !UUID_PATTERN.test(body.supplyId)) throw new Error('MÃ£ váº­t tÆ° khÃ´ng há»£p lá»‡.')
+  if (typeof body.tankId !== 'string' || !UUID_PATTERN.test(body.tankId)) throw new Error('Bắt buộc chọn ao/bể nhận vật tư hợp lệ.')
   const areaId = body.areaId == null || body.areaId === '' ? null : body.areaId
   if (areaId !== null && (typeof areaId !== 'string' || !UUID_PATTERN.test(areaId))) throw new Error('MÃ£ khu vá»±c khÃ´ng há»£p lá»‡.')
   if (!['number', 'string'].includes(typeof body.quantity) || (typeof body.quantity === 'string' && !body.quantity.trim())) {
@@ -16,7 +17,7 @@ export function normalizeInventoryRequestInput(body) {
   if (Math.abs(quantity * 1000 - Math.round(quantity * 1000)) > 1e-7) throw new Error('Sá»‘ lÆ°á»£ng chá»‰ Ä‘Æ°á»£c cÃ³ tá»‘i Ä‘a 3 chá»¯ sá»‘ tháº­p phÃ¢n.')
   const notes = body.notes == null ? null : typeof body.notes === 'string' ? body.notes.trim() || null : undefined
   if (notes === undefined || (notes && notes.length > 4000)) throw new Error('Ghi chÃº pháº£i lÃ  chuá»—i vÃ  tá»‘i Ä‘a 4.000 kÃ½ tá»±.')
-  return { supplyId: body.supplyId, areaId, quantity, notes }
+  return { supplyId: body.supplyId, areaId, tankId: body.tankId, quantity, notes }
 }
 
 export function normalizeInventoryAdjustmentInput(body) {

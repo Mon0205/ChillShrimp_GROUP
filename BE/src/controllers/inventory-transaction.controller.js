@@ -2,7 +2,6 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { normalizeInventoryImportInput } from '../utils/inventory-import.validation.js'
-import { normalizeInventoryUsageInput } from '../utils/inventory-usage.validation.js'
 import { normalizeInventoryAdjustmentInput } from '../utils/inventory-request.validation.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -24,7 +23,7 @@ function parseDate(value, label) {
 }
 
 function areaScope(req) {
-  if (req.membership.role === 'owner') return {}
+  if (['owner', 'farm_manager'].includes(req.membership.role)) return {}
   if (!req.membership.areaId) throw createHttpError(403, 'Technician chưa được gán khu vực.')
   return { areaId: req.membership.areaId }
 }
@@ -54,8 +53,12 @@ export async function listInventoryUsageTransactions(req, res) {
     ...(batchId ? { batchId } : {}),
     ...(from || to ? { transactionDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
   }
-  if (req.membership.role === 'technician') {
-    where.batch = { is: { tank: { is: { farmId: req.params.farmId, deletedAt: null, ...areaScope(req) } } } }
+  if (['technician', 'area_manager'].includes(req.membership.role)) {
+    const scope = areaScope(req)
+    where.OR = [
+      { supplyRequest: { is: { farmId: req.params.farmId, ...scope } } },
+      { supplyRequestId: null, batch: { is: { tank: { is: { farmId: req.params.farmId, deletedAt: null, ...scope } } } } },
+    ]
   }
 
   const [items, total] = await prisma.$transaction([
@@ -64,6 +67,12 @@ export async function listInventoryUsageTransactions(req, res) {
       include: {
         supply: { select: { id: true, name: true, category: true, unit: true } },
         batch: { select: { id: true, batchCode: true, tank: { select: { id: true, code: true, name: true } } } },
+        supplyRequest: { select: {
+          id: true,
+          area: { select: { id: true, name: true } },
+          tank: { select: { id: true, code: true, name: true } },
+          requester: { select: { id: true, displayName: true, email: true } },
+        } },
         creator: { select: { id: true, displayName: true, email: true } },
       },
       orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
@@ -222,67 +231,5 @@ export async function recordInventoryAdjustment(req, res) {
       },
     })
   })
-  return sendData(res, serializeTransaction(transaction), 201)
-}
-
-export async function recordInventoryUsage(req, res) {
-  let input
-  try { input = normalizeInventoryUsageInput(req.body) }
-  catch (error) { throw createHttpError(400, error.message) }
-  const farmId = req.params.farmId
-  const technicianScope = areaScope(req)
-  if (req.membership.role === 'technician' && !input.batchId) {
-    throw createHttpError(400, 'Technician phải liên kết vật tư sử dụng với lô đang nuôi trong khu vực được phân công.')
-  }
-
-  const transaction = await prisma.$transaction(async (tx) => {
-    const lockedSupply = await tx.$queryRaw(Prisma.sql`
-      SELECT "id" FROM "inventory_supplies"
-      WHERE "id" = CAST(${input.supplyId} AS UUID)
-        AND "farm_id" = CAST(${farmId} AS UUID)
-      FOR UPDATE
-    `)
-    if (!lockedSupply.length) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
-
-    const supply = await tx.inventorySupply.findFirst({ where: { id: input.supplyId, farmId } })
-    let batch = null
-    if (input.batchId) {
-      batch = await tx.seedBatch.findFirst({
-        where: {
-          id: input.batchId,
-          status: { in: ['active', 'ready_for_sale'] },
-          tank: { is: { farmId, deletedAt: null, ...technicianScope } },
-        },
-        select: { id: true },
-      })
-      if (!batch) throw createHttpError(404, 'Không tìm thấy lô đang nuôi trong trang trại/khu vực được cấp quyền.')
-    }
-    if (supply.quantity.lessThan(input.quantity)) throw createHttpError(409, 'Tồn kho không đủ cho lượng sử dụng đã nhập.')
-
-    const stockUpdate = await tx.inventorySupply.updateMany({
-      where: { id: supply.id, farmId, quantity: { gte: new Prisma.Decimal(String(input.quantity)) } },
-      data: { quantity: { decrement: new Prisma.Decimal(String(input.quantity)) } },
-    })
-    if (!stockUpdate.count) throw createHttpError(409, 'Tồn kho vừa thay đổi; tải lại dữ liệu rồi thử lại.')
-
-    return tx.inventoryTransaction.create({
-      data: {
-        supplyId: supply.id,
-        batchId: batch?.id || null,
-        createdBy: req.auth.id,
-        transactionType: 'usage',
-        quantity: new Prisma.Decimal(String(input.quantity)),
-        unitPrice: supply.unitPrice,
-        transactionDate: input.transactionDate,
-        notes: input.notes,
-      },
-      include: {
-        supply: { select: { id: true, name: true, category: true, unit: true } },
-        batch: { select: { id: true, batchCode: true, tank: { select: { id: true, code: true, name: true } } } },
-        creator: { select: { id: true, displayName: true, email: true } },
-      },
-    })
-  })
-
   return sendData(res, serializeTransaction(transaction), 201)
 }

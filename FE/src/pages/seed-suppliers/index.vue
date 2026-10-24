@@ -25,7 +25,7 @@ const historyDialog = ref(false)
 const editingSupplier = ref(null)
 const selectedSupplier = ref(null)
 const supplierFormRef = ref(null)
-const form = ref({ name: '', licenseNo: '', phone: '', address: '', broodstockInformation: '', notes: '' })
+const form = ref({ name: '', phone: '', address: '' })
 const historyItems = ref([])
 const historyPage = ref(1)
 const historySize = ref(10)
@@ -34,14 +34,13 @@ const historyPagination = ref({ total: 0, pageCount: 0 })
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const selectedRole = computed(() => selectedFarm.value?.role || '')
-const canView = computed(() => ['owner', 'area_manager'].includes(selectedRole.value))
-const canManage = computed(() => selectedRole.value === 'owner')
+const canView = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(selectedRole.value))
+const canManage = computed(() => ['owner', 'farm_manager'].includes(selectedRole.value))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const historyPageCount = computed(() => Math.max(1, historyPagination.value.pageCount || 1))
 
 const requiredRule = (label) => (value) => String(value ?? '').trim().length > 0 || `${label} là bắt buộc.`
 const nameRules = [requiredRule('Tên nhà cung cấp'), (value) => String(value ?? '').trim().length <= 150 || 'Tên không được vượt quá 150 ký tự.']
-const licenseRules = [(value) => String(value ?? '').length <= 80 || 'Số giấy phép không được vượt quá 80 ký tự.']
 const phoneRules = [
   (value) => !String(value ?? '').trim() || String(value).trim().length <= 20 || 'Số điện thoại không được vượt quá 20 ký tự.',
   (value) => !String(value ?? '').trim() || /^[+()\d.\-\s]+$/.test(String(value).trim()) || 'Số điện thoại chứa ký tự không hợp lệ.',
@@ -96,7 +95,7 @@ async function loadPage() {
 }
 
 function resetForm() {
-  form.value = { name: '', licenseNo: '', phone: '', address: '', broodstockInformation: '', notes: '' }
+  form.value = { name: '', phone: '', address: '' }
 }
 
 function openCreate() {
@@ -109,11 +108,8 @@ function openEdit(supplier) {
   editingSupplier.value = supplier
   form.value = {
     name: supplier.name || '',
-    licenseNo: supplier.licenseNo || '',
     phone: supplier.phone || '',
     address: supplier.address || '',
-    broodstockInformation: supplier.broodstockInformation || '',
-    notes: supplier.notes || '',
   }
   supplierDialog.value = true
 }
@@ -229,7 +225,7 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
     <template v-else>
       <v-card class="list-card" elevation="0">
         <div class="list-toolbar">
-          <v-text-field class="list-search" id="supplier-search" v-model="query" placeholder="Tên, số giấy phép hoặc điện thoại" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+          <v-text-field label="Tìm nhà cung cấp" class="list-search" id="supplier-search" v-model="query" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
         </div>
         <v-progress-linear v-if="listLoading" class="list-progress" indeterminate color="primary" rounded />
         <div v-else-if="error" class="notice error-notice" role="alert"><span>{{ error }}</span><v-btn size="small" variant="text" color="error" @click="loadSuppliers">Thử lại</v-btn></div>
@@ -240,11 +236,11 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
         </div>
         <div v-else class="table-wrap">
           <table class="app-data-table">
-            <thead><tr><th>Nhà cung cấp</th><th>Giấy phép</th><th>Điện thoại</th><th>Địa chỉ</th><th>Cập nhật</th><th class="actions-heading">Thao tác</th></tr></thead>
+            <thead><tr><th>Nhà cung cấp</th><th>Điện thoại</th><th>Địa chỉ</th><th class="actions-heading">Thao tác</th></tr></thead>
             <tbody>
               <tr v-for="supplier in suppliers" :key="supplier.id">
-                <td><div class="supplier-identity"><span>{{ supplier.name.slice(0, 1).toUpperCase() }}</span><div><strong>{{ supplier.name }}</strong><small>{{ supplier.broodstockInformation || 'Chưa có thông tin tôm bố mẹ' }}</small></div></div></td>
-                <td>{{ supplier.licenseNo || '—' }}</td><td>{{ supplier.phone || '—' }}</td><td class="address-cell">{{ supplier.address || '—' }}</td><td>{{ formatDate(supplier.updatedAt) }}</td>
+                <td><div class="supplier-identity"><span>{{ supplier.name.slice(0, 1).toUpperCase() }}</span><div><strong>{{ supplier.name }}</strong></div></div></td>
+                <td>{{ supplier.phone || '—' }}</td><td class="address-cell">{{ supplier.address || '—' }}</td>
                 <td><div class="row-actions">
                   <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết nhà cung cấp" @click="openDetails(supplier)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></svg></button>
                   <button class="icon-btn" type="button" title="Lịch sử lô giống" aria-label="Xem lịch sử lô giống" @click="openHistory(supplier)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16M8 14h3m-3 3h8"/></svg></button>
@@ -263,11 +259,9 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
         <span class="eyebrow">{{ editingSupplier ? 'CẬP NHẬT DANH BẠ' : 'DANH BẠ GIỐNG' }}</span><h2>{{ editingSupplier ? 'Thông tin nhà cung cấp' : 'Thêm nhà cung cấp' }}</h2>
         <v-form ref="supplierFormRef" class="dialog-form" validate-on="blur" @submit.prevent="saveSupplier">
           <label for="supplier-name">Tên cơ sở <span class="required-mark">*</span></label>
-          <v-text-field id="supplier-name" v-model="form.name" maxlength="150" counter="150" :rules="nameRules" placeholder="Tên trại sản xuất hoặc đơn vị cung cấp" hide-details="auto" />
-          <div class="field-grid"><div><label for="supplier-license">Số giấy phép/chứng nhận</label><v-text-field id="supplier-license" v-model="form.licenseNo" maxlength="80" :rules="licenseRules" placeholder="Không bắt buộc" hide-details="auto" /></div><div><label for="supplier-phone">Điện thoại</label><v-text-field id="supplier-phone" v-model="form.phone" maxlength="20" :rules="phoneRules" placeholder="Không bắt buộc" hide-details="auto" /></div></div>
-          <label for="supplier-address">Địa chỉ</label><v-textarea id="supplier-address" v-model="form.address" maxlength="4000" :rules="textRules('Địa chỉ')" rows="2" auto-grow placeholder="Địa chỉ cơ sở" hide-details="auto" />
-          <label for="supplier-broodstock">Thông tin tôm bố mẹ</label><v-textarea id="supplier-broodstock" v-model="form.broodstockInformation" maxlength="4000" :rules="textRules('Thông tin tôm bố mẹ')" rows="2" auto-grow placeholder="Dòng giống, SPF/SPR nếu có" hide-details="auto" />
-          <label for="supplier-notes">Ghi chú</label><v-textarea id="supplier-notes" v-model="form.notes" maxlength="4000" :rules="textRules('Ghi chú')" rows="2" auto-grow hide-details="auto" />
+          <v-text-field id="supplier-name" v-model="form.name" maxlength="150" counter="150" :rules="nameRules" hide-details="auto" />
+          <div class="field-grid"><div><label for="supplier-phone">Điện thoại</label><v-text-field id="supplier-phone" v-model="form.phone" maxlength="20" :rules="phoneRules" hide-details="auto" /></div></div>
+          <label for="supplier-address">Địa chỉ</label><v-textarea id="supplier-address" v-model="form.address" maxlength="4000" :rules="textRules('Địa chỉ')" rows="2" auto-grow hide-details="auto" />
           <div class="dialog-actions"><v-btn variant="text" @click="supplierDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">{{ editingSupplier ? 'Lưu thay đổi' : 'Thêm nhà cung cấp' }}</v-btn></div>
         </v-form>
       </v-card>
@@ -278,9 +272,9 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
         <template v-else-if="selectedSupplier">
           <h2>{{ selectedSupplier.name }}</h2>
           <dl class="detail-grid">
-            <div><dt>Giấy phép/chứng nhận</dt><dd>{{ selectedSupplier.licenseNo || 'Chưa cung cấp' }}</dd></div><div><dt>Điện thoại</dt><dd>{{ selectedSupplier.phone || 'Chưa cung cấp' }}</dd></div>
-            <div><dt>Địa chỉ</dt><dd>{{ selectedSupplier.address || 'Chưa cung cấp' }}</dd></div><div><dt>Thông tin tôm bố mẹ</dt><dd>{{ selectedSupplier.broodstockInformation || 'Chưa cung cấp' }}</dd></div>
-            <div class="detail-wide"><dt>Ghi chú</dt><dd>{{ selectedSupplier.notes || 'Không có ghi chú' }}</dd></div><div><dt>Ngày tạo</dt><dd>{{ formatDate(selectedSupplier.createdAt) }}</dd></div><div><dt>Cập nhật gần nhất</dt><dd>{{ formatDate(selectedSupplier.updatedAt) }}</dd></div>
+            <div><dt>Điện thoại</dt><dd>{{ selectedSupplier.phone || 'Chưa cung cấp' }}</dd></div>
+            <div><dt>Địa chỉ</dt><dd>{{ selectedSupplier.address || 'Chưa cung cấp' }}</dd></div>
+
           </dl>
         </template>
         <div class="dialog-actions"><v-btn variant="text" @click="detailDialog = false">Đóng</v-btn><v-btn v-if="selectedSupplier" variant="outlined" color="primary" @click="detailDialog = false; openHistory(selectedSupplier)">Lịch sử lô giống</v-btn></div>
@@ -291,8 +285,8 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
         <v-progress-linear v-if="historyLoading" indeterminate color="primary" rounded />
         <div v-else-if="!historyItems.length" class="empty-state history-empty"><div>0</div><strong>Chưa có lô giống từ nhà cung cấp này</strong><p>Lịch sử xuất hiện sau khi lô được ghi nhận trong hệ thống.</p></div>
         <div v-else class="table-wrap history-table-wrap"><table class="app-data-table">
-          <thead><tr><th>Mã lô</th><th>Mã nhà cung cấp</th><th>Loài / giai đoạn</th><th>Ao/bể</th><th>Số lượng đầu</th><th>Trạng thái</th><th>Tiếp nhận</th></tr></thead>
-          <tbody><tr v-for="batch in historyItems" :key="batch.id"><td><strong>{{ batch.batchCode }}</strong></td><td>{{ batch.supplierLotCode || '—' }}</td><td>{{ batch.species }} · {{ batch.developmentStage }}</td><td>{{ batch.tank?.code }} · {{ batch.tank?.name }}</td><td>{{ Number(batch.initialQuantity || 0).toLocaleString('vi-VN') }}</td><td><span class="batch-status" :class="`batch-status--${batch.status}`">{{ batchStatus[batch.status] || batch.status }}</span></td><td>{{ formatDate(batch.receivedAt || batch.stockedDate) }}</td></tr></tbody>
+          <thead><tr><th>Mã lô</th><th>Loài / giai đoạn</th><th>Ao/bể</th><th>Số lượng đầu</th><th>Trạng thái</th><th>Ngày thả</th></tr></thead>
+          <tbody><tr v-for="batch in historyItems" :key="batch.id"><td><strong>{{ batch.batchCode }}</strong></td><td>{{ batch.species }} · {{ batch.developmentStage }}</td><td>{{ batch.tank?.code }} · {{ batch.tank?.name }}</td><td>{{ Number(batch.initialQuantity || 0).toLocaleString('vi-VN') }}</td><td><span class="batch-status" :class="`batch-status--${batch.status}`">{{ batchStatus[batch.status] || batch.status }}</span></td><td>{{ formatDate(batch.stockedDate) }}</td></tr></tbody>
         </table></div>
         <div class="dialog-actions history-actions"><Pagination v-model:page="historyPage" v-model:page-size="historySize" :total="historyPagination.total" :loading="historyLoading" /><v-btn variant="text" @click="historyDialog = false">Đóng</v-btn></div>
       </v-card>

@@ -1,7 +1,13 @@
 import { prisma } from '../config/prisma.js'
 import { createHttpError } from '../utils/http.js'
 
+export function isSystemAdmin(user) {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  return Boolean(email && typeof user?.email === 'string' && user.email.trim().toLowerCase() === email)
+}
+
 export async function accountAccess(user) {
+  if (isSystemAdmin(user)) return { isSystemAdmin: true, canCreateFarm: true }
   const memberships = await prisma.farmMember.findMany({
     where: { userId: user.id }, select: { role: true, status: true },
   })
@@ -9,7 +15,5 @@ export async function accountAccess(user) {
   if (memberships.length && !active.length) {
     throw createHttpError(403, 'Tài khoản đã bị ngưng sử dụng tại tất cả các trại.')
   }
-  const bootstrap = !memberships.length && Boolean(process.env.ADMIN_EMAIL?.trim()) &&
-    user.email?.toLowerCase() === process.env.ADMIN_EMAIL.trim().toLowerCase()
-  return { canCreateFarm: bootstrap || active.some((member) => member.role === 'owner') }
+  return { isSystemAdmin: false, canCreateFarm: active.some((member) => member.role === 'owner') }
 }

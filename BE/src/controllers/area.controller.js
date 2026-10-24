@@ -17,8 +17,8 @@ export async function listAreas(req, res) {
   if (req.query.includeInactive !== undefined && !['true', 'false'].includes(req.query.includeInactive)) {
     throw createHttpError(400, 'Tham số includeInactive không hợp lệ.')
   }
-  if (includeInactive && req.membership.role !== 'owner') {
-    throw createHttpError(403, 'Chỉ Owner được xem khu vực đã ngừng hoạt động.')
+  if (includeInactive && !['owner', 'farm_manager'].includes(req.membership.role)) {
+    throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được xem khu vực đã ngừng hoạt động.')
   }
 
   const areas = await prisma.area.findMany({

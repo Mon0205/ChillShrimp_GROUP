@@ -1,14 +1,12 @@
 <script setup>
 import Pagination from '../../components/pagination/index.vue'
-import { computed, ref as vueRef } from 'vue'
-import Request from './components/Request.vue'
-const requestDialog = vueRef(false)
+import { computed } from 'vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import { usePage } from './composables/usePage.js'
 
 const model = usePage()
-const { supplies, loading, listLoading, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, deletingSupply, farmId, canManage, canRequestSupply, pageCount, categoryOptions, categoryNames, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, openImportHistory, openAdjustment, openAdjustmentHistory, deleting, deleteSupply, saving, dialog, formRef, editingSupply, form, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, saveSupply, ref, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, requiredRule, importQuantityRule, importPriceRule, importDateRule, submitImport, formatDateTime, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, adjustmentQuantityRule, adjustmentDateRule, submitAdjustment } = model
+const { supplies, loading, listLoading, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, deletingSupply, farmId, canManage, pageCount, categoryOptions, categoryNames, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, openImportHistory, openAdjustment, openAdjustmentHistory, deleting, deleteSupply, saving, dialog, formRef, editingSupply, form, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, saveSupply, ref, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, requiredRule, importQuantityRule, importPriceRule, importDateRule, submitImport, formatDateTime, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, adjustmentQuantityRule, adjustmentDateRule, submitAdjustment } = model
 const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable":false},{"title":"Nhóm","key":"category","sortable":false},{"title":"Đơn vị","key":"unit","sortable":false},{"title":"Tồn hiện tại","key":"quantity","sortable":false},{"title":"Đơn giá","key":"unitPrice","sortable":false},{"title":"Ngưỡng cảnh báo","key":"minThreshold","sortable":false},{"title":"Thao tác","key":"actions","sortable":false,"align":"end"}].filter(header => canManage.value || header.key !== 'actions'))
 </script>
 
@@ -19,7 +17,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
       <header class="page-heading">
         <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-archive-outline" size="25" /></v-avatar><h1>Danh mục vật tư</h1></div>
       </header>
-      <div class="page-actions list-actions"><v-btn v-if="canRequestSupply && farmId" variant="outlined" prepend-icon="mdi-clipboard-list-outline" @click="requestDialog = true">Yêu cầu cấp</v-btn>
+      <div class="page-actions list-actions">
           <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm vật tư</v-btn></div>
 
       <v-card class="list-card" elevation="0">
@@ -27,7 +25,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
         <div class="list-filters"><v-select v-model="categoryFilter" :items="categoryOptions" label="Nhóm vật tư" clearable density="compact" variant="outlined" hide-details />
         <v-select v-model="lowStockOnly" :items="[{ title: 'Tất cả', value: false }, { title: 'Sắp hết', value: true }]" label="Cảnh báo số lượng" density="compact" variant="outlined" hide-details />
         </div>
-        <v-text-field class="list-search" v-model="query" placeholder="Tìm tên vật tư" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+        <v-text-field label="Tìm vật tư" class="list-search" v-model="query" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
       </div>
 
       <LoadingIndicator v-if="loading" />
@@ -61,7 +59,6 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
 
       </v-card>
 
-      <v-dialog v-model="requestDialog" max-width="560"><Request v-if="requestDialog" :key="farmId" @close="requestDialog = false" /></v-dialog>
       <v-dialog v-model="dialog" max-width="650">
         <v-card class="form-card">
           <v-card-title>{{ editingSupply ? 'Cập nhật vật tư' : 'Thêm vật tư' }}</v-card-title>
@@ -70,10 +67,10 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
               <div class="form-grid">
                 <v-text-field v-model="form.name" label="Tên vật tư *" :rules="nameRules" />
                 <v-select v-model="form.category" :items="categoryOptions" label="Nhóm vật tư *" :rules="categoryRules" />
-                <v-text-field v-model="form.unit" label="Đơn vị tính *" placeholder="kg, lít, bao..." :rules="unitRules" />
+                <v-text-field v-model="form.unit" label="Đơn vị tính *" :rules="unitRules" />
                 <v-text-field v-model="form.unitPrice" type="number" min="0" step="0.01" label="Đơn giá *" :rules="priceRules" />
                 <v-text-field v-model="form.minThreshold" type="number" min="0" step="0.001" label="Ngưỡng cảnh báo *" :rules="thresholdRules" />
-                <v-text-field v-if="!editingSupply" model-value="0" label="Tồn ban đầu" readonly hint="Tồn kho chỉ thay đổi qua giao dịch nhập/xuất/điều chỉnh." persistent-hint />
+                <v-text-field v-if="!editingSupply" model-value="0" label="Tồn ban đầu" readonly />
                 <v-textarea v-model="form.description" label="Mô tả" rows="2" maxlength="4000" counter="4000" class="full-width" :rules="descriptionRules" />
               </div>
             </v-form>
@@ -120,7 +117,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
             <p class="adjustment-stock">Tồn hiện tại: <strong>{{ formatNumber(adjustmentTarget?.quantity) }} {{ adjustmentTarget?.unit }}</strong></p>
             <v-form ref="adjustmentFormRef" @submit.prevent="submitAdjustment">
               <div class="form-grid">
-                <v-select v-model="adjustmentForm.direction" :items="[{ title: 'Tăng tồn', value: 'increase' }, { title: 'Giảm tồn', value: 'decrease' }]" label="Chiều điều chỉnh *" />
+                <v-select v-model="adjustmentForm.direction" :items="[{ title: 'Tăng tồn', value: 'increase' }, { title: 'Giảm tồn', value: 'decrease' }]" label="Chiều điều chỉnh *" :rules="[requiredRule('Chiều điều chỉnh')]" />
                 <v-text-field :model-value="adjustmentTarget?.unit" label="Đơn vị" readonly />
                 <v-text-field v-model="adjustmentForm.quantity" type="number" min="0.001" max="999999999.999" step="0.001" label="Số lượng điều chỉnh *" :rules="[requiredRule('Số lượng'), adjustmentQuantityRule]" />
                 <v-text-field v-model="adjustmentForm.transactionDate" type="datetime-local" label="Thời điểm *" :rules="[adjustmentDateRule]" />

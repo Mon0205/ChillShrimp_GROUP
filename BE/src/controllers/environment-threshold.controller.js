@@ -24,13 +24,13 @@ const ENVIRONMENT_ALERT_SEVERITIES = new Set(['warning', 'critical'])
 const ALERT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function environmentalAlertWhere(req, alertId) {
-  if (req.membership.role !== 'owner' && !req.membership.areaId) throw createHttpError(403, 'Your account is not assigned to an area.')
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && !req.membership.areaId) throw createHttpError(403, 'Your account is not assigned to an area.')
   if (alertId && !ALERT_UUID_PATTERN.test(alertId)) throw createHttpError(400, 'Alert id is invalid.')
   return {
     ...(alertId ? { id: alertId } : {}),
     farmId: req.params.farmId,
     alertType: 'environment_threshold',
-    ...(req.membership.role === 'owner' ? {} : { tank: { is: { areaId: req.membership.areaId } } }),
+    ...(['owner', 'farm_manager'].includes(req.membership.role) ? {} : { tank: { is: { areaId: req.membership.areaId } } }),
   }
 }
 
@@ -149,7 +149,7 @@ export async function getEnvironmentalAlert(req, res) {
       threshold: { select: {
         id: true, species: true, developmentStage: true, tankType: true, parameterCode: true, unit: true,
         warningMin: true, warningMax: true, dangerMin: true, dangerMax: true,
-        sourceReference: true, effectiveFrom: true, effectiveTo: true,
+        effectiveFrom: true, effectiveTo: true,
       } },
       sourceLog: { select: { id: true, recordedAt: true, measurementMethod: true, measurementDevice: true, notes: true } },
     },

@@ -5,6 +5,7 @@ import {
   createPondTank,
   getPondTank,
   listPondTanks,
+  listAvailableTechnicians,
   updatePondTank,
   updatePondTankStatus,
 } from '../controllers/pond-tank.controller.js'
@@ -12,6 +13,7 @@ import {
 export const pondTankRouter = Router({ mergeParams: true })
 pondTankRouter.use(requireAuth)
 pondTankRouter.get('/', requirePondTankViewer, asyncHandler(listPondTanks))
+pondTankRouter.get('/available-technicians', requirePondTankManager, asyncHandler(listAvailableTechnicians))
 pondTankRouter.get('/:tankId', requirePondTankViewer, asyncHandler(getPondTank))
 pondTankRouter.post('/', requirePondTankManager, asyncHandler(createPondTank))
 pondTankRouter.patch('/:tankId', requirePondTankManager, asyncHandler(updatePondTank))

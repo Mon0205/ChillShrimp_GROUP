@@ -75,9 +75,9 @@ async function resetPassword(event) {
       <p class="muted">Đăng nhập để quản lý trại của bạn.</p>
       <v-form class="auth-form" @submit.prevent="submit">
         <label class="auth-field-label" for="login-email">Email</label>
-        <v-text-field id="login-email" :rules="[required('email'), emailRule]" v-model="email" placeholder="Nhập email của bạn" type="email" autocomplete="email" hide-details="auto" required />
+        <v-text-field id="login-email" :rules="[required('email'), emailRule]" v-model="email" type="email" autocomplete="email" hide-details="auto" required />
         <label class="auth-field-label" for="login-password">Mật khẩu</label>
-        <v-text-field id="login-password" :rules="[required('mật khẩu')]" v-model="password" placeholder="Nhập mật khẩu" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" hide-details="auto" required>
+        <v-text-field id="login-password" :rules="[required('mật khẩu')]" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" hide-details="auto" required>
           <template #append-inner>
             <v-btn variant="text" type="button" size="small" :icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'" :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" :aria-pressed="showPassword" @click="showPassword = !showPassword" />
           </template>
@@ -93,7 +93,7 @@ async function resetPassword(event) {
         <p class="muted">Nhận mã OTP qua email để đặt lại mật khẩu.</p>
         <v-form v-if="!otpSent" class="forgot-form" @submit.prevent="sendOtp">
           <label class="auth-field-label">Email tài khoản</label>
-          <v-text-field :rules="[required('email'), emailRule]" v-model="forgotEmail" type="email" autocomplete="email" placeholder="name@example.com" hide-details="auto" required />
+          <v-text-field :rules="[required('email'), emailRule]" v-model="forgotEmail" type="email" autocomplete="email" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="sendingOtp">Gửi mã OTP</v-btn>
         </v-form>
         <v-form v-else class="forgot-form" @submit.prevent="resetPassword">
@@ -102,7 +102,7 @@ async function resetPassword(event) {
           <label class="auth-field-label">Mã OTP</label>
           <v-input :model-value="otp" :rules="[otpRule]" hide-details="auto"><template #default="{ isValid }"><v-otp-input v-model="otp" :length="6" type="number" :error="isValid.value === false" /></template></v-input>
           <label class="auth-field-label">Mật khẩu mới</label>
-          <v-text-field :rules="[passwordRule]" v-model="newPassword" type="password" autocomplete="new-password" hint="Tối thiểu 8 ký tự" persistent-hint required />
+          <v-text-field :rules="[passwordRule]" v-model="newPassword" type="password" autocomplete="new-password" required />
           <label class="auth-field-label">Xác nhận mật khẩu mới</label>
           <v-text-field :rules="[required('xác nhận mật khẩu'), matchingPassword(() => newPassword)]" v-model="confirmPassword" type="password" autocomplete="new-password" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="resetting">Đặt lại mật khẩu</v-btn>

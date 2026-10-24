@@ -19,6 +19,14 @@ try {
     join(staging, 'migrations/24102026_001_remove_application_access_sessions'),
     join(staging, 'migrations/20261024_001_remove_application_access_sessions'),
   )
+  renameSync(
+    join(staging, 'migrations/25102026_001_remove_farm_archive_metadata'),
+    join(staging, 'migrations/20261025_001_remove_farm_archive_metadata'),
+  )
+  renameSync(
+    join(staging, 'migrations/25102026_002_add_pond_tank_responsible_user'),
+    join(staging, 'migrations/20261025_002_add_pond_tank_responsible_user'),
+  )
   const cli = fileURLToPath(new URL('../node_modules/prisma/build/index.js', import.meta.url))
   const result = spawnSync(process.execPath, [cli, 'migrate', process.argv[2] || 'deploy', '--schema', join(staging, 'schema.prisma')], { stdio: 'inherit' })
   if (result.error) throw result.error

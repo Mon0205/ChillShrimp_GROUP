@@ -8,7 +8,7 @@ function decimalString(value) {
 }
 
 function reportWhere(req, filters) {
-  if (req.membership.role !== 'owner' && !req.membership.areaId) {
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && !req.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   const conditions = [
@@ -16,7 +16,7 @@ function reportWhere(req, filters) {
     Prisma.sql`l."feeding_time" >= CAST(${filters.from} AS TIMESTAMPTZ)`,
     Prisma.sql`l."feeding_time" <= CAST(${filters.to} AS TIMESTAMPTZ)`,
   ]
-  if (req.membership.role !== 'owner') conditions.push(Prisma.sql`t."area_id" = CAST(${req.membership.areaId} AS UUID)`)
+  if (!['owner', 'farm_manager'].includes(req.membership.role)) conditions.push(Prisma.sql`t."area_id" = CAST(${req.membership.areaId} AS UUID)`)
   if (filters.tankId) conditions.push(Prisma.sql`t."id" = CAST(${filters.tankId} AS UUID)`)
   return Prisma.join(conditions, ' AND ')
 }
@@ -34,11 +34,7 @@ export async function getFeedingReport(req, res) {
     prisma.$queryRaw(Prisma.sql`
       SELECT l."unit",
         SUM(l."amount") AS "actualAmount",
-        SUM(l."recommended_amount") AS "recommendedAmount",
-        SUM(CASE WHEN l."recommended_amount" IS NOT NULL THEN l."amount" - l."recommended_amount" END) AS "variance",
-        COUNT(*)::integer AS "feedingCount",
-        COUNT(l."recommended_amount")::integer AS "comparableCount",
-        AVG(l."feeding_rate_percent") AS "averageRatePercent"
+        COUNT(*)::integer AS "feedingCount"
       FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
       WHERE ${where}
       GROUP BY l."unit" ORDER BY l."unit"
@@ -46,10 +42,7 @@ export async function getFeedingReport(req, res) {
     prisma.$queryRaw(Prisma.sql`
       SELECT t."id" AS "tankId", t."code" AS "tankCode", t."name" AS "tankName", l."unit",
         SUM(l."amount") AS "actualAmount",
-        SUM(l."recommended_amount") AS "recommendedAmount",
-        SUM(CASE WHEN l."recommended_amount" IS NOT NULL THEN l."amount" - l."recommended_amount" END) AS "variance",
-        COUNT(*)::integer AS "feedingCount",
-        COUNT(l."recommended_amount")::integer AS "comparableCount"
+        COUNT(*)::integer AS "feedingCount"
       FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
       WHERE ${where}
       GROUP BY t."id", t."code", t."name", l."unit"
@@ -57,9 +50,7 @@ export async function getFeedingReport(req, res) {
     `),
     prisma.$queryRaw(Prisma.sql`
       SELECT TO_CHAR(DATE_TRUNC('day', l."feeding_time" AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD') AS "date",
-        l."unit", SUM(l."amount") AS "actualAmount", SUM(l."recommended_amount") AS "recommendedAmount",
-        SUM(CASE WHEN l."recommended_amount" IS NOT NULL THEN l."amount" - l."recommended_amount" END) AS "variance",
-        COUNT(*)::integer AS "feedingCount", COUNT(l."recommended_amount")::integer AS "comparableCount"
+        l."unit", SUM(l."amount") AS "actualAmount", COUNT(*)::integer AS "feedingCount"
       FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
       WHERE ${where}
       GROUP BY DATE_TRUNC('day', l."feeding_time" AT TIME ZONE 'Asia/Ho_Chi_Minh'), l."unit"
@@ -67,7 +58,7 @@ export async function getFeedingReport(req, res) {
     `),
     prisma.$queryRaw(Prisma.sql`
       SELECT l."id", l."feeding_time" AS "feedingTime", l."feed_name" AS "feedName",
-        l."amount", l."unit", l."recommended_amount" AS "recommendedAmount",
+        l."amount", l."unit",
         l."feed_check_status" AS "feedCheckStatus", t."code" AS "tankCode", t."name" AS "tankName"
       FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
       WHERE ${where}
@@ -78,11 +69,7 @@ export async function getFeedingReport(req, res) {
   const summary = unitRows.map((row) => ({
     unit: row.unit,
     actualAmount: decimalString(row.actualAmount) || '0',
-    recommendedAmount: decimalString(row.recommendedAmount),
-    variance: decimalString(row.variance),
     feedingCount: row.feedingCount,
-    comparableCount: row.comparableCount,
-    averageRatePercent: decimalString(row.averageRatePercent),
   }))
   const byTank = tankRows.map((row) => ({
     tankId: row.tankId,
@@ -90,24 +77,17 @@ export async function getFeedingReport(req, res) {
     tankName: row.tankName,
     unit: row.unit,
     actualAmount: decimalString(row.actualAmount) || '0',
-    recommendedAmount: decimalString(row.recommendedAmount),
-    variance: decimalString(row.variance),
     feedingCount: row.feedingCount,
-    comparableCount: row.comparableCount,
   }))
   const daily = dailyRows.map((row) => ({
     date: row.date,
     unit: row.unit,
     actualAmount: decimalString(row.actualAmount) || '0',
-    recommendedAmount: decimalString(row.recommendedAmount),
-    variance: decimalString(row.variance),
     feedingCount: row.feedingCount,
-    comparableCount: row.comparableCount,
   }))
   const recent = recentRows.map((row) => ({
     ...row,
     amount: decimalString(row.amount),
-    recommendedAmount: decimalString(row.recommendedAmount),
   }))
 
   return sendData(res, {

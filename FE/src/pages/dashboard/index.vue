@@ -13,10 +13,10 @@ const reportError = ref('')
 const feedingReport = ref(null)
 const reportTanks = ref([])
 const reportFilters = ref(defaultReportFilters())
-const roleNames = { owner: 'Chủ trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
 const farms = computed(() => farmContext.farms)
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmContext.farmId))
-const canViewFeedingReport = computed(() => ['owner', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewFeedingReport = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
 const selectedRole = computed(() => roleNames[selectedFarm.value?.role] || 'Chưa xác định')
 const selectedScope = computed(() => selectedFarm.value?.area?.name || 'Toàn trại')
 
@@ -140,24 +140,22 @@ onMounted(loadDashboard)
           <div v-if="feedingReport.amountsByUnit.length" class="report-summary">
             <article v-for="item in feedingReport.amountsByUnit" :key="item.unit" class="report-stat">
               <span>Tổng lượng thực tế · {{ item.unit }}</span><strong>{{ formatReportAmount(item.actualAmount) }} {{ item.unit }}</strong>
-              <small v-if="item.recommendedAmount !== null">Khuyến nghị: {{ formatReportAmount(item.recommendedAmount) }} {{ item.unit }} · Chênh lệch: {{ Number(item.variance) > 0 ? '+' : '' }}{{ formatReportAmount(item.variance) }} {{ item.unit }}</small>
-              <small v-else>Chưa đủ dữ liệu khuyến nghị để so sánh.</small>
-              <small>{{ item.comparableCount }}/{{ item.feedingCount }} bản ghi có khuyến nghị</small>
+              <small>{{ item.feedingCount }} lần cho ăn</small>
             </article>
           </div>
           <div v-else class="report-empty">Chưa có nhật ký cho ăn trong khoảng thời gian này.</div>
 
           <div v-if="feedingReport.byTank.length" class="report-block">
             <h3>Theo ao/bể và đơn vị</h3>
-            <v-table class="app-data-table" density="compact"><thead><tr><th>Ao/bể</th><th>Đơn vị</th><th>Thực tế</th><th>Khuyến nghị</th><th>Chênh lệch</th><th>Số lần</th></tr></thead>
-              <tbody><tr v-for="row in feedingReport.byTank" :key="`${row.tankId}-${row.unit}`"><td>{{ row.tankCode }} · {{ row.tankName }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.recommendedAmount === null ? 'Chưa có' : formatReportAmount(row.recommendedAmount) }}</td><td>{{ row.variance === null ? '—' : `${Number(row.variance) > 0 ? '+' : ''}${formatReportAmount(row.variance)}` }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
+            <v-table class="app-data-table" density="compact"><thead><tr><th>Ao/bể</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
+              <tbody><tr v-for="row in feedingReport.byTank" :key="`${row.tankId}-${row.unit}`"><td>{{ row.tankCode }} · {{ row.tankName }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
             </v-table>
           </div>
 
           <div v-if="feedingReport.daily.length" class="report-block">
             <h3>Theo ngày</h3>
-            <v-table class="app-data-table" density="compact"><thead><tr><th>Ngày</th><th>Đơn vị</th><th>Thực tế</th><th>Khuyến nghị</th><th>Chênh lệch</th><th>Số lần</th></tr></thead>
-              <tbody><tr v-for="row in feedingReport.daily" :key="`${row.date}-${row.unit}`"><td>{{ formatReportDay(row.date) }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.recommendedAmount === null ? 'Chưa có' : formatReportAmount(row.recommendedAmount) }}</td><td>{{ row.variance === null ? '—' : `${Number(row.variance) > 0 ? '+' : ''}${formatReportAmount(row.variance)}` }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
+            <v-table class="app-data-table" density="compact"><thead><tr><th>Ngày</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
+              <tbody><tr v-for="row in feedingReport.daily" :key="`${row.date}-${row.unit}`"><td>{{ formatReportDay(row.date) }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
             </v-table>
           </div>
 

@@ -33,7 +33,7 @@ const activeTab = computed({
 const activeComponent = computed(() => tabs.find(tab => tab.value === activeTab.value).component)
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const role = computed(() => farmContext.farms.find(farm => farm.id === farmId.value)?.role)
-const canView = computed(() => ['owner', 'area_manager', 'technician'].includes(role.value))
+const canView = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
 
 async function loadTanks() {
   const request = ++tankRequest

@@ -1,14 +1,11 @@
 import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 
-const SUPPLIER_FIELDS = ['name', 'licenseNo', 'phone', 'address', 'broodstockInformation', 'notes']
+const SUPPLIER_FIELDS = ['name', 'phone', 'address']
 const FIELD_LIMITS = {
   name: 150,
-  licenseNo: 80,
   phone: 20,
   address: 4000,
-  broodstockInformation: 4000,
-  notes: 4000,
 }
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -17,6 +14,9 @@ function validateUuid(value, label) {
 }
 
 function normalizeSupplierInput(body, { partial = false } = {}) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw createHttpError(400, 'Dữ liệu nhà cung cấp không hợp lệ.')
+  const unknown = Object.keys(body).filter(field => !SUPPLIER_FIELDS.includes(field))
+  if (unknown.length) throw createHttpError(400, `Trường không được hỗ trợ: ${unknown.join(', ')}.`)
   const data = {}
 
   for (const field of SUPPLIER_FIELDS) {
@@ -73,7 +73,6 @@ export async function listSeedSuppliers(req, res) {
     ...(q ? {
       OR: [
         { name: { contains: q, mode: 'insensitive' } },
-        { licenseNo: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
       ],
     } : {}),
@@ -124,7 +123,7 @@ export async function listSupplierSeedBatches(req, res) {
   const where = {
     supplierId: supplier.id,
     ...(status ? { status } : {}),
-    ...(q ? { OR: [{ batchCode: { contains: q, mode: 'insensitive' } }, { supplierLotCode: { contains: q, mode: 'insensitive' } }] } : {}),
+    ...(q ? { batchCode: { contains: q, mode: 'insensitive' } } : {}),
     tank: tankWhere,
   }
 
@@ -132,7 +131,7 @@ export async function listSupplierSeedBatches(req, res) {
     prisma.seedBatch.findMany({
       where,
       include: { tank: { select: { id: true, code: true, name: true, areaId: true } } },
-      orderBy: [{ receivedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ createdAt: 'desc' }],
       skip,
       take: limit,
     }),

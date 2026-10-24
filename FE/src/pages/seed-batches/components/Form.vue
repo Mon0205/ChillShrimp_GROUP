@@ -1,6 +1,6 @@
 <script setup>
 const props = defineProps({ model: { type: Object, required: true } })
-const { canManage, transitions, statusNames, suppliers, tanks, loading, saving, error, formDialog, certificateUploading, formRef, editingBatch, form, regenerateInternalBatchCode, regenerateSupplierFallbackCode, isTechnician, speciesOptions, broodstockOptions, requiredRule, batchCodeRules, quantityRules, documentedRules, lengthRule, dateOrderError, uploadCertificate, saveBatch, ref } = props.model
+const { canManage, transitions, statusNames, suppliers, tanks, loading, saving, error, formDialog, formRef, editingBatch, form, isTechnician, speciesOptions, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, saveBatch, ref } = props.model
 </script>
 
 <template>
@@ -8,35 +8,26 @@ const { canManage, transitions, statusNames, suppliers, tanks, loading, saving, 
       <v-card class="dialog-card"><span class="eyebrow">{{ editingBatch ? 'CẬP NHẬT HỒ SƠ' : 'TIẾP NHẬN ĐẦU VÀO' }}</span><h2>{{ editingBatch ? 'Thông tin lô giống' : 'Tiếp nhận lô giống' }}</h2>
         <v-form ref="formRef" class="dialog-form" validate-on="blur" @submit.prevent="saveBatch">
           <div v-if="!editingBatch" class="form-grid">
-            <div class="span-2"><label>Ao/bể đang trống <span class="required-mark">*</span></label><v-select v-model="form.tankId" :items="tanks" :item-title="(tank) => `${tank.code} · ${tank.name}${tank.area?.name ? ` · ${tank.area.name}` : ''}`" item-value="id" placeholder="Chọn ao/bể" :rules="[requiredRule('Ao/bể')]" hide-details="auto" /></div>
-            <div><label>Mã lô nội bộ <span class="required-mark">*</span></label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" readonly append-inner-icon="mdi-refresh" @click:append-inner="regenerateInternalBatchCode" hide-details="auto" /><small class="code-hint">Mã được tạo tự động; nhấn biểu tượng làm mới để tạo lại.</small></div>
-            <div><label>Mã lô nhà cung cấp / mã thay thế <span class="required-mark">*</span></label><v-text-field v-model="form.supplierLotCode" maxlength="80" :rules="[requiredRule('Mã lô nhà cung cấp'), lengthRule('Mã lô nhà cung cấp', 80)]" append-inner-icon="mdi-refresh" @click:append-inner="regenerateSupplierFallbackCode" hide-details="auto" /><small class="code-hint">Nhập mã trên chứng từ nhà cung cấp. Nếu không có, giữ mã NOEXT được tạo tự động.</small></div>
+            <div class="span-2"><label>Ao/bể đang trống <span class="required-mark">*</span></label><v-select v-model="form.tankId" :items="tanks" :item-title="tank => [tank?.code, tank?.name, tank?.area?.name].filter(Boolean).join(' · ')" item-value="id" :rules="[requiredRule('Ao/bể')]" hide-details="auto" /></div>
+            <div><label>Mã lô giống <span class="required-mark">*</span></label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
           </div>
           <div class="form-grid">
             <template v-if="!isTechnician">
-              <div v-if="editingBatch"><label>Mã lô</label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
+              <div v-if="editingBatch"><label>Mã lô giống</label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
               <div v-if="editingBatch"><label>Trạng thái lô</label><v-select v-model="form.status" :items="[{ title: statusNames[editingBatch.status], value: editingBatch.status }, ...(transitions[editingBatch.status] || [])]" :disabled="!canManage || !transitions[editingBatch.status]?.length" hide-details="auto" /></div>
-              <div v-if="editingBatch"><label>Mã lô nhà cung cấp</label><v-text-field v-model="form.supplierLotCode" maxlength="80" :rules="[requiredRule('Mã lô nhà cung cấp'), lengthRule('Mã lô nhà cung cấp', 80)]" hide-details="auto" /></div>
-              <div><label>Nhà cung cấp</label><v-select v-model="form.supplierId" :items="[{ title: 'Không chọn', value: '' }, ...suppliers.map((supplier) => ({ title: supplier.name, value: supplier.id }))]" placeholder="Không bắt buộc" hide-details="auto" /></div>
+              <div><label>Nhà cung cấp</label><v-select v-model="form.supplierId" :items="suppliers" item-title="name" item-value="id" clearable hide-details="auto" /></div>
             </template>
             <div><label>Loài <span class="required-mark">*</span></label><v-select v-model="form.species" :items="speciesOptions" :rules="[requiredRule('Loài')]" hide-details="auto" /></div>
-            <div><label>Giai đoạn phát triển <span class="required-mark">*</span></label><v-text-field v-model="form.developmentStage" maxlength="50" :rules="[requiredRule('Giai đoạn'), lengthRule('Giai đoạn', 50)]" placeholder="PL12" hide-details="auto" /></div>
-            <div><label>Dòng tôm bố mẹ</label><v-text-field v-model="form.broodstockLine" maxlength="100" :rules="[lengthRule('Dòng tôm bố mẹ', 100)]" hide-details="auto" /></div>
-            <div><label>Tình trạng tôm bố mẹ</label><v-select v-model="form.broodstockStatus" :items="broodstockOptions" hide-details="auto" /></div>
+            <div><label>Giai đoạn phát triển <span class="required-mark">*</span></label><v-text-field v-model="form.developmentStage" maxlength="50" :rules="[requiredRule('Giai đoạn'), lengthRule('Giai đoạn', 50)]" hide-details="auto" /></div>
             <template v-if="!isTechnician">
-              <div><label>Nguồn giống <span class="required-mark">*</span></label><v-text-field v-model="form.source" maxlength="150" :rules="[requiredRule('Nguồn giống'), lengthRule('Nguồn giống', 150)]" placeholder="Tên cơ sở hoặc nguồn khai thác" hide-details="auto" /></div>
+              <div v-if="editingBatch"><label>Số lượng hiện tại <span class="required-mark">*</span></label><v-text-field v-model="form.currentEstimatedQuantity" type="number" min="0" max="2147483647" :rules="[requiredRule('Số lượng hiện tại'), v => Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 2147483647 || 'Nhập số nguyên không âm hợp lệ.']" hide-details="auto" /></div>
               <div v-if="!editingBatch"><label>Số lượng thực nhận <span class="required-mark">*</span></label><v-text-field v-model="form.initialQuantity" type="number" min="1" :rules="quantityRules" hide-details="auto" /></div>
-              <div v-if="!editingBatch"><label>Số lượng theo chứng từ</label><v-text-field v-model="form.documentedQuantity" type="number" min="0" :rules="documentedRules" hide-details="auto" /></div>
-              <div><label>Ngày sản xuất</label><v-text-field v-model="form.productionDate" type="date" hide-details="auto" /></div>
-              <div><label>Thời điểm tiếp nhận</label><v-text-field v-model="form.receivedAt" type="datetime-local" hide-details="auto" /></div>
-              <div><label>Thời gian vận chuyển (phút)</label><v-text-field v-model="form.transportDurationMinutes" type="number" min="0" :rules="[v => v === '' || (Number.isInteger(Number(v)) && Number(v) >= 0) || 'Nhập số phút nguyên không âm.']" hide-details="auto" /></div>
               <div><label>Ngày thả <span class="required-mark">*</span></label><v-text-field v-model="form.stockedDate" type="date" :rules="[requiredRule('Ngày thả')]" hide-details="auto" /></div>
               <div><label>Ngày dự kiến bán <span class="required-mark">*</span></label><v-text-field v-model="form.expectedSaleDate" type="date" :rules="[requiredRule('Ngày dự kiến bán'), () => !dateOrderError || dateOrderError]" :error-messages="dateOrderError" hide-details="auto" /></div>
-              <div class="span-2"><label>Giấy chứng nhận kiểm dịch</label><input class="upload-input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" :disabled="certificateUploading" @change="uploadCertificate"><div class="upload-hint">JPG, PNG, WEBP hoặc PDF · tối đa 10 MB</div><div v-if="form.healthCertificateName" class="uploaded-file"><span>{{ form.healthCertificateName }}</span><button type="button" :disabled="certificateUploading" @click="Object.assign(form, { healthCertificateUrl: '', healthCertificatePublicId: '', healthCertificateFormat: '', healthCertificateName: '', healthCertificateChanged: true })">Gỡ tệp</button></div><img v-if="form.healthCertificateUrl && ['jpg','jpeg','png','webp'].includes(form.healthCertificateFormat)" class="media-preview" :src="form.healthCertificateUrl" alt="Xem trước giấy chứng nhận"><iframe v-else-if="form.healthCertificateUrl && form.healthCertificateFormat === 'pdf'" class="document-preview" :src="form.healthCertificateUrl" title="Xem trước giấy chứng nhận PDF" /></div>
             </template>
             <div class="span-2"><label>Ghi chú</label><v-textarea v-model="form.notes" maxlength="4000" rows="2" auto-grow :rules="[lengthRule('Ghi chú', 4000)]" hide-details="auto" /></div>
           </div>
-          <div class="dialog-actions"><v-btn variant="text" @click="formDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving" :disabled="certificateUploading">{{ editingBatch ? 'Lưu thay đổi' : 'Tiếp nhận lô' }}</v-btn></div>
+          <div class="dialog-actions"><v-btn variant="text" @click="formDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">{{ editingBatch ? 'Lưu thay đổi' : 'Tiếp nhận lô' }}</v-btn></div>
         </v-form>
       </v-card>
     </v-dialog>

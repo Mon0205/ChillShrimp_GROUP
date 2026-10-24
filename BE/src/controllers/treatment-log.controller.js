@@ -7,11 +7,11 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 const STOCK_CATEGORIES = ['medicine', 'chemical', 'probiotic']
 
 function scopedTankWhere(req, extra = {}) {
-  if (req.membership.role !== 'owner' && !req.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  if (!['owner', 'farm_manager'].includes(req.membership.role) && !req.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   return {
     farmId: req.params.farmId,
     deletedAt: null,
-    ...(req.membership.role === 'owner' ? {} : { areaId: req.membership.areaId }),
+    ...(['owner', 'farm_manager'].includes(req.membership.role) ? {} : { areaId: req.membership.areaId }),
     ...extra,
   }
 }
@@ -77,7 +77,6 @@ export async function createTreatmentLog(req, res) {
   const log = await prisma.$transaction(async (tx) => {
     let supply = null
     if (input.supplyId) {
-      await tx.$queryRaw`SELECT id FROM inventory_supplies WHERE id = ${input.supplyId}::uuid FOR UPDATE`
       supply = await tx.inventorySupply.findFirst({
         where: { id: input.supplyId, farmId, category: { in: STOCK_CATEGORIES } },
       })
@@ -85,7 +84,6 @@ export async function createTreatmentLog(req, res) {
       if (supply.unit.trim().toLowerCase() !== input.unit.trim().toLowerCase()) {
         throw createHttpError(400, `Đơn vị ghi nhận phải khớp với đơn vị tồn kho (${supply.unit}).`)
       }
-      if (supply.quantity.lessThan(amount)) throw createHttpError(409, 'Tồn kho không đủ cho liều lượng đã nhập.')
     }
 
     const created = await tx.treatmentLog.create({
@@ -107,31 +105,6 @@ export async function createTreatmentLog(req, res) {
       },
     })
 
-    if (supply) {
-      const stockUpdate = await tx.inventorySupply.updateMany({
-        where: { id: supply.id, farmId, quantity: { gte: amount } },
-        data: { quantity: { decrement: amount } },
-      })
-      if (!stockUpdate.count) throw createHttpError(409, 'Tồn kho vừa thay đổi; tải lại dữ liệu rồi thử lại.')
-
-      const batch = await tx.seedBatch.findFirst({
-        where: { tankId: tank.id, status: { in: ['active', 'ready_for_sale'] } },
-        orderBy: { stockedDate: 'desc' },
-        select: { id: true },
-      })
-      await tx.inventoryTransaction.create({
-        data: {
-          supplyId: supply.id,
-          batchId: batch?.id || null,
-          createdBy: req.auth.id,
-          transactionType: 'usage',
-          quantity: amount,
-          unitPrice: supply.unitPrice,
-          transactionDate: input.performedAt,
-          notes: `Sử dụng theo nhật ký thuốc/chế phẩm ${created.id}`,
-        },
-      })
-    }
     return created
   })
   return sendData(res, log, 201)

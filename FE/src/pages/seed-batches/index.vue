@@ -3,13 +3,11 @@ import Pagination from '../../components/pagination/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import Form from './components/Form.vue'
 import Details from './components/Details.vue'
-import Quality from './components/Quality.vue'
 import Inspection from './components/Inspection.vue'
-import History from './components/History.vue'
 import { usePage } from './composables/usePage.js'
 
 const model = usePage()
-const { farms, batches, loading, listLoading, error, search, statusFilter, page, pageSize, pagination, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, statusNames, speciesNames, transitions, formatDate, formatQuantity, openInspectionUpload, openQualityHistory, openQualityForm, loadPage, openCreate, openEdit, openDetails, openStatus, statusSaving, statusDialog, selectedBatch, nextStatus, saveStatus, reviewDialog, reviewSaving, reviewForm, saveReview } = model
+const { farms, batches, loading, listLoading, error, search, statusFilter, page, pageSize, pagination, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, statusNames, speciesNames, transitions, formatDate, formatQuantity, openInspectionUpload, loadPage, openCreate, openEdit, openDetails, openStatus, statusSaving, statusDialog, selectedBatch, nextStatus, saveStatus, } = model
 </script>
 
 <template>
@@ -30,17 +28,17 @@ const { farms, batches, loading, listLoading, error, search, statusFilter, page,
       <v-card class="list-card" elevation="0">
         <div class="list-toolbar">
           <div class="list-filters"><v-select label="Trạng thái" v-model="statusFilter" :items="[{ title: 'Tất cả trạng thái', value: '' }, ...statusOptions]" density="compact" variant="outlined" hide-details /></div>
-          <v-text-field class="list-search" v-model="search" placeholder="Mã lô, mã nhà cung cấp, loài" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+          <v-text-field label="Tìm lô giống" class="list-search" v-model="search" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
         </div>
         <v-progress-linear v-if="listLoading" class="list-progress" indeterminate color="primary" rounded />
         <div v-else-if="!batches.length" class="empty-state"><div>{{ search || statusFilter ? '⌕' : '0' }}</div><strong>{{ search || statusFilter ? 'Không tìm thấy lô phù hợp' : 'Chưa có lô giống' }}</strong><p>{{ canManage ? 'Tiếp nhận lô mới vào một ao/bể đang trống.' : 'Lô giống sẽ xuất hiện tại đây khi được tiếp nhận.' }}</p><v-btn v-if="canManage && !search && !statusFilter" color="primary" variant="outlined" size="small" @click="openCreate">Tiếp nhận lô</v-btn></div>
         <div v-else class="table-wrap"><table class="app-data-table">
           <thead><tr><th>Mã lô</th><th>Loài / giai đoạn</th><th>Ao/bể</th><th>Nhà cung cấp</th><th>Số lượng hiện tại</th><th>Ngày thả</th><th>Trạng thái</th><th class="actions-heading">Thao tác</th></tr></thead>
           <tbody><tr v-for="batch in batches" :key="batch.id" class="batch-clickable-row" tabindex="0" @click="openDetails(batch)" @keydown.enter.self.prevent="openDetails(batch)" @keydown.space.self.prevent="openDetails(batch)">
-            <td><strong>{{ batch.batchCode }}</strong><small>Mã NCC: {{ batch.supplierLotCode }}</small></td>
+            <td><strong>{{ batch.batchCode }}</strong></td>
             <td>{{ speciesNames[batch.species] || batch.species }}<small>{{ batch.developmentStage }}</small></td>
             <td>{{ batch.tank?.code }}<small>{{ batch.tank?.area?.name || 'Toàn trại' }}</small></td>
-            <td>{{ batch.supplier?.name || batch.source || '—' }}</td>
+            <td>{{ batch.supplier?.name || '—' }}</td>
             <td>{{ formatQuantity(batch.currentEstimatedQuantity) }}<small>Ban đầu {{ formatQuantity(batch.initialQuantity) }}</small></td>
             <td>{{ formatDate(batch.stockedDate) }}</td>
             <td><span class="status-tag" :class="`status-${batch.status}`">{{ statusNames[batch.status] || batch.status }}</span></td>
@@ -53,12 +51,9 @@ const { farms, batches, loading, listLoading, error, search, statusFilter, page,
 
     <Form :model="model" />
     <Details :model="model" />
-    
-    
-    <Quality :model="model" />
+
+
     <Inspection :model="model" />
-    <History :model="model" />
-    <v-dialog v-model="reviewDialog" max-width="540"><v-card class="dialog-card"><span class="eyebrow">DUYỆT KIỂM TRA</span><h2>{{ reviewForm.reviewStatus === 'confirmed' ? 'Xác nhận kết quả' : reviewForm.reviewStatus === 'action_required' ? 'Yêu cầu xử lý' : 'Xác nhận đã xử lý' }}</h2><v-textarea v-model="reviewForm.reviewNotes" :label="reviewForm.reviewStatus === 'confirmed' ? 'Ghi chú (không bắt buộc)' : 'Hướng xử lý / kết quả xử lý *'" maxlength="4000" rows="3" auto-grow hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="reviewDialog = false">Hủy</v-btn><v-btn color="primary" :loading="reviewSaving" @click="saveReview">Lưu quyết định</v-btn></div></v-card></v-dialog>
 
   </AppShell>
 
