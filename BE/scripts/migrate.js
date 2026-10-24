@@ -15,6 +15,10 @@ try {
     join(staging, 'migrations/10102026_028_add_inactive_farm_status'),
     join(staging, 'migrations/20261010_028_add_inactive_farm_status'),
   )
+  renameSync(
+    join(staging, 'migrations/24102026_001_remove_application_access_sessions'),
+    join(staging, 'migrations/20261024_001_remove_application_access_sessions'),
+  )
   const cli = fileURLToPath(new URL('../node_modules/prisma/build/index.js', import.meta.url))
   const result = spawnSync(process.execPath, [cli, 'migrate', process.argv[2] || 'deploy', '--schema', join(staging, 'schema.prisma')], { stdio: 'inherit' })
   if (result.error) throw result.error

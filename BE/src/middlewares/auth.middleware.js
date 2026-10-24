@@ -1,13 +1,11 @@
 import { prisma } from '../config/prisma.js'
 import { createHttpError } from '../utils/http.js'
 import { readNeonSession } from '../auth/get.js'
-import { requireAccessSession } from '../auth/session.js'
 import { accountAccess } from '../auth/access.js'
 
 export async function requireAuth(req, res, next) {
   try {
     const session = await readNeonSession(req, res)
-    await requireAccessSession(req, res, session.user.id)
     await accountAccess(session.user)
     req.auth = { id: session.user.id, email: session.user.email }
     next()

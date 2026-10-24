@@ -4,6 +4,14 @@ Rà soát việc ưu tiên Neon Auth/Vuetify và các ngoại lệ nghiệp vụ
 
 ## Kiểm thử đăng nhập, suspend và OTP
 
+Phiên đăng nhập chỉ dùng danh tính và cookie do Neon Auth cấp. Backend kiểm tra trực tiếp phiên tại Neon ở mỗi request được bảo vệ, không dùng cache cookie của SDK để quyết định phiên còn hợp lệ. Thời hạn truy cập là giá trị nhỏ hơn giữa `session.expiresAt` và `session.createdAt + 24 giờ`; hoạt động, tải lại trang và gia hạn phiên phía Neon không kéo dài giới hạn 24 giờ này. API vẫn trả `sessionExpiresAt` để frontend tự chuyển về đăng nhập khi hết hạn.
+
+Bảng `access_sessions` và cookie riêng `chillshrimp_session` không còn được ứng dụng sử dụng. Migration `24102026_001_remove_application_access_sessions` xóa bảng này; triển khai qua `npm run migrate:deploy` để script chuẩn hóa thứ tự migration. Nâng backend sang bản mới trước khi xóa bảng; khi có nhiều backend đang chạy, phải bảo đảm không còn instance bản cũ. Các phiên Neon có sẵn vẫn được đánh giá theo thời điểm tạo ban đầu. Migration chỉ xóa dữ liệu phiên phụ, không xóa người dùng hoặc phiên trong `neon_auth`.
+
+**Giữ `password_reset_otp_windows` để bảo đảm OTP tối đa 60 giây.** Tài liệu [Email OTP của Neon](https://neon.com/docs/auth/guides/plugins/email-otp) xác nhận Neon quản lý mã và kiểm tra mã, nhưng chưa cung cấp bằng chứng cấu hình 60 giây cho branch đang dùng. Không thay thời hạn này bằng một giá trị mặc định chưa kiểm chứng. Chỉ xóa bảng khi xác nhận được Neon áp thời hạn tương đương và kiểm thử mã hết hạn, gửi lại, mã sai và dùng lại mã trên branch đó.
+
+Schema ứng dụng sau migration còn **23 bảng**, không phải 22. Bộ kiểm thử hồi quy chạy bằng `npm test`; bao gồm giới hạn phiên 24 giờ, phiên Neon bị thu hồi, đăng nhập/đăng xuất, cookie mới và giới hạn OTP 60 giây.
+
 
 Trạng thái `suspended` thuộc về thành viên của từng trại. Tài khoản bị ngưng ở tất cả trại không được đăng nhập hoặc sử dụng phiên cũ (403). Tài khoản còn active ở trại khác vẫn được truy cập trại đó. Chỉ Owner active được tạo trại; `ADMIN_EMAIL` chỉ hỗ trợ tạo trại đầu tiên khi chưa có membership. Nút Ngưng sử dụng/Kích hoạt trong trang Người dùng chỉ tác động đến trại đang chọn, không cho tự ngưng chính mình.
 
@@ -16,7 +24,7 @@ OTP đặt lại mật khẩu do **Neon Auth** gửi, không dùng `SMTP_*` tron
 Migration mới sử dụng định dạng `ddmmyyyy_STT_ten_migration`.
 
 - `ddmmyyyy`: ngày tạo migration; ngày 02/09/2026 được viết là `02092026`.
-- `STT`: số thứ tự tạo trong ngày, gồm ba chữ số, bắt đầu từ `001`.
+- `STT`: số thứ tự tạo trong ngày, gồm ba chữ số, bắt đầu từ `001`. Sang ngày mới, số thứ tự bắt đầu lại từ `001`.
 - `ten_migration`: mô tả ngắn bằng tiếng Anh, viết thường và ngăn cách bằng dấu gạch dưới.
 
 Ví dụ:

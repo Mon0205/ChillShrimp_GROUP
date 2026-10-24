@@ -11,7 +11,20 @@ export function createExpressRequestContext() {
   if (!store) throw new Error('Neon Auth request context is missing.')
   const { req, res } = store
   return {
-    getCookies: () => req.headers.cookie || '',
+    getCookies: () => {
+      // A session lookup immediately after sign-in must use the newly issued token.
+      const pending = res.getHeader('set-cookie') || []
+      const pairs = [
+        ...(req.headers.cookie || '').split(';'),
+        ...(Array.isArray(pending) ? pending : [pending]).map(cookie => cookie.split(';')[0]),
+      ]
+      const cookies = new Map()
+      for (const pair of pairs) {
+        const separator = pair.indexOf('=')
+        if (separator > 0) cookies.set(pair.slice(0, separator).trim(), pair.slice(separator + 1).trim())
+      }
+      return [...cookies].map(([name, value]) => `${name}=${value}`).join('; ')
+    },
     // Neon uses Set-Cookie seconds; Express res.cookie expects milliseconds.
     setCookie: (name, value, options) => res.cookie(name, value, {
       ...options,

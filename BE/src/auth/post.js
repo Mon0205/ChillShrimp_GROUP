@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma.js'
 import { createHttpError, sendData } from '../utils/http.js'
 import { neonAuth } from './client.js'
 import { withAuthContext } from './context.js'
-import { createAccessSession, destroyAccessSession } from './session.js'
+import { readNeonSession } from './get.js'
 import { accountAccess } from './access.js'
 
 const validEmail = (value) => typeof value === 'string' && /^\S+@\S+\.\S+$/.test(value)
@@ -18,13 +18,14 @@ export async function login(req, res) {
   const user = await prisma.user.findUnique({ where: { id: data.user.id }, select: { id: true, email: true, displayName: true } })
   if (!user) throw createHttpError(403, 'Tài khoản chưa được cấp quyền vào hệ thống.')
   const permissions = await accountAccess(user)
-  const accessSession = await createAccessSession(user.id, res)
+  const session = await readNeonSession(req, res)
+  if (session.user.id !== user.id) throw createHttpError(401, 'Phiên đăng nhập không hợp lệ.')
   Object.assign(user, permissions)
-  return sendData(res, { user: { ...user, sessionExpiresAt: accessSession.expiresAt } })
+  return sendData(res, { user: { ...user, sessionExpiresAt: session.sessionExpiresAt } })
 }
 
 export async function logout(req, res) {
-  await destroyAccessSession(req, res)
-  await withAuthContext(req, res, () => neonAuth.signOut())
+  const { error } = await withAuthContext(req, res, () => neonAuth.signOut())
+  if (error) throw createHttpError(503, 'Tạm thời không thể đăng xuất. Vui lòng thử lại.')
   return sendData(res, { signedOut: true })
 }
