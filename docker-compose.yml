@@ -13,6 +13,7 @@ services:
     environment:
       WATCHFILES_FORCE_POLLING: "true"
       MODEL_PATH: /app/models/best.pt
+      MODEL_VERSION: v8_yolo26s_seed0
       CLOUDINARY_INSPECTION_FOLDER: chillshrimp/ai-inspections/originals
     ports:
       - "127.0.0.1:8001:8001"
