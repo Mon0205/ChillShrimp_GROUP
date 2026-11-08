@@ -1,132 +1,102 @@
-# Kiến trúc hiện tại
+# Kiến trúc hệ thống
 
-## Sơ đồ kiến trúc hệ thống
+Tài liệu tổng hợp thành phần, cách tổ chức backend, ranh giới dữ liệu và cách triển khai. Quy tắc chi tiết từng nghiệp vụ nằm trong [WORKFLOWS.md](../05-business-domain/WORKFLOWS.md).
 
-Sơ đồ dưới đây mô tả kiến trúc Client–Server đang được sử dụng. Nét liền là thành phần/kết nối đã có trong codebase; nét đứt là thành phần được quy hoạch nhưng chưa tích hợp vào phiên bản hiện tại.
+## 1. Thành phần và luồng xử lý
 
 ```mermaid
 flowchart LR
-    user["Người dùng\nOWNER · AREA_MANAGER\nTECHNICIAN · WAREHOUSE_STAFF"]
-    browser["Web Browser"]
-
-    subgraph compose["Docker Compose"]
-        subgraph frontend["Frontend container"]
-            nginx["Nginx\nStatic files + reverse proxy /api"]
-        end
-
-        subgraph backend["Backend container"]
-            express["Node.js 22 + Express.js\nREST API"]
-            authz["Auth + Session + RBAC\nNeon Auth + HttpOnly cookie"]
-            prisma["Prisma ORM\nPrisma Migrate"]
-        end
-    end
-
-    subgraph external["Dịch vụ và dữ liệu bên ngoài"]
-        neonAuth["Neon Auth\nDanh tính email/mật khẩu"]
-        postgres["Neon PostgreSQL\nusers · farms · areas · memberships"]
-        smtp["Gmail SMTP\nGửi email lời mời"]
-        ai["AI Service\nPhân tích ảnh (dự kiến)"]
-        storage["Object Storage\nLưu ảnh private (dự kiến)"]
-    end
-
-    user --> browser
-    browser -->|HTTPS / HTTP| nginx
-    nginx -->|REST /api| express
-    express --> authz
-    authz -->|Xác thực danh tính| neonAuth
-    authz -->|Đọc session, membership và RBAC| prisma
-    prisma -->|SQL| postgres
-    express -->|Gửi lời mời| smtp
-    express -.->|Analysis job| ai
-    express -.->|Signed URL / media| storage
-
-    classDef client fill:#E8F4FB,stroke:#2479A8,color:#163B52,stroke-width:1px;
-    classDef runtime fill:#E8F5F0,stroke:#087F6E,color:#174B43,stroke-width:1px;
-    classDef data fill:#FFF4DD,stroke:#B7791F,color:#5B4215,stroke-width:1px;
-    classDef planned fill:#F2F3F4,stroke:#7B8583,color:#4D5654,stroke-dasharray:5 5;
-
-    class user,browser client;
-    class nginx,express,authz,prisma runtime;
-    class neonAuth,postgres,smtp data;
-    class ai,storage planned;
+    browser[Trình duyệt] --> fe[Vue 3 · Vuetify · Vue Router]
+    fe -->|REST /api · cookie| be[Node.js · Express]
+    be --> auth[Neon Auth]
+    be --> prisma[Prisma ORM]
+    prisma --> db[Neon PostgreSQL]
+    be --> mail[SMTP]
+    be --> ai[AI_SERVICE]
+    be --> media[Cloudinary]
 ```
 
-### Luồng xử lý chính
+- `FE/`: giao diện Vue, Vite, Vuetify; gọi API với cookie phiên, quản lý trại đang chọn trong farm context.
+- `BE/`: xác thực, kiểm tra quyền/phạm vi, xử lý nghiệp vụ và truy vấn dữ liệu.
+- `AI_SERVICE/`: dịch vụ phân tích ảnh riêng; backend gọi qua `AI_SERVICE_URL`.
+- Neon Auth quản lý danh tính và phiên đăng nhập. Prisma quản lý truy cập schema ứng dụng trong PostgreSQL.
+- SMTP phục vụ email; Cloudinary phục vụ media theo cấu hình của từng dịch vụ.
 
-1. Người dùng truy cập giao diện web thông qua trình duyệt.
-2. Nginx phục vụ frontend và chuyển các request `/api` đến Express.
-3. Express xác thực danh tính qua Neon Auth, sau đó kiểm tra session ứng dụng trong `access_sessions`.
-4. Middleware tải membership theo `(farm_id, user_id)` để kiểm tra role, trạng thái và phạm vi khu vực.
-5. Prisma thực hiện truy vấn đến Neon PostgreSQL; mọi dữ liệu nghiệp vụ phải được giới hạn theo farm/khu vực.
-6. Express sử dụng Gmail SMTP để gửi lời mời thành viên.
-7. AI Service và Object Storage mới là hướng tích hợp tiếp theo, chưa phải thành phần đang chạy trong MVP.
+Frontend không giữ `DATABASE_URL`, khóa SMTP hoặc bí mật của dịch vụ ngoài. Cấu hình mẫu xem `FE/.env.example`, `BE/.env.example` và `AI_SERVICE/.env.example` trong repository.
 
-### Sơ đồ triển khai tối giản
+## 2. Tổ chức backend theo nghiệp vụ
 
-```mermaid
-flowchart TB
-    browser["Browser"]
-    subgraph docker["Docker Compose"]
-        fe["frontend\nNginx :80"]
-        be["backend\nExpress :8000\nhealthcheck /api/health"]
-    end
-    db["Neon PostgreSQL"]
-    auth["Neon Auth"]
-    mail["SMTP"]
-
-    browser -->|localhost:5173| fe
-    fe -->|/api| be
-    be --> db
-    be --> auth
-    be --> mail
-    fe -.depends_on: service_healthy.-> be
+```text
+BE/src/
+├── routes/<domain>/<feature>/
+│   ├── index.js
+│   └── get.js / post.js / patch.js / delete.js
+├── controllers/<domain>/<feature>/
+│   ├── index.js
+│   └── get.js / post.js / patch.js / delete.js
+├── services/<domain>/<feature>.service.js
+├── config/
+├── middlewares/
+└── utils/
 ```
 
-> Đây là quyết định kiến trúc chuẩn của ChillShrimp: hệ thống vận hành theo mô hình **multi-farm**; danh tính nằm ở `users`, còn role và trạng thái truy cập nằm ở `farm_members` theo từng trang trại.
+| Nhóm thư mục | Phạm vi |
+| --- | --- |
+| `auth` | Đăng nhập, phiên, truy cập tài khoản, OTP và mật khẩu |
+| `users` | Người dùng và phân công thành viên |
+| `farms` | Trang trại, khu vực, ao/bể |
+| `seed` | Lô giống, nhà cung cấp, kiểm định và lịch sử chất lượng |
+| `care` | Nhật ký chăm sóc, cho ăn, nước, xử lý và báo cáo |
+| `inventory` | Danh mục, yêu cầu và giao dịch vật tư |
+| `sales` | Khách hàng và đơn bán giống |
+| `environment` | Ngưỡng, cảnh báo, phân công xử lý và thông báo cá nhân |
+| `notifications` | Dịch vụ gửi email dùng chung trong lớp service |
 
-## 1. Các lớp hệ thống
+Luồng HTTP: **route → middleware → controller → service → Prisma/dịch vụ ngoài**.
 
-- Frontend `FE/`: Vue 3, Vite, Vuetify và Vue Router. Frontend chỉ gọi REST API, không giữ database URL, khóa SMTP hoặc bí mật xác thực.
-- Backend `BE/`: Node.js và Express. Backend xác thực qua Neon Auth, kiểm tra phiên ứng dụng trong `access_sessions`, thực thi RBAC và gọi Prisma.
-- Database: Neon PostgreSQL. Prisma schema và Prisma Migrate là nguồn quản lý cấu trúc dữ liệu.
-- Dịch vụ ngoài: SMTP gửi email; `AI_SERVICE` và object storage sẽ được tích hợp ở các giai đoạn nghiệp vụ sau.
+- Route khai báo URL và middleware. Trong từng chức năng, file theo phương thức HTTP chứa phần tương ứng; `index.js` ghép thành router và giữ đúng thứ tự middleware/endpoint.
+- Controller ánh xạ request sang dữ liệu đầu vào; trả JSON và mã HTTP. Handler được tách vào `get.js`, `post.js`, `put.js`, `patch.js`, `delete.js` theo phương thức thực tế; `index.js` xuất các handler để route sử dụng. Không tạo file cho phương thức chưa dùng.
+- Service nhận dữ liệu thuần như `farmId`, `actor`, `membership`, `input`, `filters`; xử lý quy tắc, phạm vi, transaction và khóa đồng thời. Không nhận Express `req`/`res`, không gửi HTTP response, không import controller.
+- `config/` khởi tạo client và cấu hình ngoài; Neon client nằm tại `config/neon-auth.js`.
+- `middlewares/` xử lý ngữ cảnh HTTP, xác thực, quyền và lỗi; cookie Neon đi qua `auth-context.js`.
+- `utils/` chứa validation và hàm dùng chung.
 
-## 2. Mô hình multi-farm và phân quyền
+Tên file mô tả ngắn chức năng, ví dụ `WaterParameters.vue`, `BatchForm.vue`, `useInventory.js`; tránh tên chung như `Params`, `Form`, `usePage`. Giữ `index.vue`/`index.js` làm file đầu mối của trang hoặc module, nơi ghép các thành phần liên quan. Giữ tên chuẩn do công cụ quy định như `main.js`, `server.js`, `Dockerfile`.
 
-- `users` là danh tính dùng chung toàn hệ thống, không chứa role toàn cục.
-- `farms` là tenant. Một tài khoản có thể tạo hoặc tham gia nhiều farm.
-- `farm_members` là nguồn duy nhất để xác định quyền nghiệp vụ, với khóa chính ghép `(farm_id, user_id)`.
-- Mỗi membership có đúng một `role`, một `status` và có thể có `area_id`. Cùng một user có thể giữ role khác nhau ở các farm khác nhau.
-- Năm role nghiệp vụ là `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`. Không có role `admin`, `manager`, `staff` hoặc `viewer` trong kiến trúc đã chốt.
-- `ADMIN_EMAIL` xác định tài khoản quản trị toàn hệ thống qua email của phiên đăng nhập đã xác thực. Tài khoản này được tạo trại và quản lý mọi trại với quyền tương đương owner mà không cần bản ghi `farm_members`; các tài khoản còn lại vẫn kiểm tra phân công theo từng trại. Trại ngừng hoạt động vẫn phải được kích hoạt trước khi thao tác nghiệp vụ.
-- `farms.created_by` chỉ dùng để truy vết người tạo. Về nguyên tắc, quyền Owner phải được lấy từ membership `active` của chính farm đang thao tác.
+Service giữ logic nghiệp vụ dùng chung, không tách theo phương thức HTTP. Các file cùng nghiệp vụ nằm trong cùng nhóm ở từng lớp. Khi gọi chéo nhóm, dùng đường dẫn import rõ ràng. Không tạo bản sao tương thích hoặc thư mục `src/auth/`, `src/users/` song song với cấu trúc này.
 
-## 3. Luồng xác thực và ủy quyền
+## 3. Trại, thành viên và phân quyền
 
-1. Neon Auth xác thực email/mật khẩu và duy trì cookie phiên.
-2. Backend đối chiếu user Neon Auth với `users`, sau đó kiểm tra phiên ứng dụng trong `access_sessions`.
-3. Frontend gửi `farmId` của farm đang chọn trong path, query hoặc body tùy endpoint.
-4. Backend tải `farm_members` bằng cặp `(farmId, userId)` và từ chối nếu không có membership hoặc `status = suspended`.
-5. Backend kiểm tra `role` và `area_id`, sau đó mới đọc/ghi dữ liệu thuộc farm tương ứng.
+- `users` là danh tính; `farms` là ranh giới dữ liệu trang trại.
+- `farm_members` xác định `role`, `status` và `area_id` của người dùng tại trại.
+- Năm vai trò: `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`.
+- Quản lý trại làm việc toàn trại được phân công; quản lý khu vực và kỹ thuật viên bị giới hạn thêm theo khu vực. Quyền cụ thể tiếp tục phụ thuộc nghiệp vụ.
+- `ADMIN_EMAIL` xác định tài khoản quản trị toàn hệ thống qua email đã xác thực; không thêm role `admin` vào membership.
+- Mọi thao tác phải xác minh trại, trạng thái truy cập và phạm vi trước khi đọc/ghi. Không tin role hoặc khu vực do frontend tự khai báo.
+- Dữ liệu nghiệp vụ phải có `farm_id` trực tiếp hoặc truy ngược chắc chắn về trại qua quan hệ cha.
 
-Mọi query nghiệp vụ phải có `farm_id` trực tiếp hoặc suy ra được farm qua quan hệ cha. Không được tin `role`, `area_id` hoặc `farm_id` do frontend tự khai báo nếu chưa đối chiếu với database.
+Mô hình dữ liệu có membership theo trại không có nghĩa mọi vai trò đều được tham gia nhiều trại. Chính sách nhiều trại/lời mời phải đối chiếu code, constraint và quyết định nghiệp vụ.
 
-## 4. Luồng lời mời theo kiến trúc đích
+## 4. Chạy cục bộ và triển khai
 
-Owner chọn farm, email, role và khu vực nếu cần. Backend tạo `farm_invitations`; khi người nhận chấp nhận, hệ thống tạo thêm một dòng `farm_members` mà không thay đổi membership của họ tại các farm khác. User mới đăng ký Neon Auth, còn user đã tồn tại phải đăng nhập đúng tài khoản trước khi nhận thêm farm.
+Từ thư mục gốc, sau khi cấu hình môi trường:
 
-## 5. Trạng thái hiện thực và khoảng cách còn lại
+```bash
+docker compose up --build
+```
 
-Schema Prisma đã có `users`, `farms`, `areas`, `farm_members`, `farm_invitations`, `access_sessions` và `password_reset_otp_windows`. Giao diện đã có farm context và có thể chọn giữa các membership được API trả về.
+`docker-compose.yml` chứa cấu hình phát triển: frontend chạy Vite tại `http://localhost:5173`, backend chạy nodemon tại cổng `8000`, AI chạy tại cổng `8001`. Các thư mục mã nguồn được mount để tự nạp khi sửa. Backend chạy migration deploy trước khi khởi động trong cấu hình này.
 
-Các điểm sau chưa khớp hoàn toàn với kiến trúc đã chốt:
+Sau lần build đầu, chạy `docker compose up` để khởi động. File Compose này dùng cho phát triển; frontend chạy Vite. Dockerfile frontend vẫn có các bước build và phục vụ qua Nginx để dùng khi triển khai. Backend có healthcheck `/api/health`. Database dùng Neon PostgreSQL bên ngoài, không tạo container PostgreSQL.
 
-- Migration đã áp dụng `20260902_004_enforce_single_farm_non_owner` còn giới hạn role không phải Owner ở một farm.
-- API tạo lời mời hiện từ chối email đã tồn tại, nên chưa có luồng thêm một user hiện hữu vào farm thứ hai.
-- Farm selector trên giao diện hiện chỉ hiển thị khi user là Owner của ít nhất một farm, chưa phù hợp với user có nhiều membership nhưng không giữ role Owner.
-- API xóa farm hiện kiểm tra `farms.created_by` thay vì middleware Owner theo `farm_members`.
-- Các bảng nghiệp vụ chuyên ngành và `ponds_tanks.area_id` vẫn thuộc lộ trình triển khai.
+Có thể triển khai frontend lên Vercel và backend lên Render khi cấu hình đúng URL API, CORS, cookie và biến môi trường. Đây là phương án triển khai, không phải xác nhận hệ thống đã được deploy lên các nền tảng này. Đặt `VITE_API_URL` khi build frontend; giữ database và secret tại backend. AI là dịch vụ riêng mà backend phải truy cập được.
 
-Theo yêu cầu hiện tại, không sửa hoặc thêm migration. Khi được triển khai sau này, phải tạo migration hiệu chỉnh mới; không sửa migration đã chạy trên Neon.
+Trong môi trường backend chạy ngoài Compose, các lệnh chuẩn trong `BE/` là:
 
-Quyền `farm_manager` (Quản lý trại) quản lý toàn bộ khu vực, ao/bể, nghiệp vụ và người dùng thuộc đúng trại được phân công. Không có quyền toàn hệ thống, tạo trại mới hay cấp quyền `owner`; không cần `area_id`. Tài khoản này vẫn chịu kiểm tra trạng thái membership/trại và giới hạn một trại tại database.
+```bash
+npm run prisma:generate
+npm run migrate:deploy
+npm start
+```
+
+`prisma:generate` tạo Prisma Client; `migrate:deploy` áp dụng migration chưa chạy; `start` khởi động API. Không sửa migration đã triển khai. Schema hiện hành xem [schema.prisma](../../BE/prisma/schema.prisma); hướng dẫn vận hành đầy đủ xem [README dự án](../../README.md).

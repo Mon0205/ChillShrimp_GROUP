@@ -1,0 +1,102 @@
+import { Prisma } from '@prisma/client'
+import { prisma } from '../../config/prisma.js'
+import { createHttpError } from '../../utils/http.js'
+import { parseFeedingReportFilters } from '../../utils/feeding-report.validation.js'
+
+function decimalString(value) {
+  return value === null || value === undefined ? null : value.toString()
+}
+
+function reportWhere(operation, filters) {
+  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) {
+    throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  }
+  const conditions = [
+    Prisma.sql`t."farm_id" = CAST(${operation.farmId} AS UUID)`,
+    Prisma.sql`l."feeding_time" >= CAST(${filters.from} AS TIMESTAMPTZ)`,
+    Prisma.sql`l."feeding_time" <= CAST(${filters.to} AS TIMESTAMPTZ)`,
+  ]
+  if (!['owner', 'farm_manager'].includes(operation.membership.role)) conditions.push(Prisma.sql`t."area_id" = CAST(${operation.membership.areaId} AS UUID)`)
+  if (filters.tankId) conditions.push(Prisma.sql`t."id" = CAST(${filters.tankId} AS UUID)`)
+  return Prisma.join(conditions, ' AND ')
+}
+
+export async function getFeedingReport(operation) {
+  let filters
+  try {
+    filters = parseFeedingReportFilters(operation.filters)
+  } catch (error) {
+    throw createHttpError(400, error.message)
+  }
+  const where = reportWhere(operation, filters)
+
+  const [unitRows, tankRows, dailyRows, recentRows] = await prisma.$transaction([
+    prisma.$queryRaw(Prisma.sql`
+      SELECT l."unit",
+        SUM(l."amount") AS "actualAmount",
+        COUNT(*)::integer AS "feedingCount"
+      FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
+      WHERE ${where}
+      GROUP BY l."unit" ORDER BY l."unit"
+    `),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT t."id" AS "tankId", t."code" AS "tankCode", t."name" AS "tankName", l."unit",
+        SUM(l."amount") AS "actualAmount",
+        COUNT(*)::integer AS "feedingCount"
+      FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
+      WHERE ${where}
+      GROUP BY t."id", t."code", t."name", l."unit"
+      ORDER BY t."code", l."unit"
+    `),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT TO_CHAR(DATE_TRUNC('day', l."feeding_time" AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD') AS "date",
+        l."unit", SUM(l."amount") AS "actualAmount", COUNT(*)::integer AS "feedingCount"
+      FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
+      WHERE ${where}
+      GROUP BY DATE_TRUNC('day', l."feeding_time" AT TIME ZONE 'Asia/Ho_Chi_Minh'), l."unit"
+      ORDER BY DATE_TRUNC('day', l."feeding_time" AT TIME ZONE 'Asia/Ho_Chi_Minh'), l."unit"
+    `),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT l."id", l."feeding_time" AS "feedingTime", l."feed_name" AS "feedName",
+        l."amount", l."unit",
+        l."feed_check_status" AS "feedCheckStatus", t."code" AS "tankCode", t."name" AS "tankName"
+      FROM "feeding_logs" l JOIN "ponds_tanks" t ON t."id" = l."tank_id"
+      WHERE ${where}
+      ORDER BY l."feeding_time" DESC, l."created_at" DESC LIMIT 12
+    `),
+  ])
+
+  const summary = unitRows.map((row) => ({
+    unit: row.unit,
+    actualAmount: decimalString(row.actualAmount) || '0',
+    feedingCount: row.feedingCount,
+  }))
+  const byTank = tankRows.map((row) => ({
+    tankId: row.tankId,
+    tankCode: row.tankCode,
+    tankName: row.tankName,
+    unit: row.unit,
+    actualAmount: decimalString(row.actualAmount) || '0',
+    feedingCount: row.feedingCount,
+  }))
+  const daily = dailyRows.map((row) => ({
+    date: row.date,
+    unit: row.unit,
+    actualAmount: decimalString(row.actualAmount) || '0',
+    feedingCount: row.feedingCount,
+  }))
+  const recent = recentRows.map((row) => ({
+    ...row,
+    amount: decimalString(row.amount),
+  }))
+
+  return {
+    range: { from: filters.from.toISOString(), to: filters.to.toISOString() },
+    filters: { tankId: filters.tankId },
+    totalFeedings: summary.reduce((total, row) => total + row.feedingCount, 0),
+    amountsByUnit: summary,
+    byTank,
+    daily,
+    recent,
+  }
+}

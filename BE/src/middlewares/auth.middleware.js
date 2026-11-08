@@ -1,11 +1,12 @@
-import { prisma } from '../config/prisma.js'
+import { withAuthContext } from './auth-context.js'
+import * as membershipService from '../services/users/membership.service.js'
 import { createHttpError } from '../utils/http.js'
-import { readNeonSession } from '../auth/get.js'
-import { accountAccess, isSystemAdmin } from '../auth/access.js'
+import { readNeonSession } from '../services/auth/auth.service.js'
+import { accountAccess } from '../services/auth/account-access.service.js'
 
 export async function requireAuth(req, res, next) {
   try {
-    const session = await readNeonSession(req, res)
+    const session = await withAuthContext(req, res, () => readNeonSession())
     await accountAccess(session.user)
     req.auth = { id: session.user.id, email: session.user.email }
     next()
@@ -17,19 +18,7 @@ async function loadMembership(req, { allowArchivedFarm = false } = {}) {
   if (ids.some(value => typeof value !== 'string') || new Set(ids).size > 1) throw createHttpError(400, 'Mã trại không hợp lệ hoặc không nhất quán.')
   const farmId = ids[0]
   if (!farmId) throw createHttpError(400, 'Thiếu mã trại.')
-  const admin = isSystemAdmin(req.auth)
-  const farm = admin ? await prisma.farm.findUnique({ where: { id: farmId }, select: { status: true } }) : null
-  if (admin && !farm) throw createHttpError(404, 'Không tìm thấy trang trại.')
-  const membership = admin ? { farmId, userId: req.auth.id, role: 'owner', status: 'active', areaId: null, farm } : await prisma.farmMember.findUnique({
-    where: { farmId_userId: { farmId, userId: req.auth.id } },
-    include: { farm: { select: { status: true } } },
-  })
-  if (!membership) throw createHttpError(403, 'Bạn không thuộc trại này.')
-  if (membership.status === 'suspended') throw createHttpError(403, 'Tài khoản của bạn đã bị ngưng sử dụng tại trại này.')
-  if (!allowArchivedFarm && ['inactive', 'archived'].includes(membership.farm.status)) {
-    throw createHttpError(409, 'Trang trại đã ngừng hoạt động. Hãy kích hoạt lại trang trại trước khi tiếp tục.')
-  }
-  return membership
+  return membershipService.loadMembership({ farmId, actor: req.auth, allowArchivedFarm })
 }
 
 export async function requireFarmMember(req, _res, next) {

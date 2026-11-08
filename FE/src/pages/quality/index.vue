@@ -3,13 +3,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 import AppShell from '../../components/shell/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import Pagination from '../../components/pagination/index.vue'
-import DateRange from '../care/components/Date.vue'
-import Inspection from '../seed-batches/components/Inspection.vue'
-import { usePage } from '../seed-batches/composables/usePage.js'
+import DateRange from '../care/components/DateRange.vue'
+import Inspection from '../seed-batches/components/BatchInspection.vue'
+import { useSeedBatches } from '../seed-batches/composables/useSeedBatches.js'
 import { api } from '../../services/api.js'
 import { showToast } from '../../composables/toast.js'
 
-const model = usePage()
+const model = useSeedBatches()
 const { farmId, canView, inspectionDialog, openInspectionUpload, selectedAiInspection, aiInspections, aiInspectionStatusNames, formatTimestamp, formatInspectionValue } = model
 const batchId = ref(''), tankId = ref('')
 const dates = ref({ from: '', to: '' })

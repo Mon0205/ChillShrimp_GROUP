@@ -1,5 +1,7 @@
 # Ý nghĩa từng bảng và field — ChillShrimp
 
+> Phạm vi: bản thiết kế ngày 25/10/2026; số bảng/cột và ghi chú triển khai bên dưới thuộc mốc này. Các phần bổ sung cảnh báo, phân công, thông báo cá nhân và bán giống được mô tả tại [nghiệp vụ cảnh báo và bán giống](../05-business-domain/ALERTS-AND-SALES.md). Khi tra cứu cấu trúc hiện hành, ưu tiên [schema.prisma](../../BE/prisma/schema.prisma); trạng thái DB phải kiểm tra bằng `npm run migrate:status` trong `BE/`.
+
 Nguồn: [schema.prisma](../../BE/prisma/schema.prisma). Thiết kế chốt ngày 25/10/2026: **19 bảng ứng dụng, 218 cột vật lý**. Đây là schema trong repo; chưa áp dụng migration xóa dữ liệu lên DB đang chạy.
 
 PK = khóa chính; FK = khóa ngoại; UNIQUE = không trùng. NULL nghĩa là cho phép để trống. Thuộc tính quan hệ ORM không phải cột vật lý. Đơn vị các chỉ tiêu nước phải thống nhất giữa nhập liệu và cấu hình ngưỡng.

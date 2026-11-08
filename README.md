@@ -2,6 +2,17 @@
 
 Hệ thống quản lý trại tôm/cua giống.
 
+## Chạy Docker khi phát triển
+
+Tại thư mục gốc, chạy `docker compose up -d --build`, mở http://localhost:5173.
+Cấu hình phát triển nằm trong `docker-compose.yml`: sửa `FE/src` sẽ cập nhật giao diện;
+sửa `BE/src` hoặc `AI_SERVICE/app` sẽ tự khởi động lại service tương ứng.
+Polling hỗ trợ thư mục Windows qua Docker Desktop. Dependencies được cài trong
+image Linux, không dùng `node_modules` trên máy. Khi sửa dependencies, Dockerfile
+hoặc biến môi trường, chạy lại lệnh trên. Backend vẫn tự chạy migration lúc khởi động.
+
+Sau lần build đầu tiên, chỉ cần `docker compose up` để chạy. File Compose này dùng cho phát triển với tính năng tự nạp code; frontend bản build vẫn có trong Dockerfile để dùng khi triển khai.
+
 - Frontend: Vue 3, Vuetify, Vite
 - Backend: Node.js, Express, Neon Auth session
 - ORM: Prisma
@@ -16,9 +27,9 @@ Browser
   ▼
 ┌─────────────────────────────────────────────────────┐
 │ Frontend container                                   │
-│ Nginx + Vue 3 + Vuetify (image: chillshrimp-frontend)│
+│ Vite + Vue 3 + Vuetify (image: chillshrimp-frontend) │
 └───────────────────┬─────────────────────────────────┘
-                    │ /api  (Nginx reverse proxy)
+                    │ /api  (Vite proxy khi phát triển)
                     ▼
 ┌─────────────────────────────────────────────────────┐
 │ Backend container                                    │
@@ -47,12 +58,11 @@ ChillShrimp_GROUP/
 │   └── nginx.conf                    # Proxy /api sang backend
 ├── BE/                              # Node.js / Express API
 │   ├── src/
-│   │   ├── config/                   # Prisma Client
-│   │   ├── auth/                     # Neon Auth và phiên ứng dụng
-│   │   ├── controllers/              # Xử lý nghiệp vụ trại
+│   │   ├── config/                   # Prisma, Neon Auth và Cloudinary
+│   │   ├── controllers/              # Nhận/trả HTTP, chia theo nghiệp vụ
 │   │   ├── middlewares/              # Session, phân quyền trại, error handler
 │   │   ├── routes/                   # Khai báo endpoint
-│   │   ├── services/                 # SMTP email
+│   │   ├── services/                 # Nghiệp vụ, dữ liệu và dịch vụ ngoài
 │   │   ├── utils/                    # HTTP helper
 │   │   ├── app.js                    # Ghép middleware/routes
 │   │   └── server.js                 # Mở HTTP server port 8000
@@ -62,8 +72,8 @@ ChillShrimp_GROUP/
 │   │   └── seed-admin.js             # Tạo tài khoản bootstrap đầu tiên
 │   ├── Dockerfile                    # Express + Prisma image
 │   └── .env.example                  # Mẫu cấu hình bí mật
-├── AI_SERVICE/                       # Chỗ tích hợp AI sau này
-├── docker-compose.yml                # Chạy FE + BE cùng nhau
+├── AI_SERVICE/                       # Phân tích ảnh tôm giống
+├── docker-compose.yml                # Chạy FE, BE và AI; tự nạp code
 └── README.md
 ```
 

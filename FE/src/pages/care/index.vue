@@ -2,18 +2,18 @@
 import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import FeedingLogsPage from './components/Feed.vue'
-import WaterChangeLogsPage from './components/Water.vue'
-import WaterParameterLogsPage from './components/Params.vue'
-import EnvironmentThresholdsPage from './components/Limits.vue'
-import TreatmentLogsPage from './components/Treatment.vue'
+import FeedingLogsPage from './components/FeedingLogs.vue'
+import WaterChangeLogsPage from './components/WaterChanges.vue'
+import WaterParameterLogsPage from './components/WaterParameters.vue'
+import EnvironmentThresholdsPage from './components/WaterThresholds.vue'
+import TreatmentLogsPage from './components/TreatmentLogs.vue'
 import { loadFarmContext, selectFarm, useFarmContext } from '../../composables/farm-context.js'
 import { api } from '../../services/api.js'
 
 const route = useRoute()
 const router = useRouter()
 const farmContext = useFarmContext()
-const tankId = ref('')
+const tankId = ref(typeof route.query.tankId === 'string' ? route.query.tankId : '')
 const tanks = ref([])
 const tankSelectWidth = computed(() => Math.min(320, Math.max(150, (tanks.value.find(tank => tank.id === tankId.value)?.name?.length || 5) * 8 + 90)))
 const loadingTanks = ref(false)
@@ -50,6 +50,7 @@ async function loadTanks() {
     if (request === tankRequest) loadingTanks.value = false
   }
 }
+watch(() => route.query.tankId, id => { tankId.value = typeof id === 'string' ? id : '' })
 watch([farmId, canView], () => { tankId.value = ''; loadTanks() })
 onMounted(async () => {
   try { await loadFarmContext(); await loadTanks() }

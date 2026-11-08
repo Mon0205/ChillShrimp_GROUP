@@ -22,6 +22,16 @@ enum InvitationStatus {
 }
 
 model User {
+  alertAssignmentNotifications AlertAssignmentNotification[]
+  alertsResponsible AlertNotification[] @relation("AlertResponsible")
+  alertsAssigned AlertNotification[] @relation("AlertAssigner")
+  salesOrdersCreated SalesOrder[] @relation("SalesOrderCreator")
+  salesOrdersConfirmed SalesOrder[] @relation("SalesOrderConfirmer")
+  salesOrdersCancelled SalesOrder[] @relation("SalesOrderCanceller")
+  salesDeliveries SalesDelivery[]
+  salesPayments SalesPayment[]
+  alertReads          AlertRead[]
+  alertsHandled       AlertNotification[] @relation("AlertHandler")
   supplyRequestsProcessed InventorySupplyRequest[] @relation("SupplyRequestProcessor")
   id                  String           @id
   email               String           @unique
@@ -50,6 +60,9 @@ model User {
 }
 
 model Farm {
+  alertAssignmentNotifications AlertAssignmentNotification[]
+  customers Customer[]
+  salesOrders SalesOrder[]
   id            String           @id @default(uuid()) @db.Uuid
   code          String           @unique
   name          String
@@ -238,6 +251,16 @@ model EnvironmentThreshold {
 }
 
 model AlertNotification {
+  assignmentNotifications AlertAssignmentNotification[]
+  responsibleUserId String? @map("responsible_user_id")
+  assignedBy String? @map("assigned_by")
+  assignedAt DateTime? @map("assigned_at") @db.Timestamptz(6)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+  assignmentVersion Int @default(0) @map("assignment_version")
+  responsibleUser User? @relation("AlertResponsible", fields: [responsibleUserId], references: [id], onDelete: Restrict)
+  assigner User? @relation("AlertAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
+  @@index([responsibleUserId, status])
+  @@index([assignedBy])
   id            String   @id @default(uuid()) @db.Uuid
   farmId        String   @map("farm_id") @db.Uuid
   batchId       String?  @map("batch_id") @db.Uuid
@@ -251,6 +274,12 @@ model AlertNotification {
   title         String   @db.VarChar(150)
   message       String
   isRead        Boolean  @default(false) @map("is_read")
+  status        String   @default("open") @db.VarChar(20)
+  handlingNotes String?  @map("handling_notes")
+  handledBy     String?  @map("handled_by")
+  handledAt     DateTime? @map("handled_at") @db.Timestamptz(6)
+  reads         AlertRead[]
+  handler       User? @relation("AlertHandler", fields: [handledBy], references: [id], onDelete: Restrict)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   farm      Farm                  @relation(fields: [farmId], references: [id], onDelete: Cascade)
@@ -262,7 +291,21 @@ model AlertNotification {
   @@unique([sourceLogId, parameterCode])
   @@index([farmId, alertType, createdAt])
   @@index([tankId, createdAt])
+  @@index([handledBy])
+  @@index([farmId, status, createdAt])
   @@map("alerts_notifications")
+}
+
+model AlertRead {
+  alertId String @map("alert_id") @db.Uuid
+  userId  String @map("user_id")
+  readAt  DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+  alert   AlertNotification @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([alertId, userId])
+  @@index([userId])
+  @@map("alert_reads")
 }
 
 model TreatmentLog {
@@ -381,6 +424,8 @@ model SeedSupplier {
 }
 
 model SeedBatch {
+  reservedQuantity Int @default(0) @map("reserved_quantity")
+  salesItems SalesOrderItem[]
   id                       String    @id @default(uuid()) @db.Uuid
   tankId                   String    @map("tank_id") @db.Uuid
   supplierId               String?   @map("supplier_id") @db.Uuid
@@ -487,4 +532,132 @@ model PasswordResetOtpWindow {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("password_reset_otp_windows")
+}
+
+model Customer {
+  id String @id @default(uuid()) @db.Uuid
+  farmId String @map("farm_id") @db.Uuid
+  name String @db.VarChar(150)
+  phone String? @db.VarChar(30)
+  address String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Restrict)
+  orders SalesOrder[]
+  @@index([farmId, name])
+  @@map("customers")
+}
+
+model SalesOrder {
+  id String @id @default(uuid()) @db.Uuid
+  farmId String @map("farm_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+  orderCode String @unique @map("order_code") @db.VarChar(60)
+  status String @default("draft") @db.VarChar(30)
+  customerName String @map("customer_name") @db.VarChar(150)
+  customerPhone String? @map("customer_phone") @db.VarChar(30)
+  deliveryAddress String? @map("delivery_address")
+  expectedDeliveryDate DateTime? @map("expected_delivery_date") @db.Date
+  notes String?
+  totalAmount Decimal @map("total_amount") @db.Decimal(18,2)
+  createdBy String @map("created_by")
+  confirmedBy String? @map("confirmed_by")
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  cancelledBy String? @map("cancelled_by")
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancellationReason String? @map("cancellation_reason")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  creator User @relation("SalesOrderCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  confirmer User? @relation("SalesOrderConfirmer", fields: [confirmedBy], references: [id], onDelete: Restrict)
+  canceller User? @relation("SalesOrderCanceller", fields: [cancelledBy], references: [id], onDelete: Restrict)
+  items SalesOrderItem[]
+  deliveries SalesDelivery[]
+  payments SalesPayment[]
+  @@index([farmId, status, createdAt])
+  @@index([customerId])
+  @@index([createdBy])
+  @@index([confirmedBy])
+  @@index([cancelledBy])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @map("order_id") @db.Uuid
+  batchId String @map("batch_id") @db.Uuid
+  quantity Int
+  deliveredQuantity Int @default(0) @map("delivered_quantity")
+  unitPrice Decimal @map("unit_price") @db.Decimal(18,2)
+  lineTotal Decimal @map("line_total") @db.Decimal(18,2)
+  order SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batch SeedBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  deliveryItems SalesDeliveryItem[]
+  @@unique([orderId, batchId])
+  @@index([batchId])
+  @@map("sales_order_items")
+}
+
+model SalesDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @map("order_id") @db.Uuid
+  idempotencyKey String @unique @map("idempotency_key") @db.Uuid
+  requestPayload Json @map("request_payload") @db.JsonB
+  notes String?
+  createdBy String @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order SalesOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  items SalesDeliveryItem[]
+  @@index([orderId, createdAt])
+  @@index([createdBy])
+  @@map("sales_deliveries")
+}
+
+model SalesDeliveryItem {
+  id String @id @default(uuid()) @db.Uuid
+  deliveryId String @map("delivery_id") @db.Uuid
+  orderItemId String @map("order_item_id") @db.Uuid
+  quantity Int
+  delivery SalesDelivery @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+  orderItem SalesOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  @@unique([deliveryId, orderItemId])
+  @@index([orderItemId])
+  @@map("sales_delivery_items")
+}
+
+model SalesPayment {
+  id String @id @default(uuid()) @db.Uuid
+  orderId String @map("order_id") @db.Uuid
+  idempotencyKey String @unique @map("idempotency_key") @db.Uuid
+  requestPayload Json @map("request_payload") @db.JsonB
+  amount Decimal @db.Decimal(18,2)
+  method String @db.VarChar(30)
+  notes String?
+  createdBy String @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order SalesOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  @@index([orderId, createdAt])
+  @@index([createdBy])
+  @@map("sales_payments")
+}
+
+model AlertAssignmentNotification {
+  id String @id @default(uuid()) @db.Uuid
+  farmId String @map("farm_id") @db.Uuid
+  alertId String @map("alert_id") @db.Uuid
+  recipientId String @map("recipient_id")
+  assignmentVersion Int @map("assignment_version")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt DateTime? @map("read_at") @db.Timestamptz(6)
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  alert AlertNotification @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  @@unique([alertId, recipientId, assignmentVersion], map: "alert_assignment_notification_event_key")
+  @@index([farmId, recipientId, createdAt], map: "alert_assignment_notification_inbox_idx")
+  @@index([recipientId, readAt], map: "alert_assignment_notification_unread_idx")
+  @@map("alert_assignment_notifications")
 }

@@ -1,5 +1,7 @@
 # Sơ đồ cơ sở dữ liệu
 
+> Phạm vi: bản thiết kế ngày 25/10/2026; số bảng/cột và ghi chú triển khai bên dưới thuộc mốc này. Các phần bổ sung cảnh báo, phân công, thông báo cá nhân và bán giống được mô tả tại [nghiệp vụ cảnh báo và bán giống](../05-business-domain/ALERTS-AND-SALES.md). Khi tra cứu cấu trúc hiện hành, ưu tiên [schema.prisma](../../BE/prisma/schema.prisma); trạng thái DB phải kiểm tra bằng `npm run migrate:status` trong `BE/`.
+
 Schema ứng dụng hiện tại: **19 bảng**. Nguồn: [schema.prisma](../../BE/prisma/schema.prisma). [Công dụng từng field](./DATABASE-FIELDS.md). Chưa xác nhận migration trên DB đang chạy.
 
 ```mermaid

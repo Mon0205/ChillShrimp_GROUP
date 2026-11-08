@@ -1,0 +1,24 @@
+import { Router } from 'express'
+import { requireAuth, requireEnvironmentThresholdViewer } from '../../../middlewares/auth.middleware.js'
+import { registerListEnvironmentThresholds, registerListAlertAssignmentNotifications, registerListEnvironmentalAlerts, registerGetEnvironmentalAlert, registerListEnvironmentalAlertAssignees } from './get.js'
+import { registerMarkAlertAssignmentNotificationRead, registerMarkEnvironmentalAlertRead, registerAssignEnvironmentalAlert, registerUpdateEnvironmentalAlertStatus, registerUpdateEnvironmentThreshold, registerSetEnvironmentThresholdStatus } from './patch.js'
+import { registerClaimEnvironmentalAlert, registerCreateEnvironmentThreshold, registerApproveEnvironmentThreshold } from './post.js'
+
+export const environmentThresholdRouter = Router({ mergeParams: true })
+environmentThresholdRouter.use(requireAuth, requireEnvironmentThresholdViewer)
+registerListEnvironmentThresholds(environmentThresholdRouter)
+registerListAlertAssignmentNotifications(environmentThresholdRouter)
+registerMarkAlertAssignmentNotificationRead(environmentThresholdRouter)
+
+registerListEnvironmentalAlerts(environmentThresholdRouter)
+registerGetEnvironmentalAlert(environmentThresholdRouter)
+registerMarkEnvironmentalAlertRead(environmentThresholdRouter)
+registerListEnvironmentalAlertAssignees(environmentThresholdRouter)
+registerAssignEnvironmentalAlert(environmentThresholdRouter)
+registerClaimEnvironmentalAlert(environmentThresholdRouter)
+
+registerUpdateEnvironmentalAlertStatus(environmentThresholdRouter)
+registerCreateEnvironmentThreshold(environmentThresholdRouter)
+registerUpdateEnvironmentThreshold(environmentThresholdRouter)
+registerApproveEnvironmentThreshold(environmentThresholdRouter)
+registerSetEnvironmentThresholdStatus(environmentThresholdRouter)

@@ -1,16 +1,16 @@
 export const ENVIRONMENT_PARAMETERS = {
-  temperature: { field: 'temperature', title: 'Temperature', defaultUnit: '°C' },
+  temperature: { field: 'temperature', title: 'Nhiệt độ', defaultUnit: '°C' },
   ph: { field: 'ph', title: 'pH', defaultUnit: '' },
-  salinity: { field: 'salinity', title: 'Salinity', defaultUnit: 'ppt' },
-  do: { field: 'dissolvedOxygen', title: 'Dissolved oxygen', defaultUnit: 'mg/L' },
+  salinity: { field: 'salinity', title: 'Độ mặn', defaultUnit: 'ppt' },
+  do: { field: 'dissolvedOxygen', title: 'Oxy hòa tan', defaultUnit: 'mg/L' },
   nh3: { field: 'nh3', title: 'NH3', defaultUnit: 'mg/L' },
   tan: { field: 'tan', title: 'TAN', defaultUnit: 'mg/L' },
   no2: { field: 'no2', title: 'NO2', defaultUnit: 'mg/L' },
-  nitrate: { field: 'nitrate', title: 'Nitrate', defaultUnit: 'mg/L' },
-  alkalinity: { field: 'alkalinity', title: 'Alkalinity', defaultUnit: 'mg/L CaCO3' },
+  nitrate: { field: 'nitrate', title: 'Nitrat', defaultUnit: 'mg/L' },
+  alkalinity: { field: 'alkalinity', title: 'Độ kiềm', defaultUnit: 'mg/L CaCO3' },
   h2s: { field: 'h2s', title: 'H2S', defaultUnit: 'ppm' },
-  turbidity: { field: 'turbidity', title: 'Turbidity', defaultUnit: 'NTU' },
-  water_level: { field: 'waterLevelM', title: 'Water level', defaultUnit: 'm' },
+  turbidity: { field: 'turbidity', title: 'Độ đục', defaultUnit: 'NTU' },
+  water_level: { field: 'waterLevelM', title: 'Mực nước', defaultUnit: 'm' },
 }
 
 const TANK_TYPES = new Set(['all', 'nursery_tank', 'pond', 'other'])

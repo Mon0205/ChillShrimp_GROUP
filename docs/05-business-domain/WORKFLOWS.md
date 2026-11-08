@@ -1,6 +1,6 @@
 # Workflow hiện tại — ChillShrimp
 
-Cập nhật ngày **09/10/2026**. Nội dung đối chiếu các route và chức năng hiện có trong mã nguồn. “Đã hiện thực” nghĩa là có triển khai trong code; không đồng nghĩa luồng đã được kiểm thử E2E thành công.
+Cập nhật phần bán giống ngày **07/11/2026**; các phần khác theo tài liệu ngày **09/10/2026**. Nội dung đối chiếu các route và chức năng hiện có trong mã nguồn. “Đã hiện thực” nghĩa là có triển khai trong code; không đồng nghĩa luồng đã được kiểm thử E2E thành công.
 
 Các mã `WF01`–`WF33` dưới đây dùng để tham chiếu workflow trong tài liệu này, không thay thế mã use case `UCxx`.
 
@@ -48,9 +48,9 @@ Trạng thái ao/bể hiện có: `empty`, `active`, `cleaning`, `inactive`. Bac
 | WF16 | Chuyển lô sang bể khác | Chọn bể đích empty → kiểm tra quyền và chuyển toàn bộ số lượng hiện tại → ghi transfer out/in → cập nhật bể của lô → nguồn empty, đích active. | Owner/Area Manager |
 | WF17 | Lấy mẫu tăng trưởng | Nhập cỡ mẫu, khối lượng, chiều dài và số lượng ước tính → tính chỉ số còn thiếu khi đủ dữ liệu → lưu mẫu → xem lịch sử. | Owner/Area Manager/Technician |
 | WF18 | Kiểm định chất lượng | Technician ghi kiểm định và bằng chứng → Owner/Area Manager duyệt confirmed hoặc action_required → nếu action_required thì xử lý và chuyển resolved. | Technician ghi; Owner/Area Manager duyệt |
-| WF19 | Cập nhật trạng thái lô | active → ready_for_sale → sold; hoặc active → failed/cancelled. Backend chặn chuyển trạng thái không được phép. | Owner/Area Manager |
+| WF19 | Cập nhật trạng thái lô | active → ready_for_sale; hoặc active → failed/cancelled. sold chỉ được ghi khi xuất bán hết lô. | Owner/Farm Manager/Area Manager |
 
-`WF19` chỉ cập nhật trạng thái lô. Chuyển sang `sold` chưa tạo giao dịch bán, khách hàng hoặc doanh thu. Hiện chức năng này chưa đồng bộ trạng thái ao/bể theo quy trình kết thúc; khác với nhánh số lượng về 0 ở `WF15`.
+`WF19` không còn cho chuyển `sold` trực tiếp. Quy trình [bán giống](./ALERTS-AND-SALES.md) ghi phiếu, giữ lượng, xuất giao và thanh toán; khi xuất hết lô thì tự chuyển `sold` và bể `cleaning`. Không được giảm số lượng ước tính xuống dưới lượng đang giữ cho phiếu bán.
 
 ## Chăm sóc và môi trường
 
@@ -108,20 +108,20 @@ Backend kiểm tra phiên, membership và phạm vi lô trước khi gọi AI Se
 | Phần còn lại | Liên quan | Trạng thái hiện tại |
 | --- | --- | --- |
 | Mời user đã tồn tại tham gia trại khác | WF06 / UC03.1 | API hiện từ chối email đã có tài khoản; multi-farm onboarding chưa hoàn tất. |
-| Đồng bộ bể khi kết thúc lô | WF19 / UC05.2 | Chức năng đổi trạng thái chỉ ghi batch; cần chốt và hiện thực quy trình bể empty/cleaning. |
+| Đồng bộ bể khi kết thúc lô | WF19 / UC05.2 | Xuất bán hết lô đã đồng bộ bể cleaning; các nhánh failed/cancelled khác cần đối chiếu riêng. |
 | Hiệu chỉnh số đếm thủ công | WF25–26 / UC06 | Chưa có API cập nhật manualCount dù UI hiển thị trường kết quả. |
 | Phục hồi tác vụ processing sau restart | WF25 / UC06.1 | Chưa có lease/deadline và cơ chế thu hồi tác vụ. |
 | Duyệt, xuất/cấp và hoàn tất request kho | WF28 / UC07.4 | Mới tạo/xem yêu cầu; chưa workflow xử lý yêu cầu. |
-| Chi phí, khách hàng, xuất bán và doanh thu | UC08.1–UC08.6 | Chưa có workflow nghiệp vụ đầy đủ; status sold chưa phải giao dịch bán. |
+| Chi phí và báo cáo tài chính tổng hợp | UC08.1–UC08.6 | Đã có khách hàng, phiếu bán, xuất giao và thu tiền; chưa có tổng hợp chi phí/lợi nhuận. Xem [ALERTS-AND-SALES.md](./ALERTS-AND-SALES.md). |
 | Notification/lịch sử cảnh báo kho và cảnh báo AI tự động | WF31 / UC09 | Kho hiện là flag/filter; không giả định đã có notification hoặc alert AI. |
 
 ## Workflow tích hợp để kiểm thử/demo
 
 **Tạo trại/khu vực → mời nhân viên → tạo bể → nhập kho → tiếp nhận lô → ghi chăm sóc/tăng trưởng → kiểm định/AI → xem cảnh báo và báo cáo → kết thúc lô.**
 
-Chạy trên staging với tài khoản test bốn vai trò, dữ liệu hai trại/hai khu vực và hộp thư test. Sau mỗi bước ghi dữ liệu, kiểm tra lại bản ghi, tồn kho và ledger liên quan; đối chiếu quyền Owner và nhân viên theo khu vực. Không trình bày bước kết thúc lô như quy trình bán giống hoàn chỉnh.
+Chạy trên staging với tài khoản test bốn vai trò, dữ liệu hai trại/hai khu vực và hộp thư test. Sau mỗi bước ghi dữ liệu, kiểm tra lại bản ghi, tồn kho và ledger liên quan; đối chiếu quyền Owner và nhân viên theo khu vực. Luồng bán giống đã có riêng tại [ALERTS-AND-SALES.md](./ALERTS-AND-SALES.md); thử trên staging trước triển khai thực tế.
 
-Bộ test case tham chiếu: [IMPLEMENTED-USECASE-TESTCASES.md](../07-testing/IMPLEMENTED-USECASE-TESTCASES.md). Các case mới đang ở trạng thái Not run; cần ghi kết quả thực tế khi thực thi.
+Dùng các bước trên để kiểm tra luồng tích hợp; ghi kết quả thực tế tại thời điểm thực thi. Không coi mô tả quy trình là bằng chứng kiểm thử đã đạt.
 
 ## Workflow thay đổi database
 
@@ -133,5 +133,5 @@ Không sửa migration đã áp dụng. Thay đổi cấu trúc database cần �
 
 - [USECASE.md](../04-use-cases/USECASE.md) và [USECASE-SPECIFICATION.md](../04-use-cases/USECASE-SPECIFICATION.md).
 - [app.js](../../BE/src/app.js), các route trong `BE/src/routes`, `BE/src/users` và `BE/src/auth`.
-- Các controller nghiệp vụ và [environment-threshold.service.js](../../BE/src/services/environment-threshold.service.js).
+- Các controller nghiệp vụ và [environment-threshold.service.js](../../BE/src/services/environment/environment-threshold.service.js).
 - [ARCHITECTURE.md](../02-architecture/ARCHITECTURE.md); tài liệu có thể còn mô tả kiến trúc đích, nên phạm vi workflow ở trên ưu tiên mã hiện tại.

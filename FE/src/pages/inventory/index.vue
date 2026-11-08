@@ -1,11 +1,12 @@
 <script setup>
+import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import { computed } from 'vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import AppShell from '../../components/shell/index.vue'
-import { usePage } from './composables/usePage.js'
+import { useInventory } from './composables/useInventory.js'
 
-const model = usePage()
+const model = useInventory()
 const { supplies, loading, listLoading, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, deletingSupply, farmId, canManage, pageCount, categoryOptions, categoryNames, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, openImportHistory, openAdjustment, openAdjustmentHistory, deleting, deleteSupply, saving, dialog, formRef, editingSupply, form, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, saveSupply, ref, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, requiredRule, importQuantityRule, importPriceRule, importDateRule, submitImport, formatDateTime, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, adjustmentQuantityRule, adjustmentDateRule, submitAdjustment } = model
 const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable":false},{"title":"Nhóm","key":"category","sortable":false},{"title":"Đơn vị","key":"unit","sortable":false},{"title":"Tồn hiện tại","key":"quantity","sortable":false},{"title":"Đơn giá","key":"unitPrice","sortable":false},{"title":"Ngưỡng cảnh báo","key":"minThreshold","sortable":false},{"title":"Thao tác","key":"actions","sortable":false,"align":"end"}].filter(header => canManage.value || header.key !== 'actions'))
 </script>
@@ -17,6 +18,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
       <header class="page-heading">
         <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-archive-outline" size="25" /></v-avatar><h1>Danh mục vật tư</h1></div>
       </header>
+      <InventoryTabs />
       <div class="page-actions list-actions">
           <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm vật tư</v-btn></div>
 

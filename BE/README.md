@@ -1,6 +1,6 @@
 # Backend – Express + Prisma + Neon
 
-Rà soát việc ưu tiên Neon Auth/Vuetify và các ngoại lệ nghiệp vụ: [báo cáo](../docs/neon-vuetify-audit.md).
+Kiến trúc hệ thống: [tài liệu kiến trúc](../docs/02-architecture/ARCHITECTURE.md).
 
 ## Kiểm thử đăng nhập, suspend và OTP
 

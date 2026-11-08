@@ -4,10 +4,14 @@ services:
       context: ./AI_SERVICE
       dockerfile: Dockerfile
     image: chillshrimp-ai-service:latest
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--reload-dir", "/app/app"]
+    volumes:
+      - ./AI_SERVICE/app:/app/app
     env_file:
       - path: ./AI_SERVICE/.env
         required: false
     environment:
+      WATCHFILES_FORCE_POLLING: "true"
       MODEL_PATH: /app/models/best.pt
       CLOUDINARY_INSPECTION_FOLDER: chillshrimp/ai-inspections/originals
     ports:
@@ -25,6 +29,9 @@ services:
       context: ./BE
       dockerfile: Dockerfile
     image: chillshrimp-backend:latest
+    entrypoint: ["sh", "-c", "node scripts/migrate.js deploy && exec ./node_modules/.bin/nodemon --legacy-watch src/server.js"]
+    volumes:
+      - ./BE/src:/app/src
     env_file:
       - ./BE/.env
     environment:
@@ -45,12 +52,21 @@ services:
     build:
       context: ./FE
       dockerfile: Dockerfile
+      target: dev
       args:
         VITE_API_URL: /api
-    image: chillshrimp-frontend:latest
+    image: chillshrimp-frontend:dev
+    environment:
+      VITE_API_URL: /api
+      VITE_PROXY_TARGET: http://backend:8000
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./FE/src:/app/src
+      - ./FE/index.html:/app/index.html
+      - ./FE/vite.config.js:/app/vite.config.js
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "5173:80"
+      - "5173:5173"
     restart: unless-stopped

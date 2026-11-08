@@ -1,12 +1,12 @@
 <script setup>
 import Pagination from '../../components/pagination/index.vue'
 import AppShell from '../../components/shell/index.vue'
-import Form from './components/Form.vue'
-import Details from './components/Details.vue'
-import Inspection from './components/Inspection.vue'
-import { usePage } from './composables/usePage.js'
+import Form from './components/BatchForm.vue'
+import Details from './components/BatchDetails.vue'
+import Inspection from './components/BatchInspection.vue'
+import { useSeedBatches } from './composables/useSeedBatches.js'
 
-const model = usePage()
+const model = useSeedBatches()
 const { farms, batches, loading, listLoading, error, search, statusFilter, page, pageSize, pagination, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, statusNames, speciesNames, transitions, formatDate, formatQuantity, openInspectionUpload, loadPage, openCreate, openEdit, openDetails, openStatus, statusSaving, statusDialog, selectedBatch, nextStatus, saveStatus, } = model
 </script>
 

@@ -1,4 +1,5 @@
 <script setup>
+import SectionTabs from '../../components/section-tabs/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { selectFarm, useFarmContext } from '../../composables/farm-context.js'
@@ -218,6 +219,7 @@ onMounted(loadPage)
     <header class="page-header">
         <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-waves" size="25" /></v-avatar><h1>Ao/bể</h1></div>
       </header>
+    <SectionTabs section="farms" />
       <div class="page-actions list-actions"><v-btn v-if="canManage && selectedFarm" color="primary" @click="openCreate">Thêm ao/bể</v-btn></div>
 
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />

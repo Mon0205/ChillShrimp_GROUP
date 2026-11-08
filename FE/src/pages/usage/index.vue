@@ -1,4 +1,5 @@
 <script setup>
+import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import AppShell from '../../components/shell/index.vue'
@@ -70,8 +71,9 @@ watch(pageSize, () => { if (page.value === 1) loadTransactions(); else page.valu
 <AppShell>
     <section class="usage-page">
       <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-package-variant-minus" size="25" /></v-avatar><h1>Lịch sử cấp vật tư</h1></div>
+        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-archive-outline" size="25" /></v-avatar><h1>Danh mục vật tư</h1></div>
       </header>
+      <InventoryTabs />
       <p class="subtitle">Yêu cầu được duyệt sẽ tự động ghi vào lịch sử và trừ tồn kho. Các giao dịch cũ vẫn được giữ lại.</p>
 
 

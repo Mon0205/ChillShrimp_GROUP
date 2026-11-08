@@ -1,6 +1,7 @@
 <script setup>
+import AlertBell from '../alerts/AlertBell.vue'
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import { logout, useAuth } from '../../composables/auth.js'
 import { loadFarmContext, selectFarm, useFarmContext } from '../../composables/farm-context.js'
@@ -9,6 +10,7 @@ import { showToast } from '../../composables/toast.js'
 const auth = useAuth()
 const farmContext = useFarmContext()
 const router = useRouter()
+const route = useRoute()
 const { mobile } = useDisplay()
 const signingOut = ref(false)
 const drawer = ref(!mobile.value)
@@ -16,13 +18,10 @@ const sidebarMode = ref(localStorage.getItem('sidebarMode') || 'expanded')
 const initials = computed(() => (auth.user?.displayName || auth.user?.email || 'U').trim().slice(0, 2).toUpperCase())
 const selectedFarm = computed(() => farmContext.farms.find((farm) => farm.id === farmContext.farmId))
 const role = computed(() => selectedFarm.value?.role)
-const canViewPondTanks = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
 const canViewSeedSuppliers = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(role.value))
 const canViewSeedBatches = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
 const canViewCareLogs = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
 const canViewInventory = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
-const canViewInventoryRequests = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager'].includes(role.value))
-const canRecordInventoryUsage = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
 
 onMounted(async () => {
   try { await loadFarmContext(true) }
@@ -72,6 +71,7 @@ async function signOut() {
       <v-chip v-else-if="selectedFarm" class="mr-3" color="primary" prepend-icon="mdi-home-outline">
         {{ selectedFarm.name }}
       </v-chip>
+      <AlertBell />
       <v-menu location="bottom end" :offset="10">
         <template #activator="{ props }">
           <v-btn v-bind="props" variant="text" height="52" aria-label="Mở menu tài khoản" append-icon="mdi-chevron-down">
@@ -110,15 +110,13 @@ async function signOut() {
       <v-list nav class="sidebar-links pa-3" aria-label="Điều hướng chính">
         <v-list-item to="/dashboard" prepend-icon="mdi-view-dashboard-outline" title="Dashboard" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item to="/users" prepend-icon="mdi-account-group-outline" title="Người dùng" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item to="/farms" prepend-icon="mdi-home-city-outline" title="Trang trại" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewPondTanks" to="/ponds-tanks" prepend-icon="mdi-waves" title="Ao/bể" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item to="/farms" :active="['/farms', '/ponds-tanks'].includes(route.path)" prepend-icon="mdi-home-city-outline" title="Trại giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedSuppliers" to="/seed-suppliers" prepend-icon="mdi-truck-outline" title="Nhà cung cấp giống" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewSeedSuppliers" to="/sales-orders" :active="['/sales-orders', '/customers'].includes(route.path)" prepend-icon="mdi-cart-outline" title="Kinh doanh" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-fishbowl" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/quality-checks" prepend-icon="mdi-clipboard-check-outline" title="Kiểm tra AI" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/care-logs" prepend-icon="mdi-notebook-outline" title="Nhật ký chăm sóc" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewInventory" to="/inventory-supplies" prepend-icon="mdi-archive-outline" title="Danh mục vật tư" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewInventoryRequests" to="/inventory-requests" prepend-icon="mdi-clipboard-list-outline" title="Yêu cầu vật tư" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canRecordInventoryUsage" to="/inventory-usage" prepend-icon="mdi-package-variant-minus" title="Lịch sử cấp vật tư" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewInventory" to="/inventory-supplies" :active="['/inventory-supplies', '/inventory-requests', '/inventory-usage'].includes(route.path)" prepend-icon="mdi-archive-outline" title="Vật tư" rounded="lg" @click="closeMobileDrawer" />
       </v-list>
       <template #append>
         <v-menu location="top start" :offset="10">

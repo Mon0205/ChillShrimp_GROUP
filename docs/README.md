@@ -1,63 +1,37 @@
-# Tài liệu dự án ChillShrimp
+# Tài liệu dự án Shrimp Group
 
-Thư mục `docs/` được tổ chức theo mục đích sử dụng để nhóm dễ tìm kiếm, review và cập nhật đồng bộ. Khi thêm tài liệu mới, đặt file vào đúng nhóm bên dưới và bổ sung liên kết vào mục lục này.
+## Bắt đầu từ đâu?
 
-## 01. Yêu cầu hệ thống
+- Muốn hiểu hệ thống làm gì: đọc [luồng nghiệp vụ](./05-business-domain/WORKFLOWS.md).
+- Làm cảnh báo, khách hàng hoặc bán giống: đọc [đặc tả nghiệp vụ mới](./05-business-domain/ALERTS-AND-SALES.md).
+- Sửa code hoặc tìm thư mục: đọc [kiến trúc](./02-architecture/ARCHITECTURE.md).
+- Cài đặt, chạy ứng dụng hoặc migration: đọc [README dự án](../README.md).
+- Tra cứu yêu cầu, dữ liệu hoặc sơ đồ: dùng mục lục bên dưới.
 
-| Tài liệu | Nội dung |
-| --- | --- |
-| [SRS.md](./01-requirements/SRS.md) | Đặc tả yêu cầu phần mềm, actor, chức năng, phi chức năng và business rules |
+## Mục lục
 
-## 02. Kiến trúc
+| Nhóm | Tài liệu | Dùng để |
+| --- | --- | --- |
+| `01-requirements` | [SRS.md](./01-requirements/SRS.md) | Tra yêu cầu chức năng, phi chức năng và quy tắc hệ thống |
+| `02-architecture` | [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | Hiểu thành phần, phân lớp backend, phân quyền và triển khai |
+| `03-database` | [DATABASE.md](./03-database/DATABASE.md) | Đọc tổng quan thiết kế dữ liệu và quy tắc liên quan |
+| | [DATABASE-FIELDS.md](./03-database/DATABASE-FIELDS.md) | Tra ý nghĩa từng bảng/cột |
+| | [ERD.md](./03-database/ERD.md) | Xem quan hệ dữ liệu bằng Mermaid |
+| `04-use-cases` | [USECASE.md](./04-use-cases/USECASE.md) | Xem danh sách use case và actor |
+| | [USECASE-SPECIFICATION.md](./04-use-cases/USECASE-SPECIFICATION.md) | Tra điều kiện, luồng chính và ngoại lệ từng use case |
+| | [ACTIVITY-DIAGRAMS.md](./04-use-cases/ACTIVITY-DIAGRAMS.md) | Xem luồng hoạt động |
+| | [SEQUENCE-DIAGRAMS.md](./04-use-cases/SEQUENCE-DIAGRAMS.md) | Xem tương tác giữa các thành phần |
+| `05-business-domain` | [WORKFLOWS.md](./05-business-domain/WORKFLOWS.md) | Hiểu quy trình vận hành xuyên suốt |
+| | [ALERTS-AND-SALES.md](./05-business-domain/ALERTS-AND-SALES.md) | Tra cảnh báo, phân công, thông báo, khách hàng và bán giống |
+| | [HATCHERY-REFERENCE.md](./05-business-domain/HATCHERY-REFERENCE.md) | Tham khảo kỹ thuật, công thức và quy chuẩn trại giống |
 
-| Tài liệu | Nội dung |
-| --- | --- |
-| [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | Kiến trúc tổng quan và quyết định kỹ thuật |
-| [ARCHITECTURE-DETAIL.md](./02-architecture/ARCHITECTURE-DETAIL.md) | Thành phần và luồng xử lý chi tiết |
-| [DEPLOY-ARCHITECTURE.MD](./02-architecture/DEPLOY-ARCHITECTURE.MD) | Kiến trúc triển khai và cấu hình môi trường |
+Các file nguồn sơ đồ `.drawio`, DBML và dữ liệu xuất giữ cùng thư mục chuyên môn; không thay thế tài liệu nghiệp vụ.
 
-## 03. Database và mô hình dữ liệu
+## Phạm vi và cách cập nhật
 
-| Tài liệu | Nội dung |
-| --- | --- |
-| [DATABASE.md](./03-database/DATABASE.md) | Schema dữ liệu đích và mô tả các bảng |
-| [ERD.md](./03-database/ERD.md) | Sơ đồ quan hệ thực thể và giải thích quan hệ |
-| [DATABASE-CLASS-V4.drawio](./03-database/DATABASE-CLASS-V4.drawio) | File Draw.io của sơ đồ class/database |
-
-## 04. Use case và sơ đồ phân tích
-
-| Tài liệu | Nội dung |
-| --- | --- |
-| [USECASE.md](./04-use-cases/USECASE.md) | Danh sách use case và phân quyền actor |
-| [USECASE-SPECIFICATION.md](./04-use-cases/USECASE-SPECIFICATION.md) | Phân rã và đặc tả chi tiết use case |
-| [ACTIVITY-DIAGRAMS.md](./04-use-cases/ACTIVITY-DIAGRAMS.md) | Activity diagram và diễn giải luồng |
-| [ACTIVITY-DIAGRAMS.drawio](./04-use-cases/ACTIVITY-DIAGRAMS.drawio) | File Draw.io của activity diagram |
-| [SEQUENCE-DIAGRAMS.md](./04-use-cases/SEQUENCE-DIAGRAMS.md) | Sequence diagram của các use case trọng tâm |
-
-## 05. Nghiệp vụ trại tôm giống
-
-| Tài liệu | Nội dung |
-| --- | --- |
-| [WORKFLOWS.md](./05-business-domain/WORKFLOWS.md) | Workflow vận hành tổng quát của hệ thống |
-| [tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md](./05-business-domain/tong_hop_quy_chuan_va_quan_ly_trai_tom-v2.md) | Nguồn tham khảo quy chuẩn, môi trường và công thức quản lý tôm giống |
-
-## 06. Kế hoạch phát triển
-
-| Tài liệu | Nội dung |
-| --- | --- |
-| [BACKLOG.md](./06-planning/BACKLOG.md) | Danh sách công việc, ưu tiên và khoảng cách triển khai |
-
-## 07. Cảnh báo và quyết định cần chốt
-
-| Tài liệu | Nội dung |
-| --- | --- |
-| [Warning/README.md](./Warning/README.md) | Danh sách vấn đề nghiệp vụ, rủi ro và quyết định cần thống nhất với partner |
-
-## Quy ước quản lý tài liệu
-
-- Không đặt thêm tài liệu trực tiếp tại `docs/`, ngoại trừ file mục lục `README.md`.
-- Sơ đồ nguồn `.drawio` đặt cùng nhóm với tài liệu Markdown mô tả sơ đồ.
-- Khi di chuyển hoặc đổi tên file, phải cập nhật tất cả liên kết tương đối.
-- Tài liệu yêu cầu mô tả kiến trúc đích; trạng thái code thực tế và khoảng cách triển khai phải được ghi rõ.
-- Cảnh báo chưa chốt không được tự động chuyển thành migration hoặc business rule chính thức.
-- Không sửa migration đã deploy để khớp tài liệu; nếu cần thay đổi database phải tạo migration mới sau khi được thống nhất.
+- Nội dung viết tiếng Việt; tên file và thư mục dùng tiếng Anh, không có khoảng trắng; phần mở rộng Markdown dùng `.md`.
+- Mỗi nội dung có một nơi mô tả chính. Tài liệu khác dẫn liên kết thay vì chép lại toàn bộ.
+- Luồng tổng quan nằm trong `WORKFLOWS.md`; phần cảnh báo và bán giống được mô tả chi tiết trong tài liệu nghiệp vụ riêng.
+- SRS và use case là tài liệu đặc tả; không mặc định mọi nội dung đã triển khai. Tài liệu database có ghi mốc thiết kế, không phải báo cáo trạng thái DB đang chạy.
+- Cấu trúc dữ liệu hiện hành tra tại [schema.prisma](../BE/prisma/schema.prisma). Trạng thái migration kiểm tra tại môi trường đích; không suy ra từ tài liệu.
+- Đổi tên hoặc di chuyển file phải cập nhật liên kết. Không sửa lịch sử migration để khớp tài liệu.

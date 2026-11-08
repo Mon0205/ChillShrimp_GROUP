@@ -1,20 +1,21 @@
+import { customerRouter, salesOrderRouter } from './routes/sales/sales/index.js'
 import cors from 'cors'
 import express from 'express'
-import { authRouter } from './auth/index.js'
-import { farmRouter } from './routes/farm.routes.js'
-import { userRouter } from './users/index.js'
-import { areaRouter } from './routes/area.routes.js'
-import { pondTankRouter } from './routes/pond-tank.routes.js'
-import { seedSupplierRouter } from './routes/seed-supplier.routes.js'
-import { seedBatchRouter } from './routes/seed-batch.routes.js'
-import { feedingLogRouter } from './routes/feeding-log.routes.js'
-import { inventorySupplyRouter } from './routes/inventory-supply.routes.js'
-import { feedingReportRouter } from './routes/feeding-report.routes.js'
-import { waterChangeLogRouter } from './routes/water-change-log.routes.js'
-import { waterParameterLogRouter } from './routes/water-parameter-log.routes.js'
-import { environmentThresholdRouter } from './routes/environment-threshold.routes.js'
-import { treatmentLogRouter } from './routes/treatment-log.routes.js'
-import { inventoryTransactionRouter } from './routes/inventory-transaction.routes.js'
+import { authRouter } from './routes/auth/auth/index.js'
+import { farmRouter } from './routes/farms/farm/index.js'
+import { userRouter } from './routes/users/user/index.js'
+import { areaRouter } from './routes/farms/area/index.js'
+import { pondTankRouter } from './routes/farms/pond-tank/index.js'
+import { seedSupplierRouter } from './routes/seed/seed-supplier/index.js'
+import { seedBatchRouter } from './routes/seed/seed-batch/index.js'
+import { feedingLogRouter } from './routes/care/feeding-log/index.js'
+import { inventorySupplyRouter } from './routes/inventory/inventory-supply/index.js'
+import { feedingReportRouter } from './routes/care/feeding-report/index.js'
+import { waterChangeLogRouter } from './routes/care/water-change-log/index.js'
+import { waterParameterLogRouter } from './routes/care/water-parameter-log/index.js'
+import { environmentThresholdRouter } from './routes/environment/environment-threshold/index.js'
+import { treatmentLogRouter } from './routes/care/treatment-log/index.js'
+import { inventoryTransactionRouter } from './routes/inventory/inventory-transaction/index.js'
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js'
 
 export const app = express()
@@ -23,6 +24,8 @@ app.use(express.json())
 app.get('/api/health', (_req, res) => res.json({ data: { status: 'ok' } }))
 app.use('/api/auth', authRouter)
 app.use('/api/users', userRouter)
+app.use('/api/farms/:farmId/customers', customerRouter)
+app.use('/api/farms/:farmId/sales-orders', salesOrderRouter)
 app.use('/api/farms/:farmId/areas', areaRouter)
 app.use('/api/farms/:farmId/ponds-tanks', pondTankRouter)
 app.use('/api/farms/:farmId/seed-suppliers', seedSupplierRouter)

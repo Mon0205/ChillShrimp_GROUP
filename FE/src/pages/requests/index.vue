@@ -1,4 +1,5 @@
 <script setup>
+import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import AppShell from '../../components/shell/index.vue'
@@ -145,6 +146,7 @@ onMounted(load)
       <header class="page-heading">
         <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-clipboard-list-outline" size="25" /></v-avatar><h1>{{ canApprove ? 'Danh sách yêu cầu vật tư' : 'Yêu cầu cấp vật tư' }}</h1></div>
       </header>
+      <InventoryTabs />
       <LoadingIndicator v-if="loading" />
       <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem yêu cầu.</div>
       <template v-else>
