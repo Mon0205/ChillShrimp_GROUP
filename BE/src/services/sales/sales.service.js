@@ -23,12 +23,12 @@ export function serializeOrder(order) {
   }
 }
 function role(operation, manager = false) {
-  if (!['owner','farm_manager', ...(manager ? [] : ['area_manager'])].includes(operation.membership.role)) throw createHttpError(403, 'Bạn không có quyền thực hiện thao tác bán giống này.')
-  if (operation.membership.role === 'area_manager' && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  if (!['OWNER','FARM_MANAGER', ...(manager ? [] : ['AREA_MANAGER'])].includes(operation.membership.role)) throw createHttpError(403, 'Bạn không có quyền thực hiện thao tác bán giống này.')
+  if (operation.membership.role === 'AREA_MANAGER' && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
 }
-function tankScope(operation) { return { farmId: operation.farmId, ...(operation.membership.role === 'area_manager' ? { areaId: operation.membership.areaId } : {}) } }
+function tankScope(operation) { return { farmId: operation.farmId, ...(operation.membership.role === 'AREA_MANAGER' ? { areaId: operation.membership.areaId } : {}) } }
 function orderScope(operation) {
-  return { farmId: operation.farmId, ...(operation.membership.role === 'area_manager' ? { items: { every: { batch: { tank: { areaId: operation.membership.areaId, farmId: operation.farmId } } } } } : {}) }
+  return { farmId: operation.farmId, ...(operation.membership.role === 'AREA_MANAGER' ? { items: { every: { batch: { tank: { areaId: operation.membership.areaId, farmId: operation.farmId } } } } } : {}) }
 }
 function search(operation) { return text(operation.filters.q,150) }
 async function pageResult(operation, model, where, extras = {}, map = value => value) {

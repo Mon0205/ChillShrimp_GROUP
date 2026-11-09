@@ -17,12 +17,12 @@ const EDITABLE_FIELDS = ['batchCode', 'supplierId', 'species', 'developmentStage
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function scopedTankWhere(context) {
-  if (!['owner', 'farm_manager'].includes(context.membership.role) && !context.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(context.membership.role) && !context.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   return {
     farmId: context.farmId,
-    ...(['owner', 'farm_manager'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
   }
 }
 
@@ -199,7 +199,7 @@ export async function updateSeedBatch(context) {
   if (!isSeedBatchEditable(existing.status)) {
     throw createHttpError(409, 'Không thể cập nhật thông tin lô đã kết thúc.')
   }
-  const fields = context.membership.role === 'technician' ? TECHNICAL_FIELDS : EDITABLE_FIELDS
+  const fields = context.membership.role === 'TECHNICIAN' ? TECHNICAL_FIELDS : EDITABLE_FIELDS
   const forbidden = Object.keys(context.input).filter((field) => !fields.includes(field))
   if (forbidden.length) throw createHttpError(403, `Bạn không có quyền cập nhật trường: ${forbidden.join(', ')}.`)
   const data = normalizeInput(context.input, { partial: true, allowedFields: fields })
@@ -234,7 +234,7 @@ export async function updateSeedBatch(context) {
 }
 
 export async function updateSeedBatchStatus(context) {
-  if (!['owner', 'farm_manager', 'area_manager'].includes(context.membership.role)) {
+  if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(context.membership.role)) {
     throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực được cập nhật trạng thái lô giống.')
   }
   const status = context.input.status

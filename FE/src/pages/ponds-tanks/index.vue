@@ -31,9 +31,9 @@ const typeFilter = ref('')
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const selectedRole = computed(() => selectedFarm.value?.role || '')
-const canManage = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(selectedRole.value))
-const isAreaManager = computed(() => selectedRole.value === 'area_manager')
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const canManage = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(selectedRole.value))
+const isAreaManager = computed(() => selectedRole.value === 'AREA_MANAGER')
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const typeOptions = [
   { title: 'Bể ương', value: 'nursery_tank' },
   { title: 'Ao', value: 'pond' },

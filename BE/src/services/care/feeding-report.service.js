@@ -8,7 +8,7 @@ function decimalString(value) {
 }
 
 function reportWhere(operation, filters) {
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   const conditions = [
@@ -16,7 +16,7 @@ function reportWhere(operation, filters) {
     Prisma.sql`l."feeding_time" >= CAST(${filters.from} AS TIMESTAMPTZ)`,
     Prisma.sql`l."feeding_time" <= CAST(${filters.to} AS TIMESTAMPTZ)`,
   ]
-  if (!['owner', 'farm_manager'].includes(operation.membership.role)) conditions.push(Prisma.sql`t."area_id" = CAST(${operation.membership.areaId} AS UUID)`)
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role)) conditions.push(Prisma.sql`t."area_id" = CAST(${operation.membership.areaId} AS UUID)`)
   if (filters.tankId) conditions.push(Prisma.sql`t."id" = CAST(${filters.tankId} AS UUID)`)
   return Prisma.join(conditions, ' AND ')
 }

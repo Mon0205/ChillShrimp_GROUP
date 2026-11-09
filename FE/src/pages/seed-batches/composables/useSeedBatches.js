@@ -56,9 +56,9 @@ export function useSeedBatches() {
   const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
   const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
   const role = computed(() => selectedFarm.value?.role || '')
-  const canView = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
-  const canManage = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(role.value))
-  const isTechnician = computed(() => role.value === 'technician')
+  const canView = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+  const canManage = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role.value))
+  const isTechnician = computed(() => role.value === 'TECHNICIAN')
   const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
   const statusOptions = [
     { title: 'Đang ương', value: 'active' },

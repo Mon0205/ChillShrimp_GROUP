@@ -29,7 +29,7 @@ const form = ref(emptyForm())
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const role = computed(() => selectedFarm.value?.role || '')
-const canRecord = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
+const canRecord = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const requiredRule = (label) => (value) => String(value ?? '').trim().length > 0 || `${label} là bắt buộc.`
 const positiveNumberRule = (label) => (value) => (value !== '' && Number.isFinite(Number(value)) && Number(value) > 0) || `${label} phải lớn hơn 0.`

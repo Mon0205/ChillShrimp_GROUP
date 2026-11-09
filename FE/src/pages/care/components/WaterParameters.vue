@@ -48,7 +48,7 @@ const form = ref(emptyForm())
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
 const role = computed(() => selectedFarm.value?.role || '')
-const canRecord = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
+const canRecord = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const tankRule = (value) => Boolean(value) || 'Vui lòng chọn ao/bể.'
 const dateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời điểm đo không hợp lệ.'

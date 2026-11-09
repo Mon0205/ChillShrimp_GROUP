@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { normalizeWaterChangeLogInput } from '../../utils/water-change-log.validation.js'
+import { lockCareLogTank } from '../farms/pond-tank.service.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -22,13 +23,13 @@ function parsePagination(query) {
 }
 
 function scopedTankWhere(operation, extra = {}) {
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   return {
     farmId: operation.farmId,
     deletedAt: null,
-    ...(['owner', 'farm_manager'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
     ...extra,
   }
 }
@@ -77,24 +78,20 @@ export async function listWaterChangeLogs(operation) {
 
 export async function createWaterChangeLog(operation) {
   const input = parseInput(operation.input)
-  const tank = await prisma.pondTank.findFirst({
-    where: scopedTankWhere(operation, { id: input.tankId }),
-    select: { id: true },
+  return await prisma.$transaction(async tx => {
+    const tank = await lockCareLogTank(tx, operation, input.tankId)
+    return await tx.waterChangeLog.create({
+      data: {
+        tankId: tank.id,
+        performedBy: operation.actor.id,
+        waterChangePercentage: new Prisma.Decimal(String(input.waterChangePercentage)),
+        performedAt: input.performedAt,
+        notes: input.notes,
+      },
+      include: {
+        tank: { select: { id: true, code: true, name: true } },
+        performer: { select: { id: true, displayName: true, email: true } },
+      },
+    })
   })
-  if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
-
-  const item = await prisma.waterChangeLog.create({
-    data: {
-      tankId: tank.id,
-      performedBy: operation.actor.id,
-      waterChangePercentage: new Prisma.Decimal(String(input.waterChangePercentage)),
-      performedAt: input.performedAt,
-      notes: input.notes,
-    },
-    include: {
-      tank: { select: { id: true, code: true, name: true } },
-      performer: { select: { id: true, displayName: true, email: true } },
-    },
-  })
-  return item
 }

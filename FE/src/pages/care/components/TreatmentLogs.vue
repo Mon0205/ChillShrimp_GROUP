@@ -27,7 +27,7 @@ const form = ref(emptyForm())
 
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
-const canRecord = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canRecord = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(selectedFarm.value?.role))
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const tankRule = (value) => Boolean(value) || 'Vui lòng chọn ao/bể.'
 const requiredText = (label, max) => (value) => Boolean(value?.trim()) && value.trim().length <= max || `${label} là bắt buộc và tối đa ${max} ký tự.`
