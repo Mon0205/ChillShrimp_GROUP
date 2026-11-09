@@ -32,7 +32,7 @@ Tác nhân phụ trợ duy nhất còn giữ trên sơ đồ: **AI Service** (d�
 - `users` chỉ biểu diễn danh tính dùng chung; không có role toàn cục.
 - Người dùng chọn một `farm` đang làm việc; Backend xác thực membership tương ứng trong `farm_members`.
 - Một tài khoản có thể tham gia nhiều trang trại và có role khác nhau ở từng trang trại.
-- `OWNER` chỉ có quyền toàn trại trong phạm vi farm mà membership của người đó có `role = owner` và `status = active`.
+- `OWNER` chỉ có quyền toàn trại trong phạm vi farm mà membership của người đó có `role = OWNER` và `status = active`.
 - `AREA_MANAGER`, `TECHNICIAN` và `WAREHOUSE_STAFF` bị giới hạn theo membership tương ứng; dữ liệu nghiệp vụ phải truy ra được `farm_id`.
 
 ## 2. Danh sách use case theo 2 cấp

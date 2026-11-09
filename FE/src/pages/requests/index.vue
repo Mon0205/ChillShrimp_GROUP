@@ -24,7 +24,7 @@ const form = ref({ supplyId: '', areaId: '', tankId: '', quantity: '', notes: ''
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find(farm => farm.id === farmId.value))
 const role = computed(() => selectedFarm.value?.role || '')
-const selectedAreaId = computed(() => role.value === 'area_manager' ? selectedFarm.value?.area?.id || '' : form.value.areaId)
+const selectedAreaId = computed(() => role.value === 'AREA_MANAGER' ? selectedFarm.value?.area?.id || '' : form.value.areaId)
 const tankOptions = computed(() => tanks.value.filter(tank => tank.areaId === selectedAreaId.value && !tank.deletedAt && tank.status !== 'inactive'))
 const processing = ref(false)
 const detailDialog = ref(false)
@@ -34,10 +34,10 @@ const rejectionReason = ref('')
 const processingError = ref('')
 const decisionFormRef = ref(null)
 const statusColors = { pending: 'warning', fulfilled: 'success', rejected: 'error', cancelled: 'default' }
-const canApprove = computed(() => ['owner', 'farm_manager', 'warehouse_staff'].includes(role.value))
+const canApprove = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(role.value))
 const statusLabels = { pending: 'Chờ xử lý', fulfilled: 'Đã cấp', rejected: 'Đã từ chối', cancelled: 'Đã hủy' }
-const canCreate = computed(() => role.value === 'area_manager')
-const hasStockRoles = computed(() => ['owner', 'farm_manager', 'area_manager', 'warehouse_staff'].includes(role.value))
+const canCreate = computed(() => role.value === 'AREA_MANAGER')
+const hasStockRoles = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'WAREHOUSE_STAFF'].includes(role.value))
 const positiveQuantity = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 999_999_999.999 && Math.abs(Number(value) * 1000 - Math.round(Number(value) * 1000)) < 1e-7 || 'Số lượng phải lớn hơn 0, tối đa 3 chữ số thập phân.'
 const required = (value) => Boolean(value) || 'Trường này là bắt buộc.'
 
@@ -155,7 +155,7 @@ onMounted(load)
           <v-form ref="formRef" @submit.prevent="submit">
             <div class="form-grid">
               <v-select v-model="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Vật tư *" :rules="[required]" />
-              <v-select v-if="['owner', 'farm_manager'].includes(role)" v-model="form.areaId" :items="areas" item-title="name" item-value="id" label="Khu vực *" :rules="[required]" />
+              <v-select v-if="['OWNER', 'FARM_MANAGER'].includes(role)" v-model="form.areaId" :items="areas" item-title="name" item-value="id" label="Khu vực *" :rules="[required]" />
               <v-text-field v-else :model-value="areas.find(area => area.id === selectedAreaId)?.name || ''" label="Khu vực" readonly />
               <v-select v-model="form.tankId" :items="tankOptions" :item-title="tank => [tank?.code, tank?.name].filter(Boolean).join(' · ')" item-value="id" label="Ao/bể nhận vật tư *" :disabled="!selectedAreaId" :rules="[required]" no-data-text="Khu vực chưa có ao/bể phù hợp" />
               <v-text-field v-model="form.quantity" type="number" min="0.001" step="0.001" label="Số lượng *" :rules="[required, positiveQuantity]" />

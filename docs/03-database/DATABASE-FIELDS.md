@@ -371,7 +371,7 @@ Migration hiện có còn giới hạn user có vai trò ngoài owner ở một 
 
 ## Enum PostgreSQL
 
-- **FarmRole**: `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`.
+- **FarmRole**: `OWNER`, `FARM_MANAGER`, `AREA_MANAGER`, `TECHNICIAN`, `WAREHOUSE_STAFF`.
 - **InvitationStatus**: `pending`, `accepted`, `cancelled`.
 - **MembershipStatus**: `active`, `suspended`.
 

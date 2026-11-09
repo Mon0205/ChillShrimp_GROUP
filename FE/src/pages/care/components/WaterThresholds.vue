@@ -49,7 +49,7 @@ const editingId = ref('')
 const formRef = ref(null)
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmId.value))
-const canManage = computed(() => ['owner', 'farm_manager'].includes(selectedFarm.value?.role))
+const canManage = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm.value?.role))
 const parameterTitle = (code) => parameters.find((item) => item.value === code)?.title || code
 const tankTypeTitle = (code) => tankTypes.find((item) => item.value === code)?.title || code
 const speciesTitle = (code) => speciesOptions.find((item) => item.value === code)?.title || code

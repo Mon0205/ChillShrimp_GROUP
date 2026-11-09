@@ -18,10 +18,10 @@ const sidebarMode = ref(localStorage.getItem('sidebarMode') || 'expanded')
 const initials = computed(() => (auth.user?.displayName || auth.user?.email || 'U').trim().slice(0, 2).toUpperCase())
 const selectedFarm = computed(() => farmContext.farms.find((farm) => farm.id === farmContext.farmId))
 const role = computed(() => selectedFarm.value?.role)
-const canViewSeedSuppliers = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(role.value))
-const canViewSeedBatches = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
-const canViewCareLogs = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
-const canViewInventory = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
+const canViewSeedSuppliers = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role.value))
+const canViewSeedBatches = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+const canViewCareLogs = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+const canViewInventory = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 
 onMounted(async () => {
   try { await loadFarmContext(true) }

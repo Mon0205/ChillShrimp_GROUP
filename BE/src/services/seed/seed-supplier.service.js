@@ -113,12 +113,12 @@ export async function listSupplierSeedBatches(context) {
   const validStatuses = ['active', 'ready_for_sale', 'sold', 'failed', 'cancelled']
   if (status && !validStatuses.includes(status)) throw createHttpError(400, 'Tráº¡ng thÃ¡i lÃ´ giá»‘ng khÃ´ng há»£p lá»‡.')
   const { page, limit, skip } = parsePagination(context.filters)
-  if (context.membership.role === 'area_manager' && !context.membership.areaId) {
+  if (context.membership.role === 'AREA_MANAGER' && !context.membership.areaId) {
     return { supplier: { id: supplier.id, name: supplier.name }, items: [], pagination: { page, limit, total: 0, pageCount: 0 } }
   }
   const tankWhere = {
     farmId: context.farmId,
-    ...(context.membership.role === 'area_manager' ? { areaId: context.membership.areaId } : {}),
+    ...(context.membership.role === 'AREA_MANAGER' ? { areaId: context.membership.areaId } : {}),
   }
   const where = {
     supplierId: supplier.id,

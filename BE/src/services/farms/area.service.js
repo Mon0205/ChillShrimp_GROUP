@@ -17,7 +17,7 @@ export async function listAreas(context) {
   if (context.filters.includeInactive !== undefined && !['true', 'false'].includes(context.filters.includeInactive)) {
     throw createHttpError(400, 'Tham số includeInactive không hợp lệ.')
   }
-  if (includeInactive && !['owner', 'farm_manager'].includes(context.membership.role)) {
+  if (includeInactive && !['OWNER', 'FARM_MANAGER'].includes(context.membership.role)) {
     throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được xem khu vực đã ngừng hoạt động.')
   }
 
@@ -25,7 +25,7 @@ export async function listAreas(context) {
     where: {
       farmId: context.farmId,
       ...(includeInactive ? {} : { status: 'active' }),
-      ...(context.membership.role === 'area_manager' ? { id: context.membership.areaId } : {}),
+      ...(context.membership.role === 'AREA_MANAGER' ? { id: context.membership.areaId } : {}),
     },
     orderBy: [{ status: 'asc' }, { name: 'asc' }],
   })

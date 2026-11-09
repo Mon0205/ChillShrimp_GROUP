@@ -8,11 +8,11 @@ datasource db {
 }
 
 enum FarmRole {
-  owner
-  farm_manager
-  area_manager
-  technician
-  warehouse_staff
+  OWNER           @map("owner")
+  FARM_MANAGER    @map("farm_manager")
+  AREA_MANAGER    @map("area_manager")
+  TECHNICIAN      @map("technician")
+  WAREHOUSE_STAFF @map("warehouse_staff")
 }
 
 enum InvitationStatus {
@@ -491,7 +491,7 @@ model AiInspection {
 model FarmMember {
   farmId    String           @map("farm_id") @db.Uuid
   userId    String           @map("user_id")
-  role      FarmRole         @default(technician)
+  role      FarmRole         @default(TECHNICIAN)
   status    MembershipStatus @default(active)
   areaId    String?          @map("area_id") @db.Uuid
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)

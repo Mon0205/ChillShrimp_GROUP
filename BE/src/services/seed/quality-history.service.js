@@ -4,7 +4,7 @@ import { createHttpError } from '../../utils/http.js'
 export async function listQualityHistory(context) {
     const page = Number(context.filters.page || 1), limit = Number(context.filters.limit || 10)
     if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw createHttpError(400, 'Phân trang không hợp lệ.')
-    const scoped = !['owner', 'farm_manager'].includes(context.membership.role)
+    const scoped = !['OWNER', 'FARM_MANAGER'].includes(context.membership.role)
     if (scoped && !context.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     for (const key of ['batchId', 'tankId']) if (context.filters[key] && !uuid.test(context.filters[key])) throw createHttpError(400, 'Mã lô hoặc ao/bể không hợp lệ.')

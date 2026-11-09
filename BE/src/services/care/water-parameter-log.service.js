@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { normalizeWaterParameterLogInput } from '../../utils/water-parameter-log.validation.js'
 import { createEnvironmentAlerts } from '../environment/environment-threshold.service.js'
+import { lockCareLogTank } from '../farms/pond-tank.service.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DECIMAL_FIELDS = ['temperature', 'ph', 'salinity', 'dissolvedOxygen', 'nh3', 'tan', 'no2', 'nitrate', 'alkalinity', 'h2s', 'turbidity', 'waterLevelM']
@@ -24,11 +25,11 @@ function parsePagination(query) {
 }
 
 function scopedTankWhere(operation, extra = {}) {
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   return {
     farmId: operation.farmId,
     deletedAt: null,
-    ...(['owner', 'farm_manager'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
     ...extra,
   }
 }
@@ -65,14 +66,8 @@ export async function createWaterParameterLog(operation) {
   try { input = normalizeWaterParameterLogInput(operation.input) }
   catch (error) { throw createHttpError(400, error.message) }
 
-  const tank = await prisma.pondTank.findFirst({
-    where: scopedTankWhere(operation, { id: input.tankId }),
-    select: { id: true, farmId: true, tankType: true, code: true, name: true },
-  })
-  if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
-
   const data = {
-    tankId: tank.id,
+    tankId: input.tankId,
     recordedBy: operation.actor.id,
     measurementMethod: input.measurementMethod,
     measurementDevice: input.measurementDevice,
@@ -82,6 +77,7 @@ export async function createWaterParameterLog(operation) {
   for (const field of DECIMAL_FIELDS) data[field] = input[field] === null ? null : new Prisma.Decimal(String(input[field]))
 
   const result = await prisma.$transaction(async (tx) => {
+    const tank = await lockCareLogTank(tx, operation, input.tankId)
     const log = await tx.waterParameterLog.create({
       data,
       include: {

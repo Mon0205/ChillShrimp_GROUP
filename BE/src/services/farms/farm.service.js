@@ -23,24 +23,24 @@ export async function listFarms(context) {
       where: { farmId: { in: farms.map(farm => farm.id) }, status: 'active' },
       select: { id: true, farmId: true, code: true, name: true }, orderBy: { name: 'asc' },
     }) : []
-    return farms.map(farm => ({ ...farm, role: 'owner', area: null, areas: areas.filter(area => area.farmId === farm.id) }))
+    return farms.map(farm => ({ ...farm, role: 'OWNER', area: null, areas: areas.filter(area => area.farmId === farm.id) }))
   }
-  const roles = context.filters.manageable === 'true' ? ['owner', 'farm_manager', 'area_manager'] : undefined
+  const roles = context.filters.manageable === 'true' ? ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'] : undefined
   const memberships = await prisma.farmMember.findMany({
     where: {
       userId: context.actor.id,
       status: 'active',
       ...(roles ? { role: { in: roles } } : {}),
       ...(includeInactive
-        ? { OR: [{ farm: { status: { in: ['active', 'inactive'] } } }, { role: { in: ['owner', 'farm_manager'] }, farm: { status: 'archived' } }] }
+        ? { OR: [{ farm: { status: { in: ['active', 'inactive'] } } }, { role: { in: ['OWNER', 'FARM_MANAGER'] }, farm: { status: 'archived' } }] }
         : includeArchived
-        ? { OR: [{ farm: { status: 'active' } }, { role: { in: ['owner', 'farm_manager'] }, farm: { status: 'archived' } }] }
+        ? { OR: [{ farm: { status: 'active' } }, { role: { in: ['OWNER', 'FARM_MANAGER'] }, farm: { status: 'archived' } }] }
         : { farm: { status: 'active' } }),
     },
     include: { farm: true, area: { select: { id: true, code: true, name: true } } }, orderBy: { farm: { createdAt: 'desc' } },
   })
-  const ownerFarmIds = memberships.filter(member => ['owner', 'farm_manager'].includes(member.role)).map(member => member.farmId)
-  const managerAreaIds = memberships.filter(member => member.role === 'area_manager' && member.areaId).map(member => member.areaId)
+  const ownerFarmIds = memberships.filter(member => ['OWNER', 'FARM_MANAGER'].includes(member.role)).map(member => member.farmId)
+  const managerAreaIds = memberships.filter(member => member.role === 'AREA_MANAGER' && member.areaId).map(member => member.areaId)
   const areas = ownerFarmIds.length || managerAreaIds.length ? await prisma.area.findMany({
     where: { OR: [{ farmId: { in: ownerFarmIds } }, { id: { in: managerAreaIds } }] },
     select: { id: true, farmId: true, code: true, name: true },
@@ -59,7 +59,7 @@ export async function createFarm(context) {
   try {
     const farm = await prisma.$transaction(async (tx) => {
       const created = await tx.farm.create({ data: { code, name, address: context.input.address?.trim() || null, createdBy: context.actor.id } })
-      await tx.farmMember.create({ data: { farmId: created.id, userId: context.actor.id, role: 'owner' } })
+      await tx.farmMember.create({ data: { farmId: created.id, userId: context.actor.id, role: 'OWNER' } })
       return created
     })
     return farm
@@ -100,7 +100,7 @@ async function archiveFarm(context) {
     prisma.area.count({ where: { farmId, status: 'active' } }),
     prisma.pondTank.count({ where: { farmId, deletedAt: null, status: { not: 'inactive' } } }),
     prisma.farmInvitation.count({ where: { farmId, status: 'pending' } }),
-    prisma.farmMember.count({ where: { farmId, status: 'active', role: { not: 'owner' } } }),
+    prisma.farmMember.count({ where: { farmId, status: 'active', role: { not: 'OWNER' } } }),
   ])
   if (activeAreas || operationalPondsTanks || pendingInvitations || activeStaff) {
     throw createHttpError(

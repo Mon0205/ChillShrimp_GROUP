@@ -19,7 +19,7 @@ export async function listInventorySupplyRequests(operation) {
   const status = operation.filters.status || ''
   if (status && !['pending', 'fulfilled', 'rejected', 'cancelled'].includes(status)) throw createHttpError(400, 'Tráº¡ng thÃ¡i yÃªu cáº§u khÃ´ng há»£p lá»‡.')
   const where = { farmId: operation.farmId, ...(status ? { status } : {}) }
-  if (operation.membership.role === 'area_manager') {
+  if (operation.membership.role === 'AREA_MANAGER') {
     if (!operation.membership.areaId) throw createHttpError(403, 'Area Manager chÆ°a Ä‘Æ°á»£c gÃ¡n khu vá»±c.')
     where.areaId = operation.membership.areaId
   }
@@ -43,14 +43,14 @@ export async function listInventorySupplyRequests(operation) {
 }
 
 export async function createInventorySupplyRequest(operation) {
-  if (operation.membership.role !== 'area_manager') throw createHttpError(403, 'Chỉ quản lý khu vực được tạo yêu cầu cấp vật tư.')
+  if (operation.membership.role !== 'AREA_MANAGER') throw createHttpError(403, 'Chỉ quản lý khu vực được tạo yêu cầu cấp vật tư.')
   let input
   try { input = normalizeInventoryRequestInput(operation.input) }
   catch (error) { throw createHttpError(400, error.message) }
 
   const farmId = operation.farmId
-  const areaId = operation.membership.role === 'area_manager' ? operation.membership.areaId : input.areaId
-  if (operation.membership.role === 'area_manager') {
+  const areaId = operation.membership.role === 'AREA_MANAGER' ? operation.membership.areaId : input.areaId
+  if (operation.membership.role === 'AREA_MANAGER') {
     if (!areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
     if (input.areaId && input.areaId !== areaId) throw createHttpError(403, 'Chỉ được yêu cầu vật tư cho khu vực được phân công.')
   }
@@ -89,7 +89,7 @@ export async function createInventorySupplyRequest(operation) {
 }
 
 export async function approveInventorySupplyRequest(operation) {
-  if (!['owner', 'farm_manager', 'warehouse_staff'].includes(operation.membership.role)) throw createHttpError(403, 'Chỉ chủ trại hoặc nhân viên kho được duyệt cấp vật tư.')
+  if (!['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(operation.membership.role)) throw createHttpError(403, 'Chỉ chủ trại hoặc nhân viên kho được duyệt cấp vật tư.')
   const { farmId, requestId } = operation
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId || '')) throw createHttpError(400, 'Mã yêu cầu không hợp lệ.')
   const item = await prisma.$transaction(async (tx) => {
@@ -142,7 +142,7 @@ export async function approveInventorySupplyRequest(operation) {
 }
 
 export async function rejectInventorySupplyRequest(operation) {
-  if (!['owner', 'farm_manager', 'warehouse_staff'].includes(operation.membership.role)) throw createHttpError(403, 'Chỉ chủ trại hoặc nhân viên kho được xử lý yêu cầu cấp vật tư.')
+  if (!['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(operation.membership.role)) throw createHttpError(403, 'Chỉ chủ trại hoặc nhân viên kho được xử lý yêu cầu cấp vật tư.')
   const { farmId, requestId } = operation
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId || '')) throw createHttpError(400, 'Mã yêu cầu không hợp lệ.')
   if (!operation.input || typeof operation.input !== 'object' || Array.isArray(operation.input) || Object.keys(operation.input).some(key => key !== 'reason')) throw createHttpError(400, 'Dữ liệu từ chối không hợp lệ.')

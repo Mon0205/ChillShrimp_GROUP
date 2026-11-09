@@ -32,14 +32,14 @@ const editingArea = ref(null)
 const selectedArea = ref(null)
 const farmForm = ref({ code: '', name: '', address: '', status: 'active' })
 const areaForm = ref({ code: '', name: '' })
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const areasDialog = ref(false)
 const areaFarmId = ref('')
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === areaFarmId.value))
 const selectedRole = computed(() => selectedFarm.value?.role || '')
 const canCreateFarm = computed(() => auth.user?.canCreateFarm === true)
-const canManageAreas = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(selectedRole.value))
+const canManageAreas = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(selectedRole.value))
 const nextAreaStatus = computed(() => selectedArea.value?.status === 'active' ? 'inactive' : 'active')
 
 async function loadFarms() {
@@ -56,7 +56,7 @@ async function loadAreas() {
   areasLoading.value = false
   if (!areasDialog.value || !selectedFarm.value || !canManageAreas.value || selectedFarm.value.status !== 'active') return
   areasLoading.value = true
-  const query = ['owner', 'farm_manager'].includes(selectedRole.value) ? '?includeInactive=true' : ''
+  const query = ['OWNER', 'FARM_MANAGER'].includes(selectedRole.value) ? '?includeInactive=true' : ''
   try {
     const result = await api(`/farms/${encodeURIComponent(areaFarmId.value)}/areas${query}`)
     if (request === areasRequest) areas.value = result.data
@@ -81,7 +81,7 @@ async function createFarm(event) {
 }
 
 function openEditFarm(farm) {
-  if (!['owner', 'farm_manager'].includes(farm.role)) return
+  if (!['OWNER', 'FARM_MANAGER'].includes(farm.role)) return
   editingFarm.value = farm
   farmForm.value = { code: farm.code || '', name: farm.name || '', address: farm.address || '', status: farm.status === 'active' ? 'active' : 'inactive' }
   farmDialog.value = true
@@ -203,7 +203,7 @@ onMounted(loadPage)
                 <td>{{ roleNames[farm.role] || 'Chưa xác định' }}</td>
                 <td>{{ farm.area?.name || 'Toàn trại' }}</td>
                 <td><v-chip :color="farm.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ farm.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
-                <td><div class="farm-row-actions"><v-btn v-if="['owner', 'farm_manager'].includes(farm.role)" icon="mdi-pencil-outline" variant="text" color="primary" size="small" :aria-label="`Chỉnh sửa ${farm.name}`" :title="`Chỉnh sửa ${farm.name}`" @click.stop="openEditFarm(farm)" /></div></td>
+                <td><div class="farm-row-actions"><v-btn v-if="['OWNER', 'FARM_MANAGER'].includes(farm.role)" icon="mdi-pencil-outline" variant="text" color="primary" size="small" :aria-label="`Chỉnh sửa ${farm.name}`" :title="`Chỉnh sửa ${farm.name}`" @click.stop="openEditFarm(farm)" /></div></td>
               </tr>
             </tbody>
           </v-table>
@@ -218,15 +218,15 @@ onMounted(loadPage)
         <p v-if="selectedFarm?.status !== 'active'" class="popup-note">Kích hoạt trại để tiếp tục quản lý khu vực.</p>
         <p v-else-if="!canManageAreas" class="popup-note">Bạn chưa có quyền quản lý khu vực của trại này.</p>
         <template v-else>
-        <div class="section-heading"><div><span class="eyebrow">{{ selectedFarm?.name }}</span><h2>Khu vực</h2></div><v-btn v-if="['owner', 'farm_manager'].includes(selectedRole)" color="primary" size="small" @click="openCreateArea">Tạo khu vực</v-btn></div>
+        <div class="section-heading"><div><span class="eyebrow">{{ selectedFarm?.name }}</span><h2>Khu vực</h2></div><v-btn v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)" color="primary" size="small" @click="openCreateArea">Tạo khu vực</v-btn></div>
         <LoadingIndicator v-if="areasLoading" />
         <div v-else-if="!areas.length" class="inline-empty">Chưa có khu vực trong trang trại này.</div>
         <v-table v-else class="app-data-table areas-table">
-          <thead><tr><th>Mã khu vực</th><th>Tên khu vực</th><th>Trạng thái</th><th v-if="['owner', 'farm_manager'].includes(selectedRole)">Thao tác</th></tr></thead>
+          <thead><tr><th>Mã khu vực</th><th>Tên khu vực</th><th>Trạng thái</th><th v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)">Thao tác</th></tr></thead>
           <tbody><tr v-for="area in areas" :key="area.id">
             <td><strong>{{ area.code }}</strong></td><td>{{ area.name }}</td>
             <td><v-chip :color="area.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ area.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
-            <td v-if="['owner', 'farm_manager'].includes(selectedRole)"><div class="farm-row-actions">
+            <td v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)"><div class="farm-row-actions">
               <v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${area.name}`" :title="`Sửa ${area.name}`" @click="openEditArea(area)" />
               <v-btn :icon="area.status === 'active' ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'" variant="text" size="small" :aria-label="area.status === 'active' ? 'Ngừng hoạt động khu vực' : 'Kích hoạt khu vực'" :title="area.status === 'active' ? 'Ngừng hoạt động' : 'Kích hoạt'" @click="openAreaStatus(area)" />
               <v-btn v-if="area.status === 'inactive'" icon="mdi-delete-outline" color="error" variant="text" size="small" aria-label="Xóa khu vực" title="Xóa khu vực" @click="openDeleteArea(area)" />

@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { isSystemAdmin } from '../auth/account-access.service.js'
 import { createAssignmentNotification } from './alert-notification.service.js'
 import { defaultAlertResponsible, eligibleMembership, eligibleAlertMembers, eligibleAlertWorker } from './alert-responsibility.service.js'
 import { Prisma } from '@prisma/client'
@@ -104,14 +105,14 @@ const ENVIRONMENT_ALERT_SEVERITIES = new Set(['warning', 'critical'])
 const ALERT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function environmentalAlertWhere(operation, alertId) {
-  if (!['owner', 'farm_manager', 'area_manager', 'technician'].includes(operation.membership.role)) throw createHttpError(403, 'Bạn không có quyền truy cập cảnh báo môi trường.')
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được phân công khu vực.')
+  if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(operation.membership.role)) throw createHttpError(403, 'Bạn không có quyền truy cập cảnh báo môi trường.')
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được phân công khu vực.')
   if (alertId && !ALERT_UUID_PATTERN.test(alertId)) throw createHttpError(400, 'Mã cảnh báo không hợp lệ.')
   return {
     ...(alertId ? { id: alertId } : {}),
     farmId: operation.farmId,
     alertType: 'environment_threshold',
-    ...(['owner', 'farm_manager'].includes(operation.membership.role) ? {} : { tank: { is: { areaId: operation.membership.areaId } } }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) ? {} : { tank: { is: { areaId: operation.membership.areaId } } }),
   }
 }
 
@@ -294,7 +295,7 @@ function assignmentInput(operation, allowed) {
   if (!Number.isInteger(body.assignmentVersion) || body.assignmentVersion < 0 || body.assignmentVersion >= 2147483647) throw createHttpError(400, 'assignmentVersion phải là số nguyên không âm hợp lệ.')
   return body
 }
-function assignmentManager(role) { return ['owner', 'farm_manager', 'area_manager'].includes(role) }
+function assignmentManager(role) { return ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role) }
 async function lockedAlertContext(tx, operation, version, targetId = null) {
   const where = environmentalAlertWhere(operation, operation.alertId)
   await tx.$queryRaw`SELECT id FROM alerts_notifications WHERE id = ${operation.alertId}::uuid AND farm_id = ${operation.farmId}::uuid FOR UPDATE`
@@ -310,7 +311,9 @@ async function lockedAlertContext(tx, operation, version, targetId = null) {
   for (const userId of [...new Set([operation.actor.id, targetId].filter(Boolean))].sort()) {
     await tx.$queryRaw`SELECT user_id FROM farm_members WHERE farm_id = ${operation.farmId}::uuid AND user_id = ${userId} FOR SHARE`
   }
-  const actor = await tx.farmMember.findFirst({ where: { farmId: operation.farmId, userId: operation.actor.id }, include: { farm: { select: { status: true } } } })
+  const actor = isSystemAdmin(operation.actor)
+    ? { userId: operation.actor.id, role: 'OWNER', status: 'active', farm: await tx.farm.findUnique({ where: { id: operation.farmId }, select: { status: true } }) }
+    : await tx.farmMember.findFirst({ where: { farmId: operation.farmId, userId: operation.actor.id }, include: { farm: { select: { status: true } } } })
   if (!eligibleMembership(actor, alert.tank?.areaId) || (actor.farm && actor.farm.status !== 'active')) throw createHttpError(403, 'Thành viên không còn quyền xử lý cảnh báo trong phạm vi này.')
   if (alert.assignmentVersion !== version) throw createHttpError(409, 'Phân công đã thay đổi; vui lòng tải lại.')
   if (alert.status === 'resolved') throw createHttpError(409, 'Cảnh báo đã kết thúc.')

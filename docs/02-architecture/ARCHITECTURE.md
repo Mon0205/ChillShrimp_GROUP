@@ -67,11 +67,18 @@ Service giữ logic nghiệp vụ dùng chung, không tách theo phương thức
 
 ## 3. Trại, thành viên và phân quyền
 
+Ma trận quyền theo từng nghiệp vụ, ngoại lệ quy trình và vị trí thực thi trong code được mô tả tại [PERMISSIONS.md](./PERMISSIONS.md).
+
 - `users` là danh tính; `farms` là ranh giới dữ liệu trang trại.
 - `farm_members` xác định `role`, `status` và `area_id` của người dùng tại trại.
-- Năm vai trò: `owner`, `farm_manager`, `area_manager`, `technician`, `warehouse_staff`.
+- Năm vai trò: `OWNER`, `FARM_MANAGER`, `AREA_MANAGER`, `TECHNICIAN`, `WAREHOUSE_STAFF`.
 - Quản lý trại làm việc toàn trại được phân công; quản lý khu vực và kỹ thuật viên bị giới hạn thêm theo khu vực. Quyền cụ thể tiếp tục phụ thuộc nghiệp vụ.
 - `ADMIN_EMAIL` xác định tài khoản quản trị toàn hệ thống qua email đã xác thực; không thêm role `admin` vào membership.
+- Chủ trại có quyền cao nhất tại trại; Quản lý trại chỉ hoạt động tại một trại được phân công, không được sửa thông tin, hạ chức vụ, đình chỉ Chủ trại hoặc tạo/thu hồi lời mời Chủ trại.
+- Quản lý khu vực chỉ mời, sửa thông tin và đình chỉ Kỹ thuật viên trong khu vực của mình; không quản lý Chủ trại, Quản lý trại hoặc Quản lý khu vực khác. Kỹ thuật viên và Nhân viên kho không có quyền quản trị thành viên.
+- Kỹ thuật viên chỉ làm nghiệp vụ kỹ thuật trong khu vực; Nhân viên kho chỉ thao tác nghiệp vụ kho trong trại. Quyền khách hàng và bán giống của Quản lý khu vực tuân theo [ALERTS-AND-SALES.md](../05-business-domain/ALERTS-AND-SALES.md).
+- Khi sửa thành viên hoặc thu hồi lời mời, điều kiện ghi kiểm tra lại vai trò/phạm vi và quyền của người thao tác. Nhận và thu hồi lời mời chuyển trạng thái có điều kiện để không ghi đè nhau khi chạy đồng thời.
+- Bốn luồng ghi nhật ký chăm sóc khóa hàng trại, ao/bể và membership bằng `FOR SHARE`, đọc lại quyền/phạm vi hiện tại trong cùng transaction với thao tác ghi. Việc chuyển khu vực, đình chỉ thành viên hoặc ngừng trại không được chen giữa kiểm tra và ghi nhật ký; admin toàn hệ thống vẫn giữ quyền ghi mà không cần membership riêng.
 - Mọi thao tác phải xác minh trại, trạng thái truy cập và phạm vi trước khi đọc/ghi. Không tin role hoặc khu vực do frontend tự khai báo.
 - Dữ liệu nghiệp vụ phải có `farm_id` trực tiếp hoặc truy ngược chắc chắn về trại qua quan hệ cha.
 

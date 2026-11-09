@@ -137,10 +137,10 @@ Trang trại có thể được tổ chức thành nhiều khu vực. Mỗi khu 
 
 Hệ thống sử dụng bốn role chính:
 
-1. `owner`
-2. `area_manager`
-3. `technician`
-4. `warehouse_staff`
+1. `OWNER`
+2. `AREA_MANAGER`
+3. `TECHNICIAN`
+4. `WAREHOUSE_STAFF`
 
 Hai role `sales_staff` và `viewer` **không thuộc phạm vi phiên bản hiện tại**.
 
@@ -1292,26 +1292,26 @@ Mã `BR01` đến `BR26` được giữ ổn định để bảo toàn các tham
 
 ## BR01 — Thành viên, vai trò và phạm vi tenant
 
-- `farm_members` là nguồn duy nhất xác định quyền nghiệp vụ; không lấy role từ `users`, `farms.created_by`, `ADMIN_EMAIL` hoặc dữ liệu do frontend tự khai báo.
+- `farm_members` xác định quyền nghiệp vụ tại trại; không lấy role từ `users`, `farms.created_by` hoặc dữ liệu do frontend tự khai báo. Ngoại lệ là tài khoản quản trị toàn hệ thống được cấu hình bằng `ADMIN_EMAIL`.
 - Mỗi cặp `(farm_id, user_id)` chỉ có một membership và một role tại một thời điểm.
-- Một người dùng được phép tham gia nhiều trang trại và có thể giữ role khác nhau tại từng trang trại.
-- Mọi use case thuộc một trang trại chỉ được thực hiện khi membership tương ứng có `status = active`.
+- Chủ trại có thể thuộc nhiều trại; các vai trò khác, bao gồm Quản lý trại, chỉ thuộc một trại được phân công.
+- Ngoại trừ admin toàn hệ thống, mọi use case thuộc một trang trại phải có membership tương ứng `status = active`.
 - Mọi bản ghi tham gia cùng một thao tác phải thuộc cùng `farm_id`. Backend phải từ chối mọi tham chiếu chéo trang trại, kể cả khi UUID được gửi trực tiếp qua API.
 
-> Đây là quy tắc kiến trúc đã chốt. Migration `20260902_004_enforce_single_farm_non_owner` còn chứa giới hạn cũ đối với user không phải Owner và được xem là khoảng cách hiện thực cần xử lý bằng migration mới trong giai đoạn sau, không phải lý do thay đổi BR01.
+> Giới hạn một trại đối với non-owner được thực thi bởi migration `20260902_004_enforce_single_farm_non_owner`; tiếp tục giữ giới hạn này cho Quản lý trại.
 
 ## BR02 — Quyền của Owner
 
-- Owner có quyền quản trị toàn bộ dữ liệu của trang trại mà mình có membership `role = owner`, `status = active`.
-- Chỉ Owner được quản lý thông tin trại, tài khoản thành viên, khách hàng, xuất bán và doanh thu theo phạm vi đã chốt.
+- Owner có quyền quản trị toàn bộ dữ liệu của trang trại mà mình có membership `role = OWNER`, `status = active`.
+- Owner có quyền cao nhất tại trại. Quản lý trại có quyền vận hành toàn trại được giao nhưng không được sửa, đình chỉ, hạ chức vụ Chủ trại, cấp quyền Chủ trại hoặc thu hồi lời mời Chủ trại.
 - `farms.created_by` chỉ phục vụ truy vết người tạo; không được dùng thay cho việc kiểm tra Owner trong `farm_members`.
-- `ADMIN_EMAIL` chỉ phục vụ bootstrap tài khoản đầu tiên, không phải role toàn hệ thống và không tạo quyền trên mọi trang trại.
+- Tài khoản `ADMIN_EMAIL` giữ quyền quản trị toàn hệ thống, được truy cập các trại với quyền quản lý tương đương Owner mà không cần membership riêng.
 
 ## BR03 — Phạm vi của Area Manager
 
 - Area Manager phải được gán đúng một `area_id` thuộc chính trang trại của membership.
 - Area Manager chỉ được xem nhân viên, quản lý ao/bể, lô giống, dữ liệu chăm sóc, AI, cảnh báo và chi phí có thể truy về khu vực được phân công.
-- Area Manager không được truy cập khu vực khác, quản lý tài khoản thành viên, quản lý khách hàng, xuất bán hoặc xem doanh thu toàn trại.
+- Area Manager chỉ được mời, sửa thông tin, đình chỉ và thu hồi lời mời Kỹ thuật viên trong khu vực của mình; không được quản lý người ngang hoặc cao cấp hơn. Quyền khách hàng trong trại, đơn bán theo khu vực và giao hàng tuân theo [ALERTS-AND-SALES.md](../05-business-domain/ALERTS-AND-SALES.md); không được xác nhận đơn hoặc thu tiền.
 - Chi phí chung có `batch_id = NULL` không được tự phân vào dashboard khu vực khi chưa có phương pháp phân bổ hợp lệ.
 
 ## BR04 — Phạm vi của Technician
@@ -1329,11 +1329,11 @@ Mã `BR01` đến `BR26` được giữ ổn định để bảo toàn các tham
 
 ## BR06 — Lời mời thành viên
 
-- Chỉ Owner có membership `active` tại trang trại đang chọn mới được tạo hoặc hủy lời mời.
-- Role được phép mời là `area_manager`, `technician` và `warehouse_staff`; không tạo Owner qua luồng lời mời nhân viên.
-- `area_manager` và `technician` bắt buộc có `area_id` thuộc cùng `farm_id`; `warehouse_staff` phải có `area_id = NULL`.
+- Owner/admin được mời các vai trò; Quản lý trại được mời các vai trò trừ Owner; Quản lý khu vực chỉ được mời Kỹ thuật viên trong khu vực mình. Quyền thu hồi lời mời tuân theo cùng giới hạn vai trò/phạm vi.
+- Người thao tác phải có quyền hoạt động tại trại; không tạo hoặc thu hồi lời mời qua một membership bị đình chỉ hoặc trại ngừng hoạt động.
+- `AREA_MANAGER` và `TECHNICIAN` bắt buộc có `area_id` thuộc cùng `farm_id`; `OWNER`, `FARM_MANAGER` và `WAREHOUSE_STAFF` phải có `area_id = NULL`.
 - Email phải được chuẩn hóa chữ thường trước khi kiểm tra. Không được mời lại người đã là thành viên của cùng trại hoặc tạo nhiều lời mời `pending` cho cùng email trong cùng trại.
-- Người đã có tài khoản hoặc membership tại trang trại khác vẫn có thể được mời vào trại mới; khi chấp nhận, các membership cũ không bị thay đổi.
+- Luồng mời hiện tại dành cho email chưa có user ứng dụng. Nếu lần nhận trước chỉ tạo được tài khoản xác thực bên ngoài, lần nhận lại phải xác thực đúng mật khẩu và email trước khi tạo user/membership theo lời mời còn hiệu lực.
 - Token gốc chỉ gửi cho người nhận; database chỉ lưu `token_hash`. Lời mời có hiệu lực tối đa 24 giờ và chỉ được chấp nhận một lần.
 - Trạng thái lưu trữ là `pending`, `accepted`, `cancelled`; trạng thái hết hạn được suy ra từ `expires_at`, không cần thêm enum `expired`.
 - Tạo user nếu cần, tạo `farm_members` và chuyển invitation sang `accepted` phải được thực hiện nhất quán; lỗi tại một bước không được để lại membership hoặc invitation ở trạng thái dở dang.
@@ -1500,7 +1500,7 @@ Trạng thái xử lý hợp lệ là `pending → processing → completed` ho�
 ## BR28 — Tạo và lựa chọn trang trại
 
 - Mã trang trại phải duy nhất và được chuẩn hóa theo quy ước hệ thống.
-- Tạo `farms` và tạo membership `owner` cho người tạo phải nằm trong cùng transaction.
+- Tạo `farms` và tạo membership `OWNER` cho người tạo phải nằm trong cùng transaction.
 - Sau đăng nhập, mọi nghiệp vụ phải dùng trang trại đang chọn từ danh sách membership `active`; backend phải kiểm tra lại `farmId`, không tin giá trị lưu ở frontend.
 - Quyền sửa hoặc xóa trại phải dựa trên membership Owner đang hoạt động, không dựa riêng vào `created_by`.
 - Xóa trang trại là thao tác nguy hiểm, phải yêu cầu xác nhận và không được làm mất lịch sử trái với BR18.

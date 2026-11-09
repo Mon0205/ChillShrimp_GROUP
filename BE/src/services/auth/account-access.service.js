@@ -15,5 +15,5 @@ export async function accountAccess(user) {
   if (memberships.length && !active.length) {
     throw createHttpError(403, 'Tài khoản đã bị ngưng sử dụng tại tất cả các trại.')
   }
-  return { isSystemAdmin: false, canCreateFarm: active.some((member) => member.role === 'owner') }
+  return { isSystemAdmin: false, canCreateFarm: active.some((member) => member.role === 'OWNER') }
 }

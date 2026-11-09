@@ -3,10 +3,33 @@ import { prisma } from '../../config/prisma.js'
 import { neonAuth } from '../../config/neon-auth.js'
 import { createHttpError } from '../../utils/http.js'
 import { sendInvitationEmail } from '../notifications/email.service.js'
+import { loadMembership } from './membership.service.js'
 import { isSystemAdmin } from '../auth/account-access.service.js'
+
+function assertCanManageMember(membership, target, farmId) {
+  if (membership.status !== 'active' || membership.farmId !== farmId) throw createHttpError(403, 'Bạn không có quyền quản lý thành viên của trại này.')
+  const allowed = membership.role === 'OWNER'
+    || (membership.role === 'FARM_MANAGER' && target.role !== 'OWNER')
+    || (membership.role === 'AREA_MANAGER' && membership.areaId && target.role === 'TECHNICIAN' && target.areaId === membership.areaId)
+  if (!allowed) throw createHttpError(403, 'Bạn không có quyền quản lý thành viên có chức vụ hoặc phạm vi này.')
+}
+
+function writableFarm(actor, membership) {
+  return { status: 'active', ...(isSystemAdmin(actor) ? {} : { members: { some: { userId: actor.id, status: 'active', role: membership.role, areaId: membership.areaId } } }) }
+}
+
+function memberUpdateWhere(actor, membership, target) {
+  // Recheck target scope and actor privileges in the write, not only the earlier read.
+  return { farmId_userId: { farmId: target.farmId, userId: target.userId }, role: target.role, areaId: target.areaId, farm: writableFarm(actor, membership) }
+}
+
+function rethrowMembershipChange(error) {
+  if (error.code === 'P2025') throw createHttpError(409, 'Quyền hoặc phạm vi thành viên vừa thay đổi. Vui lòng tải lại.')
+  throw error
+}
 export async function listUsers({ filters = {}, membership }) {
   const members = await prisma.farmMember.findMany({
-    where: { farmId: filters.farmId, ...(membership.role === 'area_manager' ? { areaId: membership.areaId } : {}) },
+    where: { farmId: filters.farmId, ...(membership.role === 'AREA_MANAGER' ? { areaId: membership.areaId } : {}) },
     select: {
       role: true,
       status: true,
@@ -68,7 +91,7 @@ export async function listInvitations({ filters = {}, membership }) {
   const farmId = filters.farmId
   if (!farmId) throw createHttpError(400, 'Thiếu mã trại.')
   const invitations = await prisma.farmInvitation.findMany({
-    where: { farmId, status: 'pending', ...(membership.role === 'area_manager' ? { areaId: membership.areaId } : {}) },
+    where: { farmId, status: 'pending', ...(membership.role === 'AREA_MANAGER' ? { areaId: membership.areaId } : {}) },
     select: { id: true, email: true, role: true, expiresAt: true, createdAt: true, area: { select: { id: true, code: true, name: true } } },
     orderBy: { createdAt: 'desc' },
   })
@@ -81,16 +104,16 @@ export async function createInvitation({ input = {}, membership, actor }) {
   const email = input.email?.trim().toLowerCase()
   const { farmId, role } = input
   let areaId = input.areaId || null
-  const allowedRoles = ['owner', 'farm_manager', 'area_manager', 'technician', 'warehouse_staff']
+  const allowedRoles = ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN', 'WAREHOUSE_STAFF']
   if (!validEmail(email) || !allowedRoles.includes(role)) throw createHttpError(400, 'Email hoặc chức vụ không hợp lệ.')
-  if (membership.role === 'farm_manager' && role === 'owner') throw createHttpError(403, 'Quản lý trại không được cấp quyền Chủ trại.')
-  if (membership.role === 'area_manager') {
-    if (role !== 'technician') throw createHttpError(403, 'Quản lý khu vực chỉ được mời Nhân viên kỹ thuật trong khu vực của mình.')
+  if (membership.role === 'FARM_MANAGER' && role === 'OWNER') throw createHttpError(403, 'Quản lý trại không được cấp quyền Chủ trại.')
+  if (membership.role === 'AREA_MANAGER') {
+    if (role !== 'TECHNICIAN') throw createHttpError(403, 'Quản lý khu vực chỉ được mời Nhân viên kỹ thuật trong khu vực của mình.')
     areaId = membership.areaId
   }
-  if (!['owner', 'farm_manager'].includes(membership.role) && role === 'warehouse_staff') throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được mời Nhân viên kho.')
-  if (['area_manager', 'technician'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
-  if (['owner', 'farm_manager', 'warehouse_staff'].includes(role)) areaId = null
+  if (!['OWNER', 'FARM_MANAGER'].includes(membership.role) && role === 'WAREHOUSE_STAFF') throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được mời Nhân viên kho.')
+  if (['AREA_MANAGER', 'TECHNICIAN'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
+  if (['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(role)) areaId = null
   if (areaId) {
     const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' } })
     if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trại.')
@@ -120,14 +143,31 @@ export async function acceptInvitation({ input = {} }) {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
   const invitation = await prisma.farmInvitation.findUnique({ where: { tokenHash } })
   if (!invitation || invitation.status !== 'pending' || invitation.expiresAt <= new Date()) throw createHttpError(410, 'Lời mời đã hết hạn, đã được sử dụng hoặc đã bị thu hồi.')
-  const { data, error } = await neonAuth.signUp.email({ email: invitation.email, password, name: invitation.email })
-  if (error || !data?.user) throw createHttpError(409, error?.message || 'Không thể tạo tài khoản.')
-  await prisma.$transaction([
-    prisma.user.create({ data: { id: data.user.id, email: invitation.email, displayName: data.user.name || invitation.email } }),
-    prisma.farmMember.create({ data: { farmId: invitation.farmId, userId: data.user.id, role: invitation.role, areaId: invitation.areaId } }),
-    prisma.farmInvitation.update({ where: { id: invitation.id }, data: { invitedUserId: data.user.id, status: 'accepted', acceptedAt: new Date() } }),
-  ])
-  await neonAuth.signOut()
+  const existingUser = await prisma.user.findUnique({ where: { email: invitation.email }, select: { id: true } })
+  if (existingUser) throw createHttpError(409, 'Email này đã có tài khoản trong hệ thống.')
+  let { data, error } = await neonAuth.signUp.email({ email: invitation.email, password, name: invitation.email })
+  if (error || !data?.user) {
+    // A failed previous acceptance may have created only the external auth account.
+    const signedIn = await neonAuth.signIn.email({ email: invitation.email, password })
+    data = signedIn.data
+    error = signedIn.error
+  }
+  if (error || !data?.user || data.user.email?.toLowerCase() !== invitation.email.toLowerCase()) throw createHttpError(409, 'Không thể tạo hoặc xác thực tài khoản nhận lời mời.')
+  try {
+    await prisma.$transaction(async tx => {
+      // Claim only a still-valid invitation; revocation must win before creating membership.
+      const claimed = await tx.farmInvitation.updateMany({
+        where: { id: invitation.id, status: 'pending', expiresAt: { gt: new Date() } },
+        data: { status: 'accepted', acceptedAt: new Date() },
+      })
+      if (!claimed.count) throw createHttpError(410, 'Lời mời đã hết hạn, đã được sử dụng hoặc đã bị thu hồi.')
+      await tx.user.create({ data: { id: data.user.id, email: invitation.email, displayName: data.user.name || invitation.email } })
+      await tx.farmMember.create({ data: { farmId: invitation.farmId, userId: data.user.id, role: invitation.role, areaId: invitation.areaId } })
+      await tx.farmInvitation.update({ where: { id: invitation.id }, data: { invitedUserId: data.user.id } })
+    })
+  } finally {
+    await neonAuth.signOut()
+  }
   return { accepted: true, email: invitation.email }
 }
 
@@ -156,17 +196,15 @@ export async function updateMembershipStatus({ input = {}, userId, actor, member
     include: { user: { select: { id: true, email: true, displayName: true } } },
   })
   if (!target) throw createHttpError(404, 'Không tìm thấy thành viên trong trại.')
-  if (membership.role === 'area_manager') {
-    const canManage = target.role === 'technician' && target.areaId === membership.areaId
-    if (!canManage) throw createHttpError(403, 'Quản lý khu vực chỉ được thay đổi trạng thái Nhân viên kỹ thuật trong khu vực của mình.')
-  }
+  assertCanManageMember(membership, target, farmId)
 
-  const updated = await prisma.farmMember.update({
-    where: { farmId_userId: { farmId, userId: target.userId } },
-    data: { status },
-    select: { userId: true, status: true },
-  })
-  return updated
+  try {
+    return await prisma.farmMember.update({
+      where: memberUpdateWhere(actor, membership, target),
+      data: { status },
+      select: { userId: true, status: true },
+    })
+  } catch (error) { rethrowMembershipChange(error) }
 }
 
 export async function updateManagedUser({ input = {}, userId, actor, membership }) {
@@ -176,6 +214,7 @@ export async function updateManagedUser({ input = {}, userId, actor, membership 
     include: { user: { select: { id: true, email: true } } },
   })
   if (!target) throw createHttpError(404, 'Không tìm thấy thành viên trong trại.')
+  assertCanManageMember(membership, target, farmId)
 
   const displayName = typeof input.displayName === 'string' ? input.displayName.trim() : ''
   const phone = typeof input.phone === 'string' ? input.phone.trim() : ''
@@ -186,15 +225,15 @@ export async function updateManagedUser({ input = {}, userId, actor, membership 
 
   let role = target.role
   let areaId = target.areaId
-  if (membership.role === 'area_manager') {
-    if (target.role !== 'technician' || target.areaId !== membership.areaId) throw createHttpError(403, 'Quản lý khu vực chỉ được sửa Nhân viên kỹ thuật trong khu vực của mình.')
+  if (membership.role === 'AREA_MANAGER') {
+    if (target.role !== 'TECHNICIAN' || target.areaId !== membership.areaId) throw createHttpError(403, 'Quản lý khu vực chỉ được sửa Nhân viên kỹ thuật trong khu vực của mình.')
   } else {
     role = input.role
-    if (membership.role === 'farm_manager' && role === 'owner' && target.role !== 'owner') throw createHttpError(403, 'Quản lý trại không được cấp quyền Chủ trại.')
+    if (membership.role === 'FARM_MANAGER' && role === 'OWNER') throw createHttpError(403, 'Quản lý trại không được cấp quyền Chủ trại.')
     areaId = input.areaId || null
-    if (!['owner', 'farm_manager', 'area_manager', 'technician', 'warehouse_staff'].includes(role)) throw createHttpError(400, 'Chức vụ không hợp lệ.')
-    if (['area_manager', 'technician'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
-    if (['owner', 'farm_manager', 'warehouse_staff'].includes(role)) areaId = null
+    if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN', 'WAREHOUSE_STAFF'].includes(role)) throw createHttpError(400, 'Chức vụ không hợp lệ.')
+    if (['AREA_MANAGER', 'TECHNICIAN'].includes(role) && !areaId) throw createHttpError(400, 'Chức vụ này bắt buộc phải chọn khu vực.')
+    if (['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(role)) areaId = null
     if (areaId) {
       const area = await prisma.area.findFirst({ where: { id: areaId, farmId, status: 'active' }, select: { id: true } })
       if (!area) throw createHttpError(400, 'Khu vực không hợp lệ, đã ngừng hoạt động hoặc không thuộc trại đang quản lý.')
@@ -202,19 +241,23 @@ export async function updateManagedUser({ input = {}, userId, actor, membership 
   }
 
   if (target.userId === actor.id && (status !== 'active' || role !== target.role)) throw createHttpError(400, 'Bạn không thể đổi chức vụ hoặc ngưng sử dụng chính mình.')
-  const [, updatedMembership] = await prisma.$transaction([
-    prisma.user.update({ where: { id: target.userId }, data: { displayName, phone: phone || null } }),
-    prisma.farmMember.update({ where: { farmId_userId: { farmId, userId: target.userId } }, data: { role, areaId, status }, include: { area: { select: { id: true, code: true, name: true } }, user: { select: { id: true, email: true, displayName: true, phone: true } } } }),
-  ])
-  return { ...updatedMembership.user, role: updatedMembership.role, status: updatedMembership.status, area: updatedMembership.area, createdAt: updatedMembership.createdAt }
+  try {
+    return await prisma.$transaction(async tx => {
+      const updatedMembership = await tx.farmMember.update({
+        where: memberUpdateWhere(actor, membership, target), data: { role, areaId, status }, include: { area: { select: { id: true, code: true, name: true } } },
+      })
+      const user = await tx.user.update({ where: { id: target.userId }, data: { displayName, phone: phone || null }, select: { id: true, email: true, displayName: true, phone: true } })
+      return { ...user, role: updatedMembership.role, status: updatedMembership.status, area: updatedMembership.area, createdAt: updatedMembership.createdAt }
+    })
+  } catch (error) { rethrowMembershipChange(error) }
 }
 
 export async function revokeInvitation({ invitationId, actor }) {
   const invitation = await prisma.farmInvitation.findUnique({ where: { id: invitationId } })
   if (!invitation || invitation.status !== 'pending') throw createHttpError(404, 'Không tìm thấy lời mời đang chờ.')
-  const membership = await prisma.farmMember.findUnique({ where: { farmId_userId: { farmId: invitation.farmId, userId: actor.id } } })
-  const canRevoke = isSystemAdmin(actor) || (membership?.status === 'active' && ( ['owner', 'farm_manager'].includes(membership?.role) || (membership?.role === 'area_manager' && membership.areaId === invitation.areaId)))
-  if (!canRevoke) throw createHttpError(403, 'Bạn không có quyền thu hồi lời mời này.')
-  await prisma.farmInvitation.update({ where: { id: invitation.id }, data: { status: 'cancelled' } })
+  const membership = await loadMembership({ farmId: invitation.farmId, actor })
+  assertCanManageMember(membership, invitation, invitation.farmId)
+  const revoked = await prisma.farmInvitation.updateMany({ where: { id: invitation.id, status: 'pending', role: invitation.role, areaId: invitation.areaId, farm: writableFarm(actor, membership) }, data: { status: 'cancelled' } })
+  if (!revoked.count) throw createHttpError(409, 'Lời mời đã được sử dụng hoặc đã bị thu hồi.')
   return undefined
 }

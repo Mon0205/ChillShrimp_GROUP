@@ -6,8 +6,8 @@ const props = defineProps({ section: { type: String, required: true } })
 const route = useRoute()
 const context = useFarmContext()
 const role = computed(() => context.farms.find(farm => farm.id === context.farmId)?.role)
-const canViewPonds = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(role.value))
-const canViewBusiness = computed(() => ['owner', 'farm_manager', 'area_manager'].includes(role.value))
+const canViewPonds = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+const canViewBusiness = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role.value))
 </script>
 
 <template>

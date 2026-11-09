@@ -15,7 +15,7 @@ const password = ref({ currentPassword: '', newPassword: '', confirmPassword: ''
 const otp = ref({ code: '', newPassword: '', confirmPassword: '' })
 const otpSent = ref(false)
 const tab = ref('current')
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const roleText = computed(() => profile.value?.memberships?.map((item) => `${roleNames[item.role]} · ${item.farm.name}${item.area ? ` · ${item.area.name}` : ''}`).join('\n') || 'Chưa được phân quyền')
 watch(error, (message) => { if (message) { showToast(message, 'error'); error.value = '' } })
 watch(success, (message) => { if (message) { showToast(message, 'success'); success.value = '' } })
