@@ -1,8 +1,8 @@
 """Automatic check of a photo and its detections against the capture rules
 (docs/BAO_CAO_MODEL_V8_YOLO26S_SEED0.md, section 11).
 
-Only what can be measured is checked: resolution, sharpness, exposure, shrimp size
-relative to the image, and signs in the detections (nothing found, max_det reached,
+Only what can be measured is checked: resolution (info only), sharpness, exposure, detected
+head size in pixels, and signs in the detections (nothing found, max_det reached,
 low confidence). Hands, logos, screen recordings, water depth or camera angle cannot
 be detected here. Thresholds are heuristics, not validated limits.
 """
@@ -12,13 +12,15 @@ import cv2
 import numpy as np
 from PIL import Image
 
-MIN_LONG_SIDE = 800          # below this the shrimp head is only a few pixels
-RECOMMENDED_LONG_SIDE = 1600
+# Image size alone cannot tell whether shrimp are too small: a 320 px crop can hold 16 px heads
+# while a 4000 px tray photo can hold 6 px ones. So resolution is only an info note, and
+# "too small" is judged from the detected head size in original-image pixels.
+RECOMMENDED_LONG_SIDE = 1600  # a recommendation (model report 11.6), not a measured limit
+HEAD_PX_MIN = 8              # median head side as the model sees it (after shrinking to imgsz); below it counts drop (test+valid downscaled: C error 21% at 8-10 px, 51% at 6-8 px)
 BLUR_VARIANCE_MIN = 3.0      # Laplacian variance on a 1024 px copy; only very smooth images fall below (mlpro patches that count fine score 5-700)
 DARK_MEAN = 60
 BRIGHT_MEAN = 210
-HEAD_RATIO_MIN = 0.008       # median box side / long side; labelled heads are about 0.02
-HEAD_RATIO_MAX = 0.06
+HEAD_RATIO_MAX = 0.06        # median box side / long side; labelled heads are about 0.02
 LOW_CONF_RATIO_MAX = 0.5
 MEAN_CONF_MIN = 0.4
 
@@ -36,32 +38,37 @@ def image_metrics(image: Image.Image) -> dict[str, float]:
     }
 
 
-def median_box_ratio(detections: list[dict[str, Any]], long_side: int) -> float | None:
+def median_box_side(detections: list[dict[str, Any]]) -> float | None:
+    """Median sqrt(box area) in original-image pixels: roughly the head size the model sees."""
     if not detections:
         return None
     sides = [((d["box"]["x2"] - d["box"]["x1"]) * (d["box"]["y2"] - d["box"]["y1"])) ** 0.5 for d in detections]
-    return float(np.median(sides)) / long_side
+    return float(np.median(sides))
 
 
 def check_photo(
     image: Image.Image,
     detections: list[dict[str, Any]],
-    max_det: int,
+    max_det_reached: bool,
     summary: dict[str, Any],
+    inference_scale: float = 1.0,
 ) -> list[dict[str, str]]:
-    """Return warnings: [{"code", "level" ("warning" | "info"), "message"}], empty if nothing to flag."""
+    """Return warnings: [{"code", "level" ("warning" | "info"), "message"}], empty if nothing to flag.
+
+    max_det_reached comes from the detector: with tiling it means one crop hit its cap,
+    which the merged total cannot tell. inference_scale (<= 1) is how much the image or tile is
+    shrunk before the model sees it: a 20 px head in a 4000 px photo is about 3 px at imgsz=640.
+    """
     warnings: list[dict[str, str]] = []
 
     def add(code: str, level: str, message: str) -> None:
         warnings.append({"code": code, "level": level, "message": message})
 
     long_side = max(image.size)
-    if long_side < MIN_LONG_SIDE:
-        add("low_resolution", "warning",
-            f"Ảnh chỉ {long_side}px ở cạnh dài, đầu tôm quá nhỏ. Hãy chụp ảnh gốc, cạnh dài từ {RECOMMENDED_LONG_SIDE}px.")
-    elif long_side < RECOMMENDED_LONG_SIDE:
-        add("resolution_below_recommended", "info",
-            f"Ảnh {long_side}px ở cạnh dài, thấp hơn mức khuyến nghị {RECOMMENDED_LONG_SIDE}px.")
+    if long_side < RECOMMENDED_LONG_SIDE:
+        add("small_image", "info",
+            f"Ảnh nhỏ ({long_side}px ở cạnh dài). Nếu đây là ảnh chụp cả khay, nên dùng ảnh gốc từ camera "
+            f"(khuyến nghị cạnh dài khoảng {RECOMMENDED_LONG_SIDE}px) để thấy rõ từng con.")
 
     m = image_metrics(image)
     if m["sharpness"] < BLUR_VARIANCE_MIN:
@@ -75,10 +82,14 @@ def check_photo(
         add("no_detection", "warning",
             "Không phát hiện con nào. Có thể ảnh ngoài phạm vi (tôm quá to hoặc quá nhỏ, nền quá lẫn); kiểm tra lại quy định chụp ảnh.")
     else:
-        ratio = median_box_ratio(detections, long_side)
-        if ratio is not None and ratio < HEAD_RATIO_MIN:
+        head_px = median_box_side(detections)
+        ratio = head_px / long_side if head_px is not None else None
+        # Judge the head size the model works with, not the size in the original photo.
+        model_head_px = head_px * min(1.0, inference_scale) if head_px is not None else None
+        if model_head_px is not None and model_head_px < HEAD_PX_MIN:
             add("shrimp_too_small", "warning",
-                "Tôm quá nhỏ so với khung ảnh. Hãy chụp gần hơn hoặc dùng ảnh phân giải cao hơn (có thể dùng tile_size).")
+                f"Đầu tôm chỉ khoảng {model_head_px:.0f}px khi model xử lý, quá nhỏ để đếm chính xác (dưới {HEAD_PX_MIN}px thường bị đếm thiếu). "
+                "Hãy chụp gần hơn để tôm chiếm nhiều khung hình hơn.")
         elif ratio is not None and ratio > HEAD_RATIO_MAX:
             add("shrimp_too_large", "warning",
                 "Tôm quá lớn so với khung ảnh, ngoài phạm vi tôm giống mà model được dạy. Hãy chụp xa hơn.")
@@ -88,7 +99,7 @@ def check_photo(
             add("low_confidence", "warning",
                 "Phần lớn kết quả có độ tin cậy thấp. Số đếm có thể sai; kiểm tra ảnh theo quy định chụp ảnh.")
 
-    if len(detections) >= max_det:
+    if max_det_reached:
         add("max_det_reached", "warning", "Đã chạm giới hạn số khung, số đếm bị cắt. Tăng max_det hoặc chia ảnh nhỏ hơn.")
 
     return warnings

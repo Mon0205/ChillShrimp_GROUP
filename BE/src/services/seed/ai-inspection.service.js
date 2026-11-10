@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { createUploadSignature, getOwnedCloudinaryAsset } from '../../config/cloudinary.js'
+import { createUploadSignature, deleteCloudinaryAsset, getOwnedCloudinaryAsset } from '../../config/cloudinary.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 
@@ -38,7 +38,7 @@ export async function createAiInspectionUploadSignature(context) {
   const folder = `chillshrimp/farms/${context.farmId}/seed-batches/${batch.id}/ai-inspections`
   const publicId = randomUUID()
   const signed = createUploadSignature({ folder, publicId, allowedFormats: IMAGE_FORMATS.join(',') })
-  return { ...signed, folder, publicId, resourceType: 'image', maxBytes: 10 * 1024 * 1024 }
+  return { ...signed, folder, publicId, resourceType: 'image', maxBytes: MAX_IMAGE_BYTES }
 }
 
 export async function listAiInspections(context) {
@@ -64,6 +64,7 @@ export async function listAiInspections(context) {
       averageSizeMm: true,
       uniformityScore: true,
       detections: true,
+      photoWarnings: true,
       modelVersion: true,
       status: true,
       inspectedAt: true,
@@ -80,6 +81,83 @@ export async function listAiInspections(context) {
   return { batch, items }
 }
 
+function parseSampleVolume(value) {
+  if (value === undefined || value === null || value === '') return null
+  const volume = Number(value)
+  // The column keeps 3 decimals: smaller values would be stored as 0 and blow up the density.
+  if (!Number.isFinite(volume) || volume < 0.001 || volume > 1000000) {
+    throw createHttpError(400, 'sampleVolumeMl phải từ 0,001 đến 1.000.000 ml.')
+  }
+  return Number(volume.toFixed(3))
+}
+
+const densityFrom = (count, volume) => (volume && count != null ? Number((count / Number(volume)).toFixed(4)) : null)
+
+// Who may review or delete an inspection: managers in scope, or the person who created it.
+// findBatch already limits Area Managers and Technicians to their own area.
+async function findChangeableInspection(context, batch, id) {
+  const inspection = await prisma.aiInspection.findFirst({ where: { id, batchId: batch.id } })
+  if (!inspection) throw createHttpError(404, 'Không tìm thấy lần kiểm tra AI trong lô giống này.')
+  const isManager = ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(context.membership.role)
+  if (!isManager && inspection.createdBy !== context.actor.id) {
+    throw createHttpError(403, 'Chỉ người tạo lần kiểm tra hoặc người quản lý được thay đổi lần kiểm tra này.')
+  }
+  return inspection
+}
+
+// Completed inspections are kept for traceability (AI result, photo, model version);
+// only uploads that never produced a result can be removed.
+const DELETABLE_STATUSES = ['pending', 'failed']
+
+export async function deleteAiInspection(context) {
+  const batch = await findBatch(context)
+  const id = validateUuid(context.inspectionId, 'Mã lần kiểm tra')
+  const inspection = await findChangeableInspection(context, batch, id)
+  if (!DELETABLE_STATUSES.includes(inspection.status)) {
+    throw createHttpError(409, 'Chỉ xóa được lần kiểm tra chưa có kết quả (chờ phân tích hoặc lỗi).')
+  }
+  // Conditional delete: an analysis that starts in between moves the row to processing and wins.
+  const deleted = await prisma.aiInspection.deleteMany({ where: { id, status: { in: DELETABLE_STATUSES } } })
+  if (!deleted.count) throw createHttpError(409, 'Lần kiểm tra vừa được phân tích; không thể xóa.')
+  try {
+    await deleteCloudinaryAsset({ resourceType: 'image', publicId: inspection.mediaPublicId })
+  } catch (error) {
+    // The record is gone either way; a leftover image only costs storage.
+    console.error('AI inspection image could not be removed from Cloudinary:', inspection.mediaPublicId, error)
+  }
+  return { id }
+}
+
+// Human review after analysis: a confirmed count stored beside (never over) the AI count,
+// and a sample volume that may have been forgotten at upload; density is recomputed from the AI count.
+export async function updateAiInspection(context) {
+  const batch = await findBatch(context)
+  const id = validateUuid(context.inspectionId, 'Mã lần kiểm tra')
+  const input = context.input
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw createHttpError(400, 'Dữ liệu cập nhật không hợp lệ.')
+  const unknown = Object.keys(input).filter((key) => !['manualCount', 'sampleVolumeMl'].includes(key))
+  if (unknown.length) throw createHttpError(400, `Trường không được hỗ trợ: ${unknown.join(', ')}.`)
+  if (!('manualCount' in input) && !('sampleVolumeMl' in input)) throw createHttpError(400, 'Không có thông tin để cập nhật.')
+
+  const inspection = await findChangeableInspection(context, batch, id)
+  if (inspection.status !== 'completed') throw createHttpError(409, 'Chỉ cập nhật được sau khi AI phân tích xong.')
+
+  const data = {}
+  if ('manualCount' in input) {
+    if (input.manualCount === null || input.manualCount === '') data.manualCount = null
+    else {
+      const count = Number(input.manualCount)
+      if (!Number.isSafeInteger(count) || count < 0 || count > 1000000) throw createHttpError(400, 'Số đếm xác nhận phải là số nguyên từ 0 đến 1.000.000.')
+      data.manualCount = count
+    }
+  }
+  if ('sampleVolumeMl' in input) {
+    data.sampleVolumeMl = parseSampleVolume(input.sampleVolumeMl)
+    data.densityPerMl = densityFrom(inspection.detectedCount, data.sampleVolumeMl)
+  }
+  return prisma.aiInspection.update({ where: { id }, data, include: { creator: { select: { id: true, displayName: true } } } })
+}
+
 export async function createAiInspection(context) {
   const batch = await findBatch(context)
   if (!context.input || typeof context.input !== 'object' || Array.isArray(context.input)) throw createHttpError(400, 'Dữ liệu ảnh kiểm tra không hợp lệ.')
@@ -91,13 +169,7 @@ export async function createAiInspection(context) {
   validateUuid(mediaPublicId, 'Cloudinary public ID')
   if (!SAMPLING_METHODS.includes(samplingMethod)) throw createHttpError(400, 'samplingMethod không hợp lệ.')
 
-  let sampleVolumeMl = null
-  if (context.input.sampleVolumeMl !== undefined && context.input.sampleVolumeMl !== null && context.input.sampleVolumeMl !== '') {
-    sampleVolumeMl = Number(context.input.sampleVolumeMl)
-    if (!Number.isFinite(sampleVolumeMl) || sampleVolumeMl <= 0 || sampleVolumeMl > 1000000) {
-      throw createHttpError(400, 'sampleVolumeMl phải lớn hơn 0 và không vượt quá 1.000.000 ml.')
-    }
-  }
+  const sampleVolumeMl = parseSampleVolume(context.input.sampleVolumeMl)
 
   let notes = null
   if (context.input.notes !== undefined && context.input.notes !== null) {
@@ -156,6 +228,21 @@ function validatePrediction(prediction) {
   return prediction
 }
 
+const WARNING_LEVELS = ['warning', 'info']
+const MAX_PHOTO_WARNINGS = 20
+
+// Photo warnings are advisory: a malformed entry is dropped, never fails the analysis.
+// null (field missing) means an older AI_SERVICE that does not check photos.
+function readPhotoWarnings(prediction) {
+  if (!Array.isArray(prediction.photo_warnings)) return null
+  return prediction.photo_warnings
+    .filter((warning) => typeof warning?.code === 'string' && /^[a-z0-9_]{1,50}$/.test(warning.code) &&
+      WARNING_LEVELS.includes(warning.level) &&
+      typeof warning.message === 'string' && warning.message.length > 0 && warning.message.length <= 500)
+    .slice(0, MAX_PHOTO_WARNINGS)
+    .map(({ code, level, message }) => ({ code, level, message }))
+}
+
 export async function analyzeAiInspection(context) {
   const batch = await findBatch(context)
   const id = validateUuid(context.inspectionId, 'Mã lần kiểm tra')
@@ -191,14 +278,13 @@ export async function analyzeAiInspection(context) {
     const averageConfidence = prediction.count
       ? Number((prediction.detections.reduce((sum, detection) => sum + detection.confidence, 0) / prediction.count).toFixed(5))
       : null
-    const densityPerMl = inspection.sampleVolumeMl
-      ? Number((prediction.count / Number(inspection.sampleVolumeMl)).toFixed(4))
-      : null
+    const densityPerMl = densityFrom(prediction.count, inspection.sampleVolumeMl)
     const item = await prisma.aiInspection.update({
       where: { id },
       data: {
         detectedCount: prediction.count,
         detections: prediction.detections,
+        photoWarnings: readPhotoWarnings(prediction),
         annotatedImageUrl: prediction.annotated_image_url,
         modelVersion: prediction.model_version,
         averageConfidence,

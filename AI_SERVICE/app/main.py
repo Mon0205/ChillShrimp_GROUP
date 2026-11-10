@@ -1,4 +1,5 @@
 import os
+import threading
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Any, Optional
@@ -8,7 +9,7 @@ import numpy as np
 import torch
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from PIL import Image
+from PIL import Image, ImageOps
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
@@ -47,25 +48,31 @@ app = FastAPI(
 )
 
 model: Optional[YOLO] = None
+# One shared YOLO instance is not safe to call from several threads at once, and requests now
+# run in a threadpool. The lock loads the weights once and runs one prediction at a time;
+# the event loop (and /health) stays free while a prediction waits or runs.
+MODEL_LOCK = threading.RLock()
 
 
 def get_model() -> YOLO:
     global model
 
-    if model is None:
-        if not MODEL_PATH.exists():
-            raise HTTPException(
-                status_code=503,
-                detail=f"Model file not found. Expected: {MODEL_PATH}. Set MODEL_PATH to override.",
-            )
-        model = YOLO(str(MODEL_PATH))
+    with MODEL_LOCK:
+        if model is None:
+            if not MODEL_PATH.exists():
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Model file not found. Expected: {MODEL_PATH}. Set MODEL_PATH to override.",
+                )
+            model = YOLO(str(MODEL_PATH))
 
     return model
 
 
 def read_image(file_bytes: bytes) -> Image.Image:
     try:
-        return Image.open(BytesIO(file_bytes)).convert("RGB")
+        # Phones store rotation in EXIF; apply it so the model sees the photo as displayed.
+        return ImageOps.exif_transpose(Image.open(BytesIO(file_bytes))).convert("RGB")
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Uploaded file is not a valid image.") from exc
 
@@ -144,6 +151,11 @@ def summarize_confidence(detections: list[dict[str, Any]]) -> dict[str, Optional
     }
 
 
+# Smaller tiles or more tiles make a single request run thousands of sequential predictions.
+MIN_TILE_SIZE = 160
+MAX_TILES = 64
+
+
 def tile_origins(length: int, tile: int, overlap: float) -> list[int]:
     if length <= tile:
         return [0]
@@ -190,18 +202,24 @@ def detect_tiled(
     tile_size: int,
     overlap: float,
     merge_iou: float,
-) -> tuple[dict[int, str], list[dict[str, Any]]]:
-    """Run YOLO on overlapping crops so small, dense shrimp seeds stay large enough to detect."""
+) -> tuple[dict[int, str], list[dict[str, Any]], bool]:
+    """Run YOLO on overlapping crops so small, dense shrimp seeds stay large enough to detect.
+
+    Returns (names, merged detections, truncated). max_det caps each crop, so truncated is
+    True when any crop hit that cap, not when the merged total exceeds it.
+    """
     # Ultralytics expects BGR for NumPy inputs; Pillow images are RGB.
     pixels = np.asarray(image)[..., ::-1].copy()
     names: dict[int, str] = {}
     detections: list[dict[str, Any]] = []
+    truncated = False
 
     for y0 in tile_origins(image.height, tile_size, overlap):
         for x0 in tile_origins(image.width, tile_size, overlap):
             crop = pixels[y0 : y0 + tile_size, x0 : x0 + tile_size]
             result = detector.predict(source=crop, conf=conf, imgsz=imgsz, max_det=max_det, verbose=False)[0]
             names = {int(key): value for key, value in result.names.items()}
+            truncated = truncated or len(result.boxes) >= max_det
 
             for box in result.boxes:
                 det = detection_to_dict(box, names)
@@ -213,7 +231,39 @@ def detect_tiled(
                 }
                 detections.append(det)
 
-    return names, merge_detections(detections, merge_iou)
+    return names, merge_detections(detections, merge_iou), truncated
+
+
+def run_detection(
+    image: Image.Image,
+    conf: float,
+    imgsz: int,
+    max_det: int,
+    tile_size: int,
+    tile_overlap: float,
+    merge_iou: float,
+) -> tuple[list[dict[str, Any]], np.ndarray, bool, float]:
+    """Blocking model work; called through run_in_threadpool so the event loop stays free.
+
+    Returns (detections, plotted image, max_det reached, inference scale). The scale is how much
+    the image (or each tile) is shrunk before the model sees it, so photo checks can judge the
+    head size the model actually works with.
+    """
+    detector = get_model()
+
+    with MODEL_LOCK:
+        if tile_size:
+            names, detections, truncated = detect_tiled(
+                detector, image, conf, imgsz, max_det, tile_size, tile_overlap, merge_iou
+            )
+            plotted = plot_detections(image, names, detections)
+            return detections, plotted, truncated, min(1.0, imgsz / tile_size)
+
+        result = detector.predict(source=image, conf=conf, imgsz=imgsz, max_det=max_det, verbose=False)[0]
+        names = {int(key): value for key, value in result.names.items()}
+        detections = [detection_to_dict(box, names) for box in result.boxes]
+        plotted = result.plot(labels=False, conf=False)
+        return detections, plotted, len(detections) >= max_det, min(1.0, imgsz / max(image.size))
 
 
 @app.get("/health")
@@ -236,12 +286,27 @@ async def predict(
     imgsz: int = Query(640, ge=64, le=2048),
     save_original: bool = Query(True),
     max_det: Annotated[int, Query(ge=1, le=5000)] = 1000,
-    tile_size: Annotated[int, Query(ge=0, le=4096, description="Crop size in px; 0 disables tiling.")] = 0,
+    tile_size: Annotated[
+        int, Query(ge=0, le=4096, description=f"Crop size in px; 0 disables tiling, otherwise at least {MIN_TILE_SIZE}.")
+    ] = 0,
     tile_overlap: Annotated[float, Query(ge=0.0, lt=1.0)] = 0.2,
     merge_iou: Annotated[float, Query(gt=0.0, le=1.0)] = 0.5,
 ) -> dict[str, Any]:
+    if tile_size and tile_size < MIN_TILE_SIZE:
+        raise HTTPException(status_code=422, detail=f"tile_size must be 0 or at least {MIN_TILE_SIZE}.")
+
     file_bytes = await file.read()
-    image = read_image(file_bytes)
+    image = await run_in_threadpool(read_image, file_bytes)
+
+    if tile_size:
+        tiles = len(tile_origins(image.width, tile_size, tile_overlap)) * len(
+            tile_origins(image.height, tile_size, tile_overlap)
+        )
+        if tiles > MAX_TILES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"tile_size={tile_size} needs {tiles} tiles for this image; the limit is {MAX_TILES}. Use a larger tile_size.",
+            )
 
     if not CLOUDINARY_CONFIGURED:
         raise HTTPException(
@@ -252,18 +317,14 @@ async def predict(
             },
         )
 
-    detector = get_model()
-
-    if tile_size:
-        names, detections = detect_tiled(
-            detector, image, conf, imgsz, max_det, tile_size, tile_overlap, merge_iou
-        )
-        plotted_bgr = plot_detections(image, names, detections)
-    else:
-        result = detector.predict(source=image, conf=conf, imgsz=imgsz, max_det=max_det, verbose=False)[0]
-        names = {int(key): value for key, value in result.names.items()}
-        detections = [detection_to_dict(box, names) for box in result.boxes]
-        plotted_bgr = result.plot(labels=False, conf=False)
+    detections, plotted_bgr, max_det_reached, inference_scale = await run_in_threadpool(
+        run_detection, image, conf, imgsz, max_det, tile_size, tile_overlap, merge_iou
+    )
+    # Before any upload: a failing photo check must not leave assets behind on Cloudinary.
+    confidence_summary = summarize_confidence(detections)
+    photo_warnings = await run_in_threadpool(
+        check_photo, image, detections, max_det_reached, confidence_summary, inference_scale
+    )
 
     cloudinary_asset = None
     try:
@@ -296,7 +357,6 @@ async def predict(
             },
         ) from exc
 
-    confidence_summary = summarize_confidence(detections)
     return {
         "filename": file.filename,
         "image_saved": bool(cloudinary_asset),
@@ -309,8 +369,8 @@ async def predict(
         "image": {"width": image.width, "height": image.height},
         "count": len(detections),
         "max_det": max_det,
-        "max_det_reached": len(detections) >= max_det,
+        "max_det_reached": max_det_reached,
         **confidence_summary,
-        "photo_warnings": check_photo(image, detections, max_det, confidence_summary),
+        "photo_warnings": photo_warnings,
         "detections": detections,
     }

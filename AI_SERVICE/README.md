@@ -46,7 +46,7 @@ Fill the three Cloudinary values in `.env`. Open `http://localhost:8001/docs` to
 | `imgsz` | 640 | Inference size |
 | `save_original` | `true` | `false` skips the Cloudinary backup of the original (the backend already stores it) |
 | `max_det` | 1000 | Maximum boxes |
-| `tile_size` | 0 | 0 = whole image. Use e.g. 320 only for dense small shrimp (type A) |
+| `tile_size` | 0 | 0 = whole image. Otherwise at least 160 and at most 64 tiles per image (else 422). Use e.g. 320 only for dense small shrimp (type A) |
 | `tile_overlap` | 0.2 | Overlap between tiles |
 | `merge_iou` | 0.5 | IoU used to merge duplicates across tiles |
 

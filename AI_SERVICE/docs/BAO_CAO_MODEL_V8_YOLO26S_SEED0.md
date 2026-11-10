@@ -286,13 +286,16 @@ Mô-đun `ai_service/photo_check.py` kiểm tra ảnh và kết quả, rồi tr�
 
 | Mã | Khi nào | Quy định liên quan |
 |---|---|---|
-| `low_resolution` / `resolution_below_recommended` | cạnh dài dưới 800 px / dưới 1600 px | độ phân giải |
+| `small_image` (chỉ `info`) | cạnh dài dưới 1600 px; chỉ nhắc dùng ảnh gốc, không kết luận tôm quá nhỏ | độ phân giải |
 | `blurry` | độ mờ (phương sai Laplacian) dưới 3 | ảnh nét |
 | `too_dark`, `too_bright` | độ sáng trung bình dưới 60 hoặc trên 210 | ánh sáng đều |
-| `shrimp_too_small`, `shrimp_too_large` | cạnh khung trung vị dưới 0,8% hoặc trên 6% cạnh dài ảnh | cỡ tôm so với ảnh |
+| `shrimp_too_small` | cạnh khung trung vị (căn bậc hai diện tích) dưới 8 px **ở cỡ model xử lý** (ảnh lớn hơn `imgsz` bị thu nhỏ trước khi đo) | cỡ tôm |
+| `shrimp_too_large` | cạnh khung trung vị trên 6% cạnh dài ảnh | cỡ tôm so với ảnh |
 | `no_detection`, `low_confidence`, `max_det_reached` | không tìm thấy gì; đa số khung tin cậy thấp; chạm giới hạn khung | ảnh ngoài phạm vi |
 
-**Giới hạn:** không phát hiện được tay, logo, ảnh chụp màn hình, độ sâu nước, góc máy. Các ngưỡng là ước lượng, chỉ chỉnh thử trên khoảng 25 ảnh của dự án (ngưỡng mờ ban đầu bật nhầm trên ảnh đếm bình thường nên đã nới), **chưa kiểm chứng** là cảnh báo có đi cùng số đếm sai. Ảnh trong dataset đa số 640 px nên sẽ bị cảnh báo độ phân giải; quy định này áp dụng cho ảnh chụp mới.
+**Giới hạn:** không phát hiện được tay, logo, ảnh chụp màn hình, độ sâu nước, góc máy. Các ngưỡng là ước lượng, chỉ chỉnh thử trên khoảng 25 ảnh của dự án (ngưỡng mờ ban đầu bật nhầm trên ảnh đếm bình thường nên đã nới), **chưa kiểm chứng** là cảnh báo có đi cùng số đếm sai. Ảnh trong dataset đa số 640 px nên sẽ có lưu ý `small_image`; lưu ý này áp dụng cho ảnh chụp mới.
+
+**Ngưỡng 8 px của `shrimp_too_small` (đo ngày 10/11/2026):** 36 ảnh test và valid (bỏ `real_007`) được thu nhỏ còn 15–100% kích thước để giả lập ảnh độ phân giải thấp, rồi đếm với `conf=0,35`, `imgsz=640`. Loại C: sai số 10–11% khi đầu tôm từ 16 px, 19–25% ở 8–16 px, 51% ở 6–8 px và 81% ở 4–6 px. Loại A: 4–6% từ 4 px trở lên, 14% dưới 4 px. Dưới ngưỡng, model luôn đếm thiếu. Cỡ đầu tôm do model đo khớp với nhãn (tỷ lệ trung vị 1,11). Giới hạn: ảnh thu nhỏ nhân tạo, ít ảnh, số đếm loại C nhỏ nên sai số tương đối dao động mạnh.
 
 ### 11.6 Điều chưa kiểm chứng
 - Các ngưỡng độ sâu nước, góc lệch, ánh sáng (quy định số 10, 11, 12) và cạnh dài 1600 px là **đề xuất**, chưa có thí nghiệm so sánh.
