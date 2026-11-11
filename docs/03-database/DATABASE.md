@@ -47,4 +47,4 @@ Ba cột `processed_by`, `processed_at`, `rejection_reason` lưu người xử l
 
 ## Role Quản lý trại
 
-Hai migration `20261025_007_add_farm_manager_role` và `20261025_008_allow_farm_manager_scope` bổ sung enum `farm_manager` và cho phép role này có `area_id` NULL ở membership/lời mời. Trigger giới hạn một trại đối với non-owner tiếp tục áp dụng. Không thêm bảng hoặc cột, không chuyển đổi quyền tài khoản cũ. Chưa áp dụng lên database đang dùng.
+Hai migration `20261025_007_add_farm_manager_role` và `20261025_008_allow_farm_manager_scope` bổ sung enum `FARM_MANAGER` và cho phép role này có `area_id` NULL ở membership/lời mời. Trigger giới hạn một trại đối với non-owner tiếp tục áp dụng. Không thêm bảng hoặc cột, không chuyển đổi quyền tài khoản cũ. Chưa áp dụng lên database đang dùng.

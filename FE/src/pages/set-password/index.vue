@@ -9,7 +9,7 @@ const route = useRoute(), router = useRouter()
 const token = typeof route.query.token === 'string' ? route.query.token : ''
 const invitation = ref(null), password = ref(''), confirmPassword = ref('')
 const loading = ref(true), submitting = ref(false), error = ref('')
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const mismatch = computed(() => confirmPassword.value && password.value !== confirmPassword.value)
 watch(error, (message) => { if (message) { showToast(message, 'error'); error.value = '' } })
 

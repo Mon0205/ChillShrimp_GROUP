@@ -5,9 +5,9 @@ import { useFarmContext } from '../../composables/farm-context.js'
 const route = useRoute()
 const context = useFarmContext()
 const role = computed(() => context.farms.find(farm => farm.id === context.farmId)?.role)
-const canViewInventory = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
-const canViewRequests = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager'].includes(role.value))
-const canRecordInventoryUsage = computed(() => ['owner', 'farm_manager', 'warehouse_staff', 'area_manager', 'technician'].includes(role.value))
+const canViewInventory = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+const canViewRequests = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF', 'AREA_MANAGER'].includes(role.value))
+const canRecordInventoryUsage = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 </script>
 
 <template>

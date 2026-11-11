@@ -6,7 +6,7 @@ export async function loadMembership({ farmId, actor, allowArchivedFarm = false 
   const admin = isSystemAdmin(actor)
   const farm = admin ? await prisma.farm.findUnique({ where: { id: farmId }, select: { status: true } }) : null
   if (admin && !farm) throw createHttpError(404, 'Không tìm thấy trang trại.')
-  const membership = admin ? { farmId, userId: actor.id, role: 'owner', status: 'active', areaId: null, farm } : await prisma.farmMember.findUnique({
+  const membership = admin ? { farmId, userId: actor.id, role: 'OWNER', status: 'active', areaId: null, farm } : await prisma.farmMember.findUnique({
     where: { farmId_userId: { farmId, userId: actor.id } },
     include: { farm: { select: { status: true } } },
   })

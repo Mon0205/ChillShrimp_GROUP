@@ -1,6 +1,29 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { isSystemAdmin } from '../auth/account-access.service.js'
+
+export async function lockCareLogTank(tx, operation, tankId, { activeOnly = false } = {}) {
+  const { farmId, actor } = operation
+  // Keep farm status, tank scope and current membership stable until the log commits.
+  await tx.$queryRaw`SELECT id FROM farms WHERE id = ${farmId}::uuid FOR SHARE`
+  await tx.$queryRaw`SELECT id FROM ponds_tanks WHERE id = ${tankId}::uuid AND farm_id = ${farmId}::uuid FOR SHARE`
+  await tx.$queryRaw`SELECT user_id FROM farm_members WHERE farm_id = ${farmId}::uuid AND user_id = ${actor.id} FOR SHARE`
+  const farm = await tx.farm.findUnique({ where: { id: farmId }, select: { status: true } })
+  if (!farm) throw createHttpError(404, 'Không tìm thấy trang trại.')
+  if (farm.status !== 'active') throw createHttpError(409, 'Trang trại đã ngừng hoạt động.')
+  const member = isSystemAdmin(actor) ? { role: 'OWNER', status: 'active' }
+    : await tx.farmMember.findUnique({ where: { farmId_userId: { farmId, userId: actor.id } } })
+  if (member?.status !== 'active' || !['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(member.role)) {
+    throw createHttpError(403, 'Bạn không còn quyền ghi nhật ký tại trại này.')
+  }
+  const tank = await tx.pondTank.findFirst({ where: { id: tankId, farmId, deletedAt: null, ...(activeOnly ? { status: 'active' } : {}) } })
+  if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể hợp lệ trong trại.')
+  if (!['OWNER', 'FARM_MANAGER'].includes(member.role) && (!member.areaId || member.areaId !== tank.areaId)) {
+    throw createHttpError(403, 'Ao/bể không còn thuộc khu vực được phân công.')
+  }
+  return tank
+}
 
 const TANK_TYPES = ['nursery_tank', 'pond', 'other']
 const TANK_STATUSES = ['empty', 'active', 'cleaning', 'inactive']
@@ -34,7 +57,7 @@ function validateType(value) {
 
 function ensureAreaId(context, areaId, { required = false } = {}) {
   const requestedAreaId = areaId || null
-  if (context.membership.role === 'area_manager') {
+  if (context.membership.role === 'AREA_MANAGER') {
     if (!context.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
     if (requestedAreaId && requestedAreaId !== context.membership.areaId) {
       throw createHttpError(403, 'Chỉ được thao tác trong khu vực được phân công.')
@@ -52,7 +75,7 @@ async function assertAreaBelongsToFarm(farmId, areaId) {
 }
 
 function requireScopedArea(context) {
-  if (!['owner', 'farm_manager'].includes(context.membership.role) && !context.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(context.membership.role) && !context.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
 }
@@ -61,7 +84,7 @@ function scopedWhere(context, extra = {}) {
   requireScopedArea(context)
   return {
     farmId: context.farmId,
-    ...(['owner', 'farm_manager'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
     ...extra,
   }
 }
@@ -78,7 +101,7 @@ async function validateResponsibleUser(tx, farmId, areaId, userId, excludeTankId
   // Serialize assignments across farms so concurrent requests cannot exceed five tanks.
   await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`
   const member = await tx.farmMember.findFirst({
-    where: { farmId, userId, role: 'technician', status: 'active', areaId },
+    where: { farmId, userId, role: 'TECHNICIAN', status: 'active', areaId },
   })
   if (!member) throw createHttpError(400, 'Người phụ trách phải là nhân viên kỹ thuật đang hoạt động trong cùng khu vực.')
   const count = await tx.pondTank.count({
@@ -92,7 +115,7 @@ export async function listAvailableTechnicians(context) {
   const areaId = ensureAreaId(context, context.filters.areaId, { required: true })
   await assertAreaBelongsToFarm(context.farmId, areaId)
   const members = await prisma.farmMember.findMany({
-    where: { farmId: context.farmId, areaId, role: 'technician', status: 'active' },
+    where: { farmId: context.farmId, areaId, role: 'TECHNICIAN', status: 'active' },
     select: { userId: true, user: { select: { id: true, displayName: true, email: true } } },
     orderBy: { user: { email: 'asc' } },
   })
@@ -119,7 +142,7 @@ export async function listPondTanks(context) {
   }
   if (tankType) where.tankType = validateType(tankType)
 
-  if (['owner', 'farm_manager'].includes(context.membership.role) && context.filters.areaId) {
+  if (['OWNER', 'FARM_MANAGER'].includes(context.membership.role) && context.filters.areaId) {
     await assertAreaBelongsToFarm(context.farmId, context.filters.areaId)
     where.areaId = context.filters.areaId
   }
@@ -145,7 +168,7 @@ export async function createPondTank(context) {
   const code = normalizeCode(context.input.code)
   const name = context.input.name?.trim()
   const tankType = validateType(context.input.tankType || 'nursery_tank')
-  const areaId = ensureAreaId(context, context.input.areaId, { required: context.membership.role === 'area_manager' })
+  const areaId = ensureAreaId(context, context.input.areaId, { required: context.membership.role === 'AREA_MANAGER' })
 
   if (!validCode(code)) throw createHttpError(400, 'Mã ao/bể phải có 2-50 ký tự hợp lệ.')
   if (!name || name.length > 100) throw createHttpError(400, 'Tên ao/bể phải từ 1 đến 100 ký tự.')

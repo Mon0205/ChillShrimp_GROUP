@@ -14,12 +14,12 @@ function validateUuid(value, label) {
 }
 
 function getScopedTankWhere(context) {
-  if (!['owner', 'farm_manager'].includes(context.membership.role) && !context.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(context.membership.role) && !context.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   return {
     farmId: context.farmId,
-    ...(['owner', 'farm_manager'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(context.membership.role) ? {} : { areaId: context.membership.areaId }),
   }
 }
 

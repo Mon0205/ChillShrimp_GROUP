@@ -11,7 +11,7 @@ import { api } from '../../services/api.js'
 
 const auth = useAuth()
 const farmContext = useFarmContext()
-const manageableFarms = computed(() => farmContext.farms.filter(farm => ['owner', 'farm_manager', 'area_manager'].includes(farm.role)))
+const manageableFarms = computed(() => farmContext.farms.filter(farm => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(farm.role)))
 const search = ref('')
 const invitations = ref([]), members = ref([])
 const farmId = computed(() => farmContext.farmId)
@@ -20,20 +20,27 @@ const loading = ref(true), sending = ref(false), error = ref(''), success = ref(
 const inviteDialog = ref(false)
 const inviteFarmId = ref(''), inviteAreas = ref([]), loadingInviteAreas = ref(false)
 const inviteFarm = computed(() => manageableFarms.value.find(farm => farm.id === inviteFarmId.value))
-const inviteRoleOptions = computed(() => ['owner', 'farm_manager'].includes(inviteFarm.value?.role) ? Object.entries(roleNames).filter(([value]) => value !== 'owner' || inviteFarm.value?.role === 'owner').map(([value, title]) => ({ title, value })) : [{ title: roleNames.technician, value: 'technician' }])
+const inviteRoleOptions = computed(() => ['OWNER', 'FARM_MANAGER'].includes(inviteFarm.value?.role) ? Object.entries(roleNames).filter(([value]) => value !== 'OWNER' || inviteFarm.value?.role === 'OWNER').map(([value, title]) => ({ title, value })) : [{ title: roleNames.TECHNICIAN, value: 'TECHNICIAN' }])
 let areaLoadVersion = 0
 const editDialog = ref(false), savingUser = ref(false), editingUser = ref(null)
-const editForm = ref({ displayName: '', email: '', phone: '', role: 'technician', areaId: '', status: 'active' })
+const editForm = ref({ displayName: '', email: '', phone: '', role: 'TECHNICIAN', areaId: '', status: 'active' })
 const areaDialog = ref(false), creatingArea = ref(false)
 const newArea = ref({ code: '', name: '' })
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const selectedFarm = computed(() => manageableFarms.value.find((farm) => farm.id === farmId.value))
 const areas = computed(() => selectedFarm.value?.areas || [])
-const roleOptions = computed(() => ['owner', 'farm_manager'].includes(selectedFarm.value?.role) ? Object.entries(roleNames).filter(([value]) => value !== 'owner' || selectedFarm.value?.role === 'owner' || editingUser.value?.role === 'owner').map(([value, title]) => ({ title, value })) : [{ title: roleNames.technician, value: 'technician' }])
-const needsArea = computed(() => ['area_manager', 'technician'].includes(role.value))
+const roleOptions = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm.value?.role) ? Object.entries(roleNames).filter(([value]) => value !== 'OWNER' || selectedFarm.value?.role === 'OWNER').map(([value, title]) => ({ title, value })) : [{ title: roleNames.TECHNICIAN, value: 'TECHNICIAN' }])
+const needsArea = computed(() => ['AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const userRows = computed(() => [...members.value.map((x) => ({ ...x, status: x.status || 'active', roleLabel: roleNames[x.role] })), ...invitations.value.map((x) => ({ ...x, status: 'pending', roleLabel: roleNames[x.role] }))])
-const canEditUser = (item) => item.status !== 'pending' && (['owner', 'farm_manager'].includes(selectedFarm.value?.role) || (selectedFarm.value?.role === 'area_manager' && item.role === 'technician' && item.area?.id === selectedFarm.value?.area?.id))
-const editNeedsArea = computed(() => ['area_manager', 'technician'].includes(editForm.value.role))
+function canManageUser(farm, target) {
+  if (!farm || !target) return false
+  return farm.role === 'OWNER'
+    || (farm.role === 'FARM_MANAGER' && target.role !== 'OWNER')
+    || (farm.role === 'AREA_MANAGER' && Boolean(farm.area?.id) && target.role === 'TECHNICIAN' && target.area?.id === farm.area.id)
+}
+const canEditUser = (item) => item.status !== 'pending' && canManageUser(selectedFarm.value, item)
+const canRevokeInvitation = (item) => item.status === 'pending' && canManageUser(selectedFarm.value, item)
+const editNeedsArea = computed(() => ['AREA_MANAGER', 'TECHNICIAN'].includes(editForm.value.role))
 const revokingInvitation = ref(false)
 const confirmation = ref(null)
 const tableHeaders = [
@@ -74,6 +81,7 @@ async function loadInvitations() {
 }
 onMounted(async () => { try { await loadFarms(); await loadFarmData() } catch (err) { error.value = err.message } finally { loading.value = false } })
 watch(farmId, async () => {
+  editDialog.value = false; editingUser.value = null; confirmation.value = null
   if (loading.value) return
   invitations.value = []; members.value = []
   error.value = ''
@@ -113,15 +121,18 @@ async function sendInvite(event) {
   } catch (err) { error.value = err.message } finally { sending.value = false }
 }
 function revoke(item) {
+  if (!canRevokeInvitation(item)) return
   confirmation.value = { item, farmId: farmId.value, action: 'revoke', message: `Thu hồi lời mời đã gửi tới ${item.email}?` }
 }
 function openEdit(item) {
+  if (!canEditUser(item)) return
   editingUser.value = item
   editForm.value = { displayName: item.displayName || '', email: item.email, phone: item.phone || '', role: item.role, areaId: item.area?.id || '', status: item.status }
   error.value = ''; success.value = ''; editDialog.value = true
 }
 async function saveUser(event) {
   if (event?.then && !(await event).valid) return
+  if (!editingUser.value || !canEditUser(editingUser.value)) return
   savingUser.value = true; error.value = ''; success.value = ''
   try {
     await api(`/users/${encodeURIComponent(editingUser.value.id)}`, { method: 'PATCH', body: JSON.stringify({ farmId: farmId.value, displayName: editForm.value.displayName, phone: editForm.value.phone, role: editForm.value.role, areaId: editNeedsArea.value ? editForm.value.areaId : null, status: editForm.value.status }) })
@@ -134,7 +145,7 @@ async function createArea(event) {
   const code = newArea.value.code.trim().toUpperCase(), name = newArea.value.name.trim()
   if (!code || !name) { error.value = 'Vui lòng nhập mã và tên khu vực.'; return }
   const targetFarm = inviteFarm.value
-  if (!targetFarm || !['owner', 'farm_manager'].includes(targetFarm.role)) return
+  if (!targetFarm || !['OWNER', 'FARM_MANAGER'].includes(targetFarm.role)) return
   creatingArea.value = true
   try { const result = await api(`/farms/${encodeURIComponent(targetFarm.id)}/areas`, { method: 'POST', body: JSON.stringify({ code, name }) }); targetFarm.areas = [...(targetFarm.areas || []), result.data].sort((a, b) => a.name.localeCompare(b.name, 'vi')); if (inviteFarmId.value === targetFarm.id) { inviteAreas.value = [...inviteAreas.value, result.data].sort((a, b) => a.name.localeCompare(b.name, 'vi')); areaId.value = result.data.id } newArea.value = { code: '', name: '' }; areaDialog.value = false } catch (err) { error.value = err.message } finally { creatingArea.value = false }
 }
@@ -169,7 +180,7 @@ watch([search, farmId, pageSize], () => { page.value = 1 })
           <template #item.createdAt="{ item }"><span class="date-cell">{{ item.status === 'pending' ? 'Chưa tham gia' : formatDate(item.createdAt) }}</span></template>
           <template #item.actions="{ item }"><div class="d-flex align-center justify-end ga-1">
             <v-tooltip text="Chỉnh sửa thành viên" location="top"><template #activator="{ props }"><v-btn v-if="canEditUser(item)" v-bind="props" icon="mdi-pencil-outline" size="small" variant="tonal" color="primary" aria-label="Chỉnh sửa thành viên" @click="openEdit(item)" /></template></v-tooltip>
-            <v-tooltip text="Thu hồi lời mời" location="top"><template #activator="{ props }"><v-btn v-if="item.status === 'pending'" v-bind="props" icon="mdi-email-remove-outline" size="small" variant="text" color="primary" aria-label="Thu hồi lời mời" :disabled="revokingInvitation" @click="revoke(item)" /></template></v-tooltip>
+            <v-tooltip text="Thu hồi lời mời" location="top"><template #activator="{ props }"><v-btn v-if="canRevokeInvitation(item)" v-bind="props" icon="mdi-email-remove-outline" size="small" variant="text" color="primary" aria-label="Thu hồi lời mời" :disabled="revokingInvitation" @click="revoke(item)" /></template></v-tooltip>
           </div></template>
         <template #bottom><Pagination v-model:page="page" v-model:page-size="pageSize" :total="filteredTotal" /></template>
         </v-data-table>
@@ -179,8 +190,8 @@ watch([search, farmId, pageSize], () => { page.value = 1 })
     <v-dialog :model-value="!!confirmation" :persistent="revokingInvitation" max-width="440" @update:model-value="value => { if (!value) confirmation = null }">
       <v-card title="Xác nhận thao tác"><v-card-text><p class="confirmation-message">{{ confirmation?.message }}</p></v-card-text><v-card-actions><v-spacer /><v-btn :disabled="revokingInvitation" @click="confirmation = null">Hủy</v-btn><v-btn color="primary" :loading="revokingInvitation" @click="confirmAction">Xác nhận</v-btn></v-card-actions></v-card>
     </v-dialog>
-<v-dialog v-model="inviteDialog" :persistent="sending" max-width="560"><v-card class="dialog-card"><span class="eyebrow">LỜI MỜI MỚI</span><h2>Thêm người dùng</h2><p>Người nhận sẽ đặt mật khẩu qua liên kết được gửi trong email.</p><v-form class="dialog-form" @submit.prevent="sendInvite"><label>Trại</label><v-select v-model="inviteFarmId" :items="manageableFarms" item-title="name" item-value="id" :rules="[required('trại')]" :disabled="sending" hide-details="auto"/><label>Email</label><v-text-field :rules="[required('email'), emailRule]" v-model="email" type="email" hide-details="auto" required/><label>Chức vụ</label><v-select v-model="role" :items="inviteRoleOptions" :disabled="!inviteFarmId || sending" :rules="[required('chức vụ')]" hide-details="auto"/><template v-if="needsArea"><div class="field-row"><label>Khu vực</label><v-btn variant="text" v-if="['owner', 'farm_manager'].includes(inviteFarm?.role)" type="button" @click="areaDialog = true">+ Tạo khu vực</v-btn></div><v-select :rules="[required('lựa chọn')]" v-model="areaId" :items="inviteAreas" :loading="loadingInviteAreas" :disabled="loadingInviteAreas || sending" item-title="name" item-value="id" hide-details="auto"/><small v-if="!loadingInviteAreas && !inviteAreas.length" class="warning">Cần tạo khu vực trước khi mời chức vụ này.</small></template><div class="dialog-actions"><v-btn variant="text" @click="inviteDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="sending" :disabled="!inviteFarmId || loadingInviteAreas || (needsArea && !areaId)">Gửi lời mời</v-btn></div></v-form></v-card></v-dialog>
-<v-dialog v-model="editDialog" max-width="580"><v-card class="dialog-card"><span class="eyebrow">QUẢN LÝ TÀI KHOẢN</span><h2>Sửa người dùng</h2><p>Email không thể thay đổi.</p><v-form class="dialog-form" @submit.prevent="saveUser"><label>Họ và tên</label><v-text-field :rules="[required('họ tên'), maxLength(100)]" v-model="editForm.displayName" hide-details="auto" required/><label>Email</label><v-text-field v-model="editForm.email" disabled hide-details="auto"/><label>Số điện thoại</label><v-text-field :rules="[maxLength(30)]" v-model="editForm.phone" hide-details="auto"/><label>Chức vụ</label><v-select v-model="editForm.role" :items="roleOptions" :disabled="!['owner', 'farm_manager'].includes(selectedFarm?.role) || editingUser?.id === auth.user?.id" hide-details="auto"/><template v-if="editNeedsArea"><label>Khu vực</label><v-select :rules="[required('lựa chọn')]" v-model="editForm.areaId" :items="areas" item-title="name" item-value="id" :disabled="selectedFarm?.role === 'area_manager'" hide-details="auto"/></template><label>Quyền truy cập tại trại này</label><v-select v-model="editForm.status" :items="[{ title: 'Đang hoạt động', value: 'active' }, { title: 'Ngừng hoạt động', value: 'suspended' }]" :disabled="editingUser?.id === auth.user?.id" hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="editDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="savingUser" :disabled="editNeedsArea && !editForm.areaId">Lưu thay đổi</v-btn></div></v-form></v-card></v-dialog>
+<v-dialog v-model="inviteDialog" :persistent="sending" max-width="560"><v-card class="dialog-card"><span class="eyebrow">LỜI MỜI MỚI</span><h2>Thêm người dùng</h2><p>Người nhận sẽ đặt mật khẩu qua liên kết được gửi trong email.</p><v-form class="dialog-form" @submit.prevent="sendInvite"><label>Trại</label><v-select v-model="inviteFarmId" :items="manageableFarms" item-title="name" item-value="id" :rules="[required('trại')]" :disabled="sending" hide-details="auto"/><label>Email</label><v-text-field :rules="[required('email'), emailRule]" v-model="email" type="email" hide-details="auto" required/><label>Chức vụ</label><v-select v-model="role" :items="inviteRoleOptions" :disabled="!inviteFarmId || sending" :rules="[required('chức vụ')]" hide-details="auto"/><template v-if="needsArea"><div class="field-row"><label>Khu vực</label><v-btn variant="text" v-if="['OWNER', 'FARM_MANAGER'].includes(inviteFarm?.role)" type="button" @click="areaDialog = true">+ Tạo khu vực</v-btn></div><v-select :rules="[required('lựa chọn')]" v-model="areaId" :items="inviteAreas" :loading="loadingInviteAreas" :disabled="loadingInviteAreas || sending" item-title="name" item-value="id" hide-details="auto"/><small v-if="!loadingInviteAreas && !inviteAreas.length" class="warning">Cần tạo khu vực trước khi mời chức vụ này.</small></template><div class="dialog-actions"><v-btn variant="text" @click="inviteDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="sending" :disabled="!inviteFarmId || loadingInviteAreas || (needsArea && !areaId)">Gửi lời mời</v-btn></div></v-form></v-card></v-dialog>
+<v-dialog v-model="editDialog" max-width="580"><v-card class="dialog-card"><span class="eyebrow">QUẢN LÝ TÀI KHOẢN</span><h2>Sửa người dùng</h2><p>Email không thể thay đổi.</p><v-form class="dialog-form" @submit.prevent="saveUser"><label>Họ và tên</label><v-text-field :rules="[required('họ tên'), maxLength(100)]" v-model="editForm.displayName" hide-details="auto" required/><label>Email</label><v-text-field v-model="editForm.email" disabled hide-details="auto"/><label>Số điện thoại</label><v-text-field :rules="[maxLength(30)]" v-model="editForm.phone" hide-details="auto"/><label>Chức vụ</label><v-select v-model="editForm.role" :items="roleOptions" :disabled="!['OWNER', 'FARM_MANAGER'].includes(selectedFarm?.role) || editingUser?.id === auth.user?.id" hide-details="auto"/><template v-if="editNeedsArea"><label>Khu vực</label><v-select :rules="[required('lựa chọn')]" v-model="editForm.areaId" :items="areas" item-title="name" item-value="id" :disabled="selectedFarm?.role === 'AREA_MANAGER'" hide-details="auto"/></template><label>Quyền truy cập tại trại này</label><v-select v-model="editForm.status" :items="[{ title: 'Đang hoạt động', value: 'active' }, { title: 'Ngừng hoạt động', value: 'suspended' }]" :disabled="editingUser?.id === auth.user?.id" hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="editDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="savingUser" :disabled="editNeedsArea && !editForm.areaId">Lưu thay đổi</v-btn></div></v-form></v-card></v-dialog>
 <v-dialog v-model="areaDialog" max-width="500"><v-card class="dialog-card"><span class="eyebrow">PHẠM VI PHÂN QUYỀN</span><h2>Tạo khu vực</h2><v-form class="dialog-form" @submit.prevent="createArea"><label>Mã khu vực</label><v-text-field :rules="[codeRule]" v-model="newArea.code" @update:model-value="newArea.code = newArea.code.toUpperCase()" hide-details="auto" required/><label>Tên khu vực</label><v-text-field :rules="[required('tên'), maxLength(120)]" v-model="newArea.name" hide-details="auto" required/><div class="dialog-actions"><v-btn variant="text" @click="areaDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="creatingArea">Tạo khu vực</v-btn></div></v-form></v-card></v-dialog>
 
   </AppShell>

@@ -13,10 +13,10 @@ const reportError = ref('')
 const feedingReport = ref(null)
 const reportTanks = ref([])
 const reportFilters = ref(defaultReportFilters())
-const roleNames = { owner: 'Chủ trại', farm_manager: 'Quản lý trại', area_manager: 'Quản lý khu vực', technician: 'Nhân viên kỹ thuật', warehouse_staff: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const farms = computed(() => farmContext.farms)
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmContext.farmId))
-const canViewFeedingReport = computed(() => ['owner', 'farm_manager', 'area_manager', 'technician'].includes(selectedFarm.value?.role))
+const canViewFeedingReport = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(selectedFarm.value?.role))
 const selectedRole = computed(() => roleNames[selectedFarm.value?.role] || 'Chưa xác định')
 const selectedScope = computed(() => selectedFarm.value?.area?.name || 'Toàn trại')
 

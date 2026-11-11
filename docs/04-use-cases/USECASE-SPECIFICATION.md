@@ -127,8 +127,8 @@ Các bảng mở rộng nghiệp vụ `seed_suppliers`, `seed_quality_checks`, `
 | Actor | Owner |
 | Bảng dữ liệu | `users`, `farms`, `farm_members`, `farm_invitations`, `areas` |
 | Điều kiện trước | Owner đã đăng nhập |
-| Luồng chính | **Gửi lời mời**: 1. Nhập email, chọn `role` ∈ {`area_manager`,`technician`,`warehouse_staff`}, chọn khu vực dự kiến nếu role yêu cầu.<br>2. Backend kiểm tra email và membership/lời mời `pending` trong đúng `farm_id`; người đã là thành viên của farm đó không được mời lại, nhưng user đang thuộc farm khác vẫn được mời.<br>3. Tạo `token_hash`, `expires_at`, tạo `farm_invitations` với `status = pending`; nếu user đã tồn tại thì lưu `invited_user_id`.<br>4. Gửi email chứa link kèm token gốc.<br>**Theo dõi/hủy**: 5. Owner xem và hủy lời mời của farm đó.<br>**Chấp nhận**: 6. User mới đặt mật khẩu và đăng ký Neon Auth; user đã tồn tại đăng nhập đúng tài khoản được mời. 7. Backend tạo `farm_members` với role từ `farm_invitations.role`, cập nhật `invited_user_id` và `status = accepted`; role ở các farm khác không bị thay đổi. |
-| Luồng thay thế/ngoại lệ | Email đã là thành viên của chính farm hoặc đã có lời mời `pending` → 409. User hiện hữu chưa đăng nhập đúng tài khoản → 401. `role = owner` → từ chối (BR06). Token sai/hết hạn/đã dùng → 400/409. Hủy lời mời không ở trạng thái `pending` → 409 |
+| Luồng chính | **Gửi lời mời**: 1. Nhập email, chọn `role` ∈ {`AREA_MANAGER`,`TECHNICIAN`,`WAREHOUSE_STAFF`}, chọn khu vực dự kiến nếu role yêu cầu.<br>2. Backend kiểm tra email và membership/lời mời `pending` trong đúng `farm_id`; người đã là thành viên của farm đó không được mời lại, nhưng user đang thuộc farm khác vẫn được mời.<br>3. Tạo `token_hash`, `expires_at`, tạo `farm_invitations` với `status = pending`; nếu user đã tồn tại thì lưu `invited_user_id`.<br>4. Gửi email chứa link kèm token gốc.<br>**Theo dõi/hủy**: 5. Owner xem và hủy lời mời của farm đó.<br>**Chấp nhận**: 6. User mới đặt mật khẩu và đăng ký Neon Auth; user đã tồn tại đăng nhập đúng tài khoản được mời. 7. Backend tạo `farm_members` với role từ `farm_invitations.role`, cập nhật `invited_user_id` và `status = accepted`; role ở các farm khác không bị thay đổi. |
+| Luồng thay thế/ngoại lệ | Email đã là thành viên của chính farm hoặc đã có lời mời `pending` → 409. User hiện hữu chưa đăng nhập đúng tài khoản → 401. `role = OWNER` → từ chối (BR06). Token sai/hết hạn/đã dùng → 400/409. Hủy lời mời không ở trạng thái `pending` → 409 |
 | Kết quả | Lời mời được tạo, theo dõi, hủy được; người được mời có tài khoản active sau khi chấp nhận |
 | Quy tắc liên quan | BR06 · ⚠ G3, G5 |
 
@@ -140,7 +140,7 @@ Các bảng mở rộng nghiệp vụ `seed_suppliers`, `seed_quality_checks`, `
 | Bảng dữ liệu | `users`, `farm_members`, `areas` |
 | Điều kiện trước | Tài khoản nhân viên tồn tại |
 | Luồng chính | **Xem danh sách**: 1. Owner chọn `farm_id`; Backend trả các dòng `farm_members` và thông tin user tương ứng.<br>**Kích hoạt/vô hiệu hóa tại farm**: 2. Owner cập nhật `farm_members.status`.<br>**Gán quyền/khu vực**: 3. Owner cập nhật `farm_members.role` và `area_id`; thay đổi chỉ tác động tới farm đang chọn. |
-| Luồng thay thế/ngoại lệ | Cố vô hiệu hóa chính Owner → 403. `warehouse_staff` không áp dụng khu vực |
+| Luồng thay thế/ngoại lệ | Cố vô hiệu hóa chính Owner → 403. `WAREHOUSE_STAFF` không áp dụng khu vực |
 | Kết quả | Danh sách nhân viên, trạng thái hoạt động và khu vực được quản lý |
 | Quy tắc liên quan | BR02 · ⚠ G2 |
 
@@ -172,7 +172,7 @@ Các bảng mở rộng nghiệp vụ `seed_suppliers`, `seed_quality_checks`, `
 | Actor | Owner (cập nhật); Area Manager, Technician, Warehouse Staff (chỉ xem) |
 | Bảng dữ liệu | `farms` |
 | Điều kiện trước | Đã đăng nhập |
-| Luồng chính | 1. Xem `code`, `name`, `address`.<br>2. Owner sửa thông tin; Backend kiểm tra membership tại `farm_id` có `role = owner`, validate và cập nhật `farms`. |
+| Luồng chính | 1. Xem `code`, `name`, `address`.<br>2. Owner sửa thông tin; Backend kiểm tra membership tại `farm_id` có `role = OWNER`, validate và cập nhật `farms`. |
 | Luồng thay thế/ngoại lệ | Không phải chủ trại mà sửa → 403. Dữ liệu không hợp lệ → 400 |
 | Kết quả | Thông tin trang trại được xem/cập nhật đúng quyền |
 | Quy tắc liên quan | BR02 |

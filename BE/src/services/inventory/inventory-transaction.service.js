@@ -23,7 +23,7 @@ function parseDate(value, label) {
 }
 
 function areaScope(operation) {
-  if (['owner', 'farm_manager'].includes(operation.membership.role)) return {}
+  if (['OWNER', 'FARM_MANAGER'].includes(operation.membership.role)) return {}
   if (!operation.membership.areaId) throw createHttpError(403, 'Technician chưa được gán khu vực.')
   return { areaId: operation.membership.areaId }
 }
@@ -53,7 +53,7 @@ export async function listInventoryUsageTransactions(operation) {
     ...(batchId ? { batchId } : {}),
     ...(from || to ? { transactionDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
   }
-  if (['technician', 'area_manager'].includes(operation.membership.role)) {
+  if (['TECHNICIAN', 'AREA_MANAGER'].includes(operation.membership.role)) {
     const scope = areaScope(operation)
     where.OR = [
       { supplyRequest: { is: { farmId: operation.farmId, ...scope } } },

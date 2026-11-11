@@ -2,17 +2,18 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { normalizeFeedingLogInput } from '../../utils/feeding-log.validation.js'
+import { lockCareLogTank } from '../farms/pond-tank.service.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function scopedTankWhere(operation, extra = {}) {
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) {
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) {
     throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   }
   return {
     farmId: operation.farmId,
     deletedAt: null,
-    ...(['owner', 'farm_manager'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
     ...extra,
   }
 }
@@ -93,14 +94,9 @@ export async function createFeedingLog(operation) {
     throw createHttpError(400, error.message)
   }
 
-  const tank = await prisma.pondTank.findFirst({
-    where: scopedTankWhere(operation, { id: operation.input.tankId, status: 'active' }),
-    select: { id: true },
-  })
-  if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể đang hoạt động trong phạm vi được cấp quyền.')
-
   const amount = asDecimal(normalized.amount)
   const log = await prisma.$transaction(async (tx) => {
+    const tank = await lockCareLogTank(tx, operation, operation.input.tankId, { activeOnly: true })
     let supply = null
     if (normalized.supplyId) {
       supply = await tx.inventorySupply.findFirst({

@@ -25,7 +25,7 @@ async function personalScope(tx, operation) {
   if (!eligibleAlertWorker(member, member?.areaId) || member.farm?.status !== 'active') return null
   return {
     farmId: operation.farmId, recipientId: operation.actor.id,
-    farm: { is: { status: 'active', members: { some: { userId: operation.actor.id, status: 'active', areaId: member.areaId, role: { in: ['technician','area_manager'] } } } } },
+    farm: { is: { status: 'active', members: { some: { userId: operation.actor.id, status: 'active', areaId: member.areaId, role: { in: ['TECHNICIAN','AREA_MANAGER'] } } } } },
     alert: { is: { farmId: operation.farmId, alertType: 'environment_threshold', responsibleUserId: operation.actor.id, tank: { is: { farmId: operation.farmId, areaId: member.areaId } } } },
   }
 }

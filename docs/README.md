@@ -5,6 +5,7 @@
 - Muốn hiểu hệ thống làm gì: đọc [luồng nghiệp vụ](./05-business-domain/WORKFLOWS.md).
 - Làm cảnh báo, khách hàng hoặc bán giống: đọc [đặc tả nghiệp vụ mới](./05-business-domain/ALERTS-AND-SALES.md).
 - Sửa code hoặc tìm thư mục: đọc [kiến trúc](./02-architecture/ARCHITECTURE.md).
+- Tra quyền từng vai trò và nghiệp vụ đang triển khai: đọc [phân quyền hiện tại](./02-architecture/PERMISSIONS.md).
 - Cài đặt, chạy ứng dụng hoặc migration: đọc [README dự án](../README.md).
 - Tra cứu yêu cầu, dữ liệu hoặc sơ đồ: dùng mục lục bên dưới.
 
@@ -14,6 +15,7 @@
 | --- | --- | --- |
 | `01-requirements` | [SRS.md](./01-requirements/SRS.md) | Tra yêu cầu chức năng, phi chức năng và quy tắc hệ thống |
 | `02-architecture` | [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | Hiểu thành phần, phân lớp backend, phân quyền và triển khai |
+| | [PERMISSIONS.md](./02-architecture/PERMISSIONS.md) | Ma trận quyền hiện tại theo vai trò, trại/khu vực và từng nghiệp vụ |
 | `03-database` | [DATABASE.md](./03-database/DATABASE.md) | Đọc tổng quan thiết kế dữ liệu và quy tắc liên quan |
 | | [DATABASE-FIELDS.md](./03-database/DATABASE-FIELDS.md) | Tra ý nghĩa từng bảng/cột |
 | | [ERD.md](./03-database/ERD.md) | Xem quan hệ dữ liệu bằng Mermaid |

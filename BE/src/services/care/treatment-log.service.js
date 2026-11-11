@@ -2,16 +2,17 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { normalizeTreatmentLogInput } from '../../utils/treatment-log.validation.js'
+import { lockCareLogTank } from '../farms/pond-tank.service.js'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const STOCK_CATEGORIES = ['medicine', 'chemical', 'probiotic']
 
 function scopedTankWhere(operation, extra = {}) {
-  if (!['owner', 'farm_manager'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
+  if (!['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) && !operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   return {
     farmId: operation.farmId,
     deletedAt: null,
-    ...(['owner', 'farm_manager'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
+    ...(['OWNER', 'FARM_MANAGER'].includes(operation.membership.role) ? {} : { areaId: operation.membership.areaId }),
     ...extra,
   }
 }
@@ -67,14 +68,9 @@ export async function createTreatmentLog(operation) {
   catch (error) { throw createHttpError(400, error.message) }
 
   const { farmId } = operation
-  const tank = await prisma.pondTank.findFirst({
-    where: scopedTankWhere(operation, { id: input.tankId }),
-    select: { id: true },
-  })
-  if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được cấp quyền.')
-
   const amount = new Prisma.Decimal(String(input.amount))
   const log = await prisma.$transaction(async (tx) => {
+    const tank = await lockCareLogTank(tx, operation, input.tankId)
     let supply = null
     if (input.supplyId) {
       supply = await tx.inventorySupply.findFirst({
