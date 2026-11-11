@@ -41,4 +41,20 @@ export async function getOwnedCloudinaryAsset({ resourceType, publicId, expected
   return { publicId: asset.public_id, secureUrl: asset.secure_url, resourceType: asset.resource_type, format, bytes: asset.bytes }
 }
 
+// Signed Upload API destroy; invalidate=true also purges the CDN copy. "not found" is treated as done.
+export async function deleteCloudinaryAsset({ resourceType, publicId }) {
+  const { cloudName, apiKey, apiSecret } = config()
+  const timestamp = Math.floor(Date.now() / 1000)
+  const params = { invalidate: 'true', public_id: publicId, timestamp }
+  const serialized = Object.keys(params).sort().map((key) => `${key}=${params[key]}`).join('&')
+  const signature = createHash('sha1').update(`${serialized}${apiSecret}`).digest('hex')
+  const body = new URLSearchParams({ ...params, timestamp: String(timestamp), api_key: apiKey, signature })
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/${resourceType}/destroy`, { method: 'POST', body })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || !['ok', 'not found'].includes(result.result)) {
+    throw new Error(`Cloudinary destroy failed: HTTP ${response.status} ${result.result || result.error?.message || ''}`.trim())
+  }
+  return result.result
+}
+
 export { ALLOWED_FORMATS }

@@ -58,6 +58,7 @@ async function openRow(item) {
   if (!aiInspections.value.some(inspection => inspection.id === item.id)) aiInspections.value.push(item)
   selectedAiInspection.value = item
 }
+const warningCount = (item) => (Array.isArray(item.photoWarnings) ? item.photoWarnings.filter(warning => warning.level === 'warning').length : 0)
 function create() {
   if (selectedBatch.value) openInspectionUpload(selectedBatch.value)
 }
@@ -88,11 +89,11 @@ onMounted(() => { loadOptions(); loadRows() })
         <LoadingIndicator v-if="loading" />
         <p v-else-if="!rows.length" class="empty-message">Chưa có ảnh kiểm tra AI trong phạm vi đã chọn.</p>
         <v-table v-else class="app-data-table" density="comfortable">
-          <thead><tr><th>Lô giống</th><th>Ao/bể</th><th>Thời gian</th><th>Người kiểm tra</th><th>Ảnh</th><th>Số lượng phát hiện</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Lô giống</th><th>Ao/bể</th><th>Thời gian</th><th>Người kiểm tra</th><th>Ảnh</th><th>Số lượng phát hiện</th><th>Cảnh báo ảnh</th><th>Trạng thái</th></tr></thead>
           <tbody><tr v-for="item in rows" :key="item.id" class="quality-row" tabindex="0" @click="openRow(item)" @keydown.enter.self.prevent="openRow(item)" @keydown.space.self.prevent="openRow(item)">
             <td><strong>{{ item.batch.batchCode }}</strong></td><td>{{ item.batch.tank?.name || '—' }}</td><td>{{ formatTimestamp(item.inspectedAt || item.createdAt) }}</td><td>{{ item.creator?.displayName || '—' }}</td>
             
-            <td><img class="inspection-thumb" :src="item.mediaUrl" alt="Ảnh mẫu kiểm tra AI" loading="lazy" /></td><td>{{ formatInspectionValue(item.detectedCount, 0) }}</td><td><v-chip size="small" variant="tonal">{{ aiInspectionStatusNames[item.status] || item.status }}</v-chip></td>
+            <td><img class="inspection-thumb" :src="item.mediaUrl" alt="Ảnh mẫu kiểm tra AI" loading="lazy" /></td><td>{{ formatInspectionValue(item.detectedCount, 0) }}</td><td><v-chip v-if="warningCount(item)" size="small" variant="tonal" color="warning" prepend-icon="mdi-alert-outline">{{ warningCount(item) }} cảnh báo</v-chip><span v-else>{{ Array.isArray(item.photoWarnings) ? 'Không' : '—' }}</span></td><td><v-chip size="small" variant="tonal">{{ aiInspectionStatusNames[item.status] || item.status }}</v-chip></td>
           </tr></tbody>
         </v-table>
         <Pagination v-model:page="page" v-model:page-size="pageSize" :total="total" :loading="loading" />

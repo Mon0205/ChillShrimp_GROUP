@@ -1,6 +1,7 @@
 import { showToast } from '../../../composables/toast.js'
 import { api } from '../../../services/api.js'
 import { uploadCloudinaryFile } from '../../../services/cloudinary.js'
+import { checkPhotoFile } from '../../../utils/photo-precheck.js'
 
 export function useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue }) {
   function openInspectionUpload(batch) {
@@ -48,10 +49,7 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     }
   }
 
-  async function uploadInspectionImage(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !inspectionBatch.value) return
+  async function uploadPhoto(file) {
     inspectionUploading.value = true
     try {
       const uploaded = await uploadCloudinaryFile(`${inspectionUrl(inspectionBatch.value.id)}/upload-signature`, file, { imagesOnly: true })
@@ -59,6 +57,7 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
         mediaPublicId: uploaded.publicId,
         previewUrl: uploaded.secureUrl,
         filename: file.name,
+        pendingFile: null,
       })
       showToast('Ảnh kiểm tra đã được tải lên Cloudinary.', 'success')
     } catch (err) {
@@ -66,6 +65,41 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     } finally {
       inspectionUploading.value = false
     }
+  }
+
+  async function uploadInspectionImage(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !inspectionBatch.value) return
+    Object.assign(inspectionForm.value, { mediaPublicId: '', previewUrl: '', filename: '', precheckWarnings: [], pendingFile: null })
+
+    let warnings = []
+    inspectionUploading.value = true
+    try {
+      warnings = await checkPhotoFile(file)
+    } catch {
+      // The browser could not decode the file; the upload step reports unsupported formats.
+    } finally {
+      inspectionUploading.value = false
+    }
+    inspectionForm.value.precheckWarnings = warnings
+
+    // Hold back photos with real problems so the user can retake them before anything is stored.
+    if (warnings.some((warning) => warning.level === 'warning')) {
+      inspectionForm.value.pendingFile = file
+      inspectionForm.value.filename = file.name
+      return
+    }
+    await uploadPhoto(file)
+  }
+
+  function confirmPendingUpload() {
+    const file = inspectionForm.value.pendingFile
+    if (file && inspectionBatch.value) return uploadPhoto(file)
+  }
+
+  function discardPendingUpload() {
+    Object.assign(inspectionForm.value, { filename: '', precheckWarnings: [], pendingFile: null })
   }
 
   async function saveInspectionImage() {
@@ -101,5 +135,35 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     }
   }
 
-  return { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage }
+  // Confirmed count and/or sample volume entered after analysis; the AI count is never changed.
+  async function saveInspectionReview(inspection, changes) {
+    if (!inspectionBatch.value) return false
+    try {
+      const response = await api(`${inspectionUrl(inspectionBatch.value.id)}/${inspection.id}`, { method: 'PATCH', body: JSON.stringify(changes) })
+      aiInspections.value = aiInspections.value.map((item) => item.id === inspection.id ? response.data : item)
+      if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = response.data
+      showToast('Đã lưu kết quả xác nhận.', 'success')
+      return true
+    } catch (err) {
+      showToast(err.message, 'error')
+      return false
+    }
+  }
+
+  // Only inspections without a result (pending/failed) can be deleted; the backend enforces it.
+  async function deleteAiInspection(inspection) {
+    if (!inspectionBatch.value) return
+    if (!window.confirm('Xóa lần kiểm tra chưa có kết quả này? Ảnh mẫu đã tải lên cũng bị xóa.')) return
+    try {
+      await api(`${inspectionUrl(inspectionBatch.value.id)}/${inspection.id}`, { method: 'DELETE' })
+      aiInspections.value = aiInspections.value.filter((item) => item.id !== inspection.id)
+      if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = aiInspections.value[0] || null
+      showToast('Đã xóa lần kiểm tra.', 'success')
+    } catch (err) {
+      showToast(err.message, 'error')
+      await loadAiInspectionHistory(inspectionBatch.value)
+    }
+  }
+
+  return { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection }
 }

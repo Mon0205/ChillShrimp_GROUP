@@ -470,6 +470,7 @@ model AiInspection {
   averageSizeMm        Decimal?  @map("average_size_mm") @db.Decimal(8, 3)
   uniformityScore      Decimal?  @map("uniformity_score") @db.Decimal(6, 3)
   detections           Json?     @db.JsonB
+  photoWarnings        Json?     @map("photo_warnings") @db.JsonB
   modelVersion         String?   @map("model_version") @db.VarChar(100)
   status               String    @default("pending") @db.VarChar(20)
   inspectedAt          DateTime? @map("inspected_at") @db.Timestamptz(6)

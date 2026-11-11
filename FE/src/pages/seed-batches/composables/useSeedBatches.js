@@ -50,7 +50,7 @@ export function useSeedBatches() {
   }
 
   function emptyInspectionForm() {
-    return { mediaPublicId: '', previewUrl: '', filename: '', samplingMethod: '', sampleVolumeMl: '', notes: '' }
+    return { mediaPublicId: '', previewUrl: '', filename: '', samplingMethod: '', sampleVolumeMl: '', notes: '', precheckWarnings: [], pendingFile: null }
   }
 
   const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
@@ -208,7 +208,7 @@ export function useSeedBatches() {
     }
   }
 
-  const { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage } = useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue })
+  const { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection } = useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue })
   const { openCreate, openEdit, saveBatch } = useBatchForm({ saving, error, formDialog, formRef, editingBatch, form, emptyForm, canManage, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional })
 
   watch(farmId, async () => {
@@ -220,5 +220,5 @@ export function useSeedBatches() {
   watch(pageSize, () => { if (page.value === 1) loadBatches(); else page.value = 1 })
   onMounted(loadPage)
 
-  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, saveInspectionImage, loadPage, openCreate, openEdit, saveBatch, openDetails, openStatus, saveStatus, ref }
+  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection, loadPage, openCreate, openEdit, saveBatch, openDetails, openStatus, saveStatus, ref }
 }
