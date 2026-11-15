@@ -14,6 +14,14 @@ const { farmId, canView, inspectionDialog, openInspectionUpload, selectedAiInspe
 const batchId = ref(''), tankId = ref('')
 const dates = ref({ from: '', to: '' })
 const batches = ref([]), tanks = ref([]), rows = ref([])
+const accuracy = ref(null)
+const MIN_CONFIRMED = 20
+const percent = (value) => `${formatInspectionValue(Math.abs(value) * 100, 1)}%`
+const biasText = computed(() => {
+  const bias = accuracy.value?.bias
+  if (bias == null) return '—'
+  return Math.abs(bias) < 0.005 ? 'Không lệch rõ rệt' : `${bias < 0 ? 'Đếm thiếu' : 'Đếm dư'} khoảng ${percent(bias)}`
+})
 const page = ref(1), pageSize = ref(10), total = ref(0), loading = ref(false)
 const selectedBatch = computed(() => batches.value.find(batch => batch.id === batchId.value))
 const batchOptions = computed(() => batches.value.filter(batch => !tankId.value || batch.tank?.id === tankId.value || batch.tankId === tankId.value))
@@ -39,7 +47,7 @@ async function loadOptions() {
 }
 async function loadRows() {
   const current = ++request
-  rows.value = []; total.value = 0
+  rows.value = []; total.value = 0; accuracy.value = null
   if (!farmId.value || !canView.value) { loading.value = false; return }
   loading.value = true
   try {
@@ -49,7 +57,7 @@ async function loadRows() {
     if (dates.value.from) query.set('from', new Date(`${dates.value.from}T00:00:00`).toISOString())
     if (dates.value.to) query.set('to', new Date(`${dates.value.to}T23:59:59.999`).toISOString())
     const result = await api(`${base()}/inspection-history?${query}`)
-    if (current === request) { rows.value = result.data.items; total.value = result.data.pagination.total }
+    if (current === request) { rows.value = result.data.items; total.value = result.data.pagination.total; accuracy.value = result.data.accuracy || null }
   } catch (error) { if (current === request) showToast(error.message, 'error') }
   finally { if (current === request) loading.value = false }
 }
@@ -86,6 +94,16 @@ onMounted(() => { loadOptions(); loadRows() })
           <v-select v-model="batchId" :items="batchOptions" item-title="batchCode" item-value="id" label="Lô giống" clearable density="compact" variant="outlined" hide-details />
           <DateRange v-model="dates" />
         </div>
+        <section v-if="!loading && accuracy" class="accuracy-card" aria-label="Độ tin cậy của AI">
+          <h3>Độ tin cậy của AI <span>(so với số đếm tay đã xác nhận, trong phạm vi đang lọc)</span></h3>
+          <p v-if="accuracy.confirmedCount < MIN_CONFIRMED" class="accuracy-note">Chưa đủ dữ liệu để đánh giá: mới có {{ accuracy.confirmedCount }}/{{ MIN_CONFIRMED }} ảnh được xác nhận số đếm tay. Hãy nhập "Số đếm xác nhận" sau khi đếm tay để hệ thống tính sai số thật.</p>
+          <div v-else class="accuracy-grid">
+            <div><span>Số ảnh đã xác nhận</span><strong>{{ accuracy.confirmedCount }}</strong></div>
+            <div><span>Sai số đếm trung bình</span><strong>{{ percent(accuracy.meanAbsError) }}</strong></div>
+            <div><span>Ảnh sai dưới 10%</span><strong>{{ percent(accuracy.withinTenPercentRatio) }}</strong></div>
+            <div><span>Xu hướng</span><strong>{{ biasText }}</strong></div>
+          </div>
+        </section>
         <LoadingIndicator v-if="loading" />
         <p v-else-if="!rows.length" class="empty-message">Chưa có ảnh kiểm tra AI trong phạm vi đã chọn.</p>
         <v-table v-else class="app-data-table" density="comfortable">
@@ -110,6 +128,13 @@ onMounted(() => { loadOptions(); loadRows() })
 .quality-filters > .v-input { flex:0 0 180px; max-width:100%; }
 .quality-filters > .date-range { flex-basis:300px; }
 .quality-row { cursor:pointer; }
+.accuracy-card { margin-bottom:20px; padding:14px 16px; border:1px solid #dce6e2; border-radius:8px; background:#f7faf9; }
+.accuracy-card h3 { margin:0 0 8px; font-size:14px; color:#173d36; }
+.accuracy-card h3 span { font-weight:400; font-size:12px; color:#657873; }
+.accuracy-note { margin:0; font-size:13px; color:#657873; line-height:1.5; }
+.accuracy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+.accuracy-grid span { display:block; font-size:12px; color:#657873; }
+.accuracy-grid strong { font-size:16px; color:#173d36; }
 .quality-row:focus-visible { outline:2px solid #078575; outline-offset:-2px; }
 .inspection-thumb { display:block; width:64px; height:48px; object-fit:cover; border-radius:6px; }
 .dialog-card { padding:24px; }

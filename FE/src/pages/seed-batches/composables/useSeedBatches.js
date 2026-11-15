@@ -50,7 +50,7 @@ export function useSeedBatches() {
   }
 
   function emptyInspectionForm() {
-    return { mediaPublicId: '', previewUrl: '', filename: '', samplingMethod: '', sampleVolumeMl: '', notes: '', precheckWarnings: [], pendingFile: null }
+    return { mediaPublicId: '', previewUrl: '', filename: '', samplingMethod: 'ai', sampleVolumeMl: '', notes: '', precheckWarnings: [], pendingFile: null }
   }
 
   const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })

@@ -292,6 +292,7 @@ Mô-đun `ai_service/photo_check.py` kiểm tra ảnh và kết quả, rồi tr�
 | `shrimp_too_small` | cạnh khung trung vị (căn bậc hai diện tích) dưới 8 px **ở cỡ model xử lý** (ảnh lớn hơn `imgsz` bị thu nhỏ trước khi đo) | cỡ tôm |
 | `shrimp_too_large` | cạnh khung trung vị trên 6% cạnh dài ảnh | cỡ tôm so với ảnh |
 | `no_detection`, `low_confidence`, `max_det_reached` | không tìm thấy gì; đa số khung tin cậy thấp; chạm giới hạn khung | ảnh ngoài phạm vi |
+| `crowded` | từ 20 khung trở lên và (hơn 25% khung chồng lên khung khác với IoU lớn hơn 0,1, hoặc tổng diện tích khung vượt 30% diện tích ảnh) | tôm chồng nhau (quy tắc 9 và 11). **Ngưỡng tạm, chưa hiệu chỉnh trên ảnh dày**; đổi bằng `CROWD_OVERLAP_RATIO_MAX`, `CROWD_COVERAGE_MAX`. Không bắt được trường hợp model gộp hoặc bỏ sót khung |
 
 **Giới hạn:** không phát hiện được tay, logo, ảnh chụp màn hình, độ sâu nước, góc máy. Các ngưỡng là ước lượng, chỉ chỉnh thử trên khoảng 25 ảnh của dự án (ngưỡng mờ ban đầu bật nhầm trên ảnh đếm bình thường nên đã nới), **chưa kiểm chứng** là cảnh báo có đi cùng số đếm sai. Ảnh trong dataset đa số 640 px nên sẽ có lưu ý `small_image`; lưu ý này áp dụng cho ảnh chụp mới.
 

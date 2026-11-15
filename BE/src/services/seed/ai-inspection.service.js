@@ -7,6 +7,15 @@ const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'webp']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SAMPLING_METHODS = ['manual', 'ai', 'combined']
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+// Same cut-off as AI_SERVICE (LOW_CONFIDENCE_THRESHOLD). Computed from the stored detections,
+// so it also works for inspections analysed before this field existed.
+const LOW_CONFIDENCE_THRESHOLD = 0.4
+
+export function withLowConfidenceRatio(item) {
+  const detections = Array.isArray(item?.detections) ? item.detections : []
+  const low = detections.filter((detection) => Number(detection?.confidence) < LOW_CONFIDENCE_THRESHOLD).length
+  return { ...item, lowConfidenceRatio: detections.length ? Number((low / detections.length).toFixed(3)) : null }
+}
 
 function validateUuid(value, label) {
   if (typeof value !== 'string' || !UUID_PATTERN.test(value)) throw createHttpError(400, `${label} không hợp lệ.`)
@@ -78,7 +87,7 @@ export async function listAiInspections(context) {
     ],
     take: limit,
   })
-  return { batch, items }
+  return { batch, items: items.map(withLowConfidenceRatio) }
 }
 
 function parseSampleVolume(value) {
@@ -155,7 +164,7 @@ export async function updateAiInspection(context) {
     data.sampleVolumeMl = parseSampleVolume(input.sampleVolumeMl)
     data.densityPerMl = densityFrom(inspection.detectedCount, data.sampleVolumeMl)
   }
-  return prisma.aiInspection.update({ where: { id }, data, include: { creator: { select: { id: true, displayName: true } } } })
+  return withLowConfidenceRatio(await prisma.aiInspection.update({ where: { id }, data, include: { creator: { select: { id: true, displayName: true } } } }))
 }
 
 export async function createAiInspection(context) {
@@ -250,7 +259,7 @@ export async function analyzeAiInspection(context) {
   if (!inspection) throw createHttpError(404, 'Không tìm thấy lần kiểm tra AI trong lô giống này.')
   if (inspection.status === 'completed') {
     const item = await prisma.aiInspection.findUnique({ where: { id }, include: { creator: { select: { id: true, displayName: true } } } })
-    return item
+    return withLowConfidenceRatio(item)
   }
 
   const claimed = await prisma.aiInspection.updateMany({
@@ -294,7 +303,7 @@ export async function analyzeAiInspection(context) {
       },
       include: { creator: { select: { id: true, displayName: true } } },
     })
-    return item
+    return withLowConfidenceRatio(item)
   } catch (error) {
     await prisma.aiInspection.update({ where: { id }, data: { status: 'failed' } })
     console.error('AI inspection analysis failed:', error)

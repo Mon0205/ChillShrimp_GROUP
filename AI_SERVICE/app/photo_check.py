@@ -6,11 +6,20 @@ head size in pixels, and signs in the detections (nothing found, max_det reached
 low confidence). Hands, logos, screen recordings, water depth or camera angle cannot
 be detected here. Thresholds are heuristics, not validated limits.
 """
+import os
 from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
+
+
+def _env_float(name: str, default: float) -> float:
+    """Read a float threshold from the environment; an unset or invalid value keeps the default."""
+    try:
+        return float(os.getenv(name, default))
+    except ValueError:
+        return default
 
 # Image size alone cannot tell whether shrimp are too small: a 320 px crop can hold 16 px heads
 # while a 4000 px tray photo can hold 6 px ones. So resolution is only an info note, and
@@ -23,6 +32,14 @@ BRIGHT_MEAN = 210
 HEAD_RATIO_MAX = 0.06        # median box side / long side; labelled heads are about 0.02
 LOW_CONF_RATIO_MAX = 0.5
 MEAN_CONF_MIN = 0.4
+
+# Crowding (shrimp lying on top of each other). PROVISIONAL thresholds: they have not been calibrated
+# on dense photos yet, only checked on a sparse sample (about 2% overlapping boxes, 7% coverage).
+# Tune them with CROWD_OVERLAP_RATIO_MAX / CROWD_COVERAGE_MAX once crowded and clean photos are compared.
+CROWD_MIN_BOXES = 20          # below this the statistics say nothing
+CROWD_IOU = 0.1               # two boxes overlapping by more than this IoU count as overlapping
+CROWD_OVERLAP_RATIO_MAX = _env_float("CROWD_OVERLAP_RATIO_MAX", 0.25)  # share of boxes that overlap another box
+CROWD_COVERAGE_MAX = _env_float("CROWD_COVERAGE_MAX", 0.30)            # sum of box areas / image area
 
 
 def image_metrics(image: Image.Image) -> dict[str, float]:
@@ -44,6 +61,40 @@ def median_box_side(detections: list[dict[str, Any]]) -> float | None:
         return None
     sides = [((d["box"]["x2"] - d["box"]["x1"]) * (d["box"]["y2"] - d["box"]["y1"])) ** 0.5 for d in detections]
     return float(np.median(sides))
+
+
+def crowding_metrics(detections: list[dict[str, Any]], image_size: tuple[int, int]) -> dict[str, float] | None:
+    """Signs of shrimp lying on top of each other, measured on the detected boxes.
+
+    overlap_ratio: share of boxes whose IoU with some other box exceeds CROWD_IOU.
+    coverage: sum of box areas divided by image area (can exceed the real covered area when boxes overlap).
+    Boxes the model merged or missed cannot be seen here, so heavy stacking can be under-reported.
+    Returns None when there are too few boxes to judge. Rows are processed in blocks to bound memory.
+    """
+    n = len(detections)
+    if n < CROWD_MIN_BOXES:
+        return None
+    boxes = np.array(
+        [[d["box"]["x1"], d["box"]["y1"], d["box"]["x2"], d["box"]["y2"]] for d in detections], dtype=np.float64
+    )
+    areas = np.clip(boxes[:, 2] - boxes[:, 0], 0, None) * np.clip(boxes[:, 3] - boxes[:, 1], 0, None)
+    overlapping = 0
+    block = 256
+    for start in range(0, n, block):
+        part = boxes[start:start + block]
+        width = np.clip(np.minimum(part[:, None, 2], boxes[None, :, 2]) - np.maximum(part[:, None, 0], boxes[None, :, 0]), 0, None)
+        height = np.clip(np.minimum(part[:, None, 3], boxes[None, :, 3]) - np.maximum(part[:, None, 1], boxes[None, :, 1]), 0, None)
+        inter = width * height
+        rows = np.arange(part.shape[0])
+        inter[rows, start + rows] = 0  # a box never overlaps itself
+        union = areas[start:start + block, None] + areas[None, :] - inter
+        iou = np.divide(inter, union, out=np.zeros_like(inter), where=union > 0)
+        overlapping += int((iou.max(axis=1) > CROWD_IOU).sum())
+    pixels = image_size[0] * image_size[1]
+    return {
+        "overlap_ratio": overlapping / n,
+        "coverage": float(areas.sum() / pixels) if pixels > 0 else 0.0,
+    }
 
 
 def check_photo(
@@ -98,6 +149,12 @@ def check_photo(
         if (low_ratio is not None and low_ratio > LOW_CONF_RATIO_MAX) or (mean_conf is not None and mean_conf < MEAN_CONF_MIN):
             add("low_confidence", "warning",
                 "Phần lớn kết quả có độ tin cậy thấp. Số đếm có thể sai; kiểm tra ảnh theo quy định chụp ảnh.")
+        crowd = crowding_metrics(detections, image.size)
+        if crowd and (crowd["overlap_ratio"] > CROWD_OVERLAP_RATIO_MAX or crowd["coverage"] > CROWD_COVERAGE_MAX):
+            add("crowded", "warning",
+                f"Tôm chồng lên nhau hoặc quá sát nhau (khoảng {crowd['overlap_ratio']:.0%} khung dính khung khác). "
+                "Số đếm có thể sai (đếm thiếu hoặc dư). Hãy tách tôm ra, dùng nước nông để tôm nằm một lớp "
+                "rồi chụp lại, hoặc đếm tay để đối chiếu.")
 
     if max_det_reached:
         add("max_det_reached", "warning", "Đã chạm giới hạn số khung, số đếm bị cắt. Tăng max_det hoặc chia ảnh nhỏ hơn.")

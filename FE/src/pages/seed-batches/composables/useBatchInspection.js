@@ -40,7 +40,13 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
         aiInspections.value = aiInspections.value.map((item) => item.id === inspection.id ? response.data : item)
         if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = response.data
       }
-      showToast(`AI đã đếm được ${formatInspectionValue(response.data.detectedCount, 0)} con trong ảnh mẫu.`, 'success')
+      const countText = formatInspectionValue(response.data.detectedCount, 0)
+      const photoIssues = (response.data.photoWarnings || []).filter((warning) => warning.level === 'warning').length
+      if (photoIssues) {
+        showToast(`AI đã đếm được ${countText} con nhưng ảnh có ${photoIssues} cảnh báo chất lượng, kết quả có thể sai. Hãy xem cảnh báo và điền "Số đếm xác nhận" sau khi đếm tay.`, 'warning')
+      } else {
+        showToast(`AI đã đếm được ${countText} con trong ảnh mẫu.`, 'success')
+      }
     } catch (err) {
       if (inspectionBatch.value?.id === batchId) await loadAiInspectionHistory(inspectionBatch.value)
       showToast(err.message, 'error')
@@ -105,7 +111,6 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
   async function saveInspectionImage() {
     const form = inspectionForm.value
     if (!inspectionBatch.value) return
-    if (!['ai', 'manual', 'combined'].includes(form.samplingMethod)) return showToast('Vui lòng chọn phương pháp lấy mẫu.', 'error')
     if (!form.mediaPublicId) return showToast('Hãy tải ảnh kiểm tra lên trước khi lưu.', 'error')
     const sampleVolumeMl = form.sampleVolumeMl === '' ? null : Number(form.sampleVolumeMl)
     if (sampleVolumeMl !== null && (!Number.isFinite(sampleVolumeMl) || sampleVolumeMl <= 0 || sampleVolumeMl > 1000000)) {

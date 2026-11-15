@@ -23,14 +23,34 @@ async function saveReview() {
 }
 // Only real problems (level "warning") flag the count; "info" notes do not.
 const needsReview = (inspection) => inspection?.status === 'completed' && !!inspection.photoWarnings?.some((warning) => warning.level === 'warning')
-const CONFIDENCE_HINT = 'Mức chắc chắn trung bình của model với từng khung, không phải độ chính xác của số đếm.'
+const LOW_CONFIDENCE_HINT = 'Phần trăm số con đã đếm mà model nhận ra nhưng chưa chắc chắn (điểm tin cậy dưới 0,4). Đây thường là tôm nằm sát nhau, bị che hoặc ở mép ảnh. Tỉ lệ cao nghĩa là số đếm dễ sai lệch, nên đếm tay kiểm tra lại. Đây không phải sai số của kết quả.'
+// Same 50% cut-off as the low_confidence photo warning from the AI service.
+const LOW_CONFIDENCE_ALERT = 0.5
+// Real error of this photo: only known once a person has confirmed a count.
+const countError = (item) => {
+  const manual = Number(item.manualCount)
+  if (item.manualCount == null || !(manual > 0) || item.detectedCount == null) return null
+  return (Number(item.detectedCount) - manual) / manual
+}
+const countErrorText = (item) => {
+  const error = countError(item)
+  if (error == null) return ''
+  const diff = Math.abs(Number(item.detectedCount) - Number(item.manualCount))
+  if (!diff) return 'Chính xác (0%)'
+  return `${formatInspectionValue(Math.abs(error) * 100, 1)}% (AI đếm ${error < 0 ? 'thiếu' : 'dư'} ${formatInspectionValue(diff, 0)} con)`
+}
+const lowConfidenceText = (item) => {
+  if (item.lowConfidenceRatio == null) return '—'
+  const low = Math.round(Number(item.lowConfidenceRatio) * Number(item.detectedCount))
+  return `${formatInspectionValue(Number(item.lowConfidenceRatio) * 100, 1)}% (${formatInspectionValue(low, 0)}/${formatInspectionValue(item.detectedCount, 0)} con)`
+}
+const CONFIDENCE_HINT = 'Cách tính: model chấm điểm từ 0 đến 100% cho từng khung xanh (mức chắc đó là một con tôm), rồi lấy trung bình cộng của tất cả khung. Chỉ các khung đạt ngưỡng lọc (mặc định 35%) được tính, nên giá trị này không thể thấp hơn ngưỡng đó. Đây không phải độ chính xác của số đếm: tôm bị bỏ sót không có khung nên không được tính vào.'
 </script>
 
 <template>
 <v-dialog v-model="inspectionDialog" max-width="1040" scrollable><v-card class="dialog-card ai-dialog"><span class="eyebrow">MEDIA MANAGEMENT · AI INSPECTION</span><h2>Kiểm tra mẫu bằng AI</h2><p class="detail-subtitle">{{ inspectionBatch?.batchCode }} · {{ inspectionBatch?.tank?.name || inspectionBatch?.tank?.code }}</p>
       <section class="ai-upload-area"><div><h3>Tải ảnh kiểm tra</h3><p>Ảnh sẽ được lưu cùng hồ sơ lô giống. Ảnh annotate và kết quả sẽ hiển thị khi AI trả dữ liệu.</p></div><div class="ai-upload-fields">
         <div><label>Ảnh mẫu *</label><input class="upload-input" type="file" accept="image/jpeg,image/png,image/webp" :disabled="inspectionUploading || inspectionSaving" @change="uploadInspectionImage"><div class="upload-hint">JPG, PNG hoặc WEBP · tối đa 10 MB · kiểm tra độ nét, độ sáng, độ phân giải trước khi tải lên</div></div>
-        <div><label>Phương pháp lấy mẫu *</label><v-select v-model="inspectionForm.samplingMethod" :items="[{ title: 'AI', value: 'ai' }, { title: 'Thủ công', value: 'manual' }, { title: 'Kết hợp', value: 'combined' }]" hide-details="auto" /></div>
         <div><label>Thể tích mẫu (ml)</label><v-text-field v-model="inspectionForm.sampleVolumeMl" type="number" min="0.001" max="1000000" step="any" hide-details="auto" /></div>
         <div class="ai-notes-field"><label>Ghi chú</label><v-textarea v-model="inspectionForm.notes" maxlength="4000" rows="2" auto-grow hide-details="auto" /></div>
       </div>
@@ -54,7 +74,9 @@ const CONFIDENCE_HINT = 'Mức chắc chắn trung bình của model với từn
           <section class="ai-result-panel"><h3>Kết quả phân tích</h3><div class="ai-metrics">
               <div><span>Số lượng AI đếm</span><strong>{{ formatInspectionValue(selectedAiInspection.detectedCount, 0) }} con</strong><span v-if="needsReview(selectedAiInspection)" class="review-tag"><v-icon icon="mdi-alert-outline" size="12" />Cần kiểm tra lại</span></div>
               <div v-if="selectedAiInspection.manualCount != null"><span>Số đếm xác nhận</span><strong>{{ formatInspectionValue(selectedAiInspection.manualCount, 0) }} con</strong></div>
-              <div><span class="metric-label">Confidence TB (tham khảo)<v-tooltip :text="CONFIDENCE_HINT" location="top" max-width="260"><template #activator="{ props: tip }"><v-icon v-bind="tip" icon="mdi-information-outline" size="13" tabindex="0" :aria-label="CONFIDENCE_HINT" /></template></v-tooltip></span><strong>{{ selectedAiInspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(selectedAiInspection.averageConfidence) * 100, 1)}%` }}</strong></div>
+              <div v-if="countErrorText(selectedAiInspection)"><span class="metric-label">Sai số so với đếm tay<v-tooltip text="Sai số thật của ảnh này: |AI đếm − số đếm xác nhận| chia số đếm xác nhận. Chỉ tính được khi đã nhập số đếm tay." location="top" max-width="340"><template #activator="{ props: tip }"><v-icon v-bind="tip" icon="mdi-information-outline" size="13" tabindex="0" aria-label="Cách tính sai số" /></template></v-tooltip></span><strong>{{ countErrorText(selectedAiInspection) }}</strong></div>
+              <div><span class="metric-label">Mức chắc chắn của model<v-tooltip :text="CONFIDENCE_HINT" location="top" max-width="340"><template #activator="{ props: tip }"><v-icon v-bind="tip" icon="mdi-information-outline" size="13" tabindex="0" :aria-label="CONFIDENCE_HINT" /></template></v-tooltip></span><strong>{{ selectedAiInspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(selectedAiInspection.averageConfidence) * 100, 1)}%` }}</strong></div>
+              <div><span class="metric-label">Khung chưa chắc chắn<v-tooltip :text="LOW_CONFIDENCE_HINT" location="top" max-width="340"><template #activator="{ props: tip }"><v-icon v-bind="tip" icon="mdi-information-outline" size="13" tabindex="0" :aria-label="LOW_CONFIDENCE_HINT" /></template></v-tooltip></span><strong :class="{ 'metric-alert': selectedAiInspection.lowConfidenceRatio > LOW_CONFIDENCE_ALERT }">{{ lowConfidenceText(selectedAiInspection) }}</strong></div>
               <div><span>Phiên bản model</span><strong>{{ selectedAiInspection.modelVersion || '—' }}</strong></div>
               <template v-if="selectedAiInspection.sampleVolumeMl != null">
                 <div><span>Thể tích mẫu</span><strong>{{ formatInspectionValue(selectedAiInspection.sampleVolumeMl, 2) }} ml</strong></div>
@@ -79,7 +101,7 @@ const CONFIDENCE_HINT = 'Mức chắc chắn trung bình của model với từn
             </div>
             <p v-if="selectedAiInspection.notes" class="ai-inspection-notes">{{ selectedAiInspection.notes }}</p></section>
         </div>
-        <section class="ai-history-section"><div class="history-section-heading"><div><h3>Lịch sử kiểm tra AI</h3><p>{{ aiInspections.length }} lần kiểm tra · sắp xếp mới nhất trước</p></div></div><div class="table-wrap"><table class="app-data-table"><thead><tr><th>Thời điểm</th><th class="tabular">Số đếm</th><th class="tabular">Mật độ</th><th>Confidence TB</th><th>Cảnh báo ảnh</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr v-for="inspection in aiInspections" :key="inspection.id" :class="{ 'ai-history-selected': selectedAiInspection.id === inspection.id }"><td>{{ formatTimestamp(inspection.inspectedAt || inspection.createdAt) }}</td><td class="tabular">{{ formatInspectionValue(inspection.detectedCount, 0) }}</td><td class="tabular">{{ inspection.densityPerMl == null ? '—' : `${formatInspectionValue(inspection.densityPerMl, 3)} con/ml` }}</td><td>{{ inspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(inspection.averageConfidence) * 100, 1)}%` }}</td><td><span v-if="inspection.photoWarnings?.some((warning) => warning.level === 'warning')" class="status-tag status-warning">{{ inspection.photoWarnings.filter((warning) => warning.level === 'warning').length }} cảnh báo</span><span v-else-if="Array.isArray(inspection.photoWarnings)" class="status-tag">Không</span><span v-else>—</span></td><td><span class="status-tag" :class="aiInspectionStatusClasses[inspection.status]">{{ aiInspectionStatusNames[inspection.status] || inspection.status }}</span></td><td><v-btn size="small" variant="text" color="primary" @click="selectedAiInspection = inspection">Xem ảnh</v-btn></td></tr></tbody></table></div></section>
+        <section class="ai-history-section"><div class="history-section-heading"><div><h3>Lịch sử kiểm tra AI</h3><p>{{ aiInspections.length }} lần kiểm tra · sắp xếp mới nhất trước</p></div></div><div class="table-wrap"><table class="app-data-table"><thead><tr><th>Thời điểm</th><th class="tabular">Số đếm</th><th class="tabular">Mật độ</th><th>Mức chắc chắn của model</th><th>Cảnh báo ảnh</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr v-for="inspection in aiInspections" :key="inspection.id" :class="{ 'ai-history-selected': selectedAiInspection.id === inspection.id }"><td>{{ formatTimestamp(inspection.inspectedAt || inspection.createdAt) }}</td><td class="tabular">{{ formatInspectionValue(inspection.detectedCount, 0) }}</td><td class="tabular">{{ inspection.densityPerMl == null ? '—' : `${formatInspectionValue(inspection.densityPerMl, 3)} con/ml` }}</td><td>{{ inspection.averageConfidence == null ? '—' : `${formatInspectionValue(Number(inspection.averageConfidence) * 100, 1)}%` }}</td><td><span v-if="inspection.photoWarnings?.some((warning) => warning.level === 'warning')" class="status-tag status-warning">{{ inspection.photoWarnings.filter((warning) => warning.level === 'warning').length }} cảnh báo</span><span v-else-if="Array.isArray(inspection.photoWarnings)" class="status-tag">Không</span><span v-else>—</span></td><td><span class="status-tag" :class="aiInspectionStatusClasses[inspection.status]">{{ aiInspectionStatusNames[inspection.status] || inspection.status }}</span></td><td><v-btn size="small" variant="text" color="primary" @click="selectedAiInspection = inspection">Xem ảnh</v-btn></td></tr></tbody></table></div></section>
       </template>
     </v-card></v-dialog>
 </template>
@@ -91,10 +113,10 @@ const CONFIDENCE_HINT = 'Mức chắc chắn trung bình của model với từn
 .ai-upload-area{padding-bottom:20px;border-bottom:1px solid #e5ecea}
 .ai-upload-area h3,.ai-result-panel h3{margin:0 0 5px;color:#244b46;font-size:14px}
 .ai-upload-area>div:first-child p{margin:0 0 14px;color:#788984;font-size:11px;line-height:1.5}
-.ai-upload-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;align-items:start}
+.ai-upload-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;align-items:start}
 .ai-upload-fields>div{min-width:0}
 .ai-upload-fields label{display:block;margin-bottom:6px;color:#48625e;font-size:11px;font-weight:700}
-.ai-notes-field{grid-column:span 3}
+.ai-notes-field{grid-column:1/-1}
 .ai-upload-preview{display:flex;align-items:center;gap:12px;margin-top:12px;color:#48625e;font-size:11px}
 .ai-upload-preview img{width:88px;height:68px;border:1px solid #dce7e4;border-radius:7px;object-fit:cover}
 .ai-result-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:18px}
@@ -119,6 +141,7 @@ const CONFIDENCE_HINT = 'Mức chắc chắn trung bình của model với từn
 .ai-review-title{margin:0 0 8px;color:#244b46;font-size:12px;font-weight:700}
 .ai-review-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .ai-review-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;color:#788984;font-size:10px}
+.metric-alert{color:#c2570c}
 .metric-label{display:flex!important;align-items:center;gap:4px}
 .metric-label .v-icon{color:#7d8c88;cursor:help}
 .review-tag{display:inline-flex!important;align-items:center;gap:3px;margin-top:6px;padding:3px 7px;border-radius:6px;background:#fff2d4;color:#8a5a00;font-size:10px!important;font-weight:700}

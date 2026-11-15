@@ -34,6 +34,8 @@ Fill the three Cloudinary values in `.env`. Open `http://localhost:8001/docs` to
 | `CLOUDINARY_INSPECTION_FOLDER` | `chillshrimp/ai-inspections/originals` | Folder for originals; annotated images go to `<folder>/annotated` |
 | `MODEL_VERSION` | `v8_yolo26s_seed0` | Returned as `model_version`; the backend stores it with every inspection. Change it whenever `models/best.pt` changes |
 | `DETECTION_CONF` | `0.35` | Confidence threshold when the caller sends no `conf` |
+| `CROWD_OVERLAP_RATIO_MAX` | `0.25` | `crowded` photo warning: share of boxes whose IoU with another box exceeds 0.1. Provisional, not calibrated on dense photos |
+| `CROWD_COVERAGE_MAX` | `0.30` | `crowded` photo warning: sum of box areas divided by image area. Provisional |
 | `MODEL_PATH` | `models/best.pt` | Model file |
 
 ## API
