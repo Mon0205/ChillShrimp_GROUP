@@ -72,10 +72,10 @@ const { farms, batches, loading, listLoading, error, search, statusFilter, page,
 .ai-upload-area{padding-bottom:20px;border-bottom:1px solid #e5ecea}
 .ai-upload-area h3,.ai-result-panel h3{margin:0 0 5px;color:#244b46;font-size:14px}
 .ai-upload-area>div:first-child p{margin:0 0 14px;color:#788984;font-size:11px;line-height:1.5}
-.ai-upload-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px;align-items:start}
+.ai-upload-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;align-items:start}
 .ai-upload-fields>div{min-width:0}
 .ai-upload-fields label{display:block;margin-bottom:6px;color:#48625e;font-size:11px;font-weight:700}
-.ai-notes-field{grid-column:span 3}
+.ai-notes-field{grid-column:1/-1}
 .ai-upload-preview{display:flex;align-items:center;gap:12px;margin-top:12px;color:#48625e;font-size:11px}
 .ai-upload-preview img{width:88px;height:68px;border:1px solid #dce7e4;border-radius:7px;object-fit:cover}
 .ai-result-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:18px}

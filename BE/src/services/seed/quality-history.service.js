@@ -1,5 +1,21 @@
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { withLowConfidenceRatio } from './ai-inspection.service.js'
+
+// Real accuracy of the AI count: only inspections where a person confirmed a count (manualCount > 0).
+// Error is relative to the confirmed count; bias < 0 means the AI under-counts.
+export function summarizeAccuracy(rows) {
+  const errors = rows.map(({ detectedCount, manualCount }) => (detectedCount - manualCount) / manualCount)
+  const n = errors.length
+  if (!n) return { confirmedCount: 0, meanAbsError: null, withinTenPercentRatio: null, bias: null }
+  const round = (value) => Number(value.toFixed(4))
+  return {
+    confirmedCount: n,
+    meanAbsError: round(errors.reduce((sum, error) => sum + Math.abs(error), 0) / n),
+    withinTenPercentRatio: round(errors.filter((error) => Math.abs(error) < 0.1).length / n),
+    bias: round(errors.reduce((sum, error) => sum + error, 0) / n),
+  }
+}
 
 export async function listQualityHistory(context) {
     const page = Number(context.filters.page || 1), limit = Number(context.filters.limit || 10)
@@ -24,9 +40,10 @@ export async function listQualityHistory(context) {
       batch: { select: { id: true, batchCode: true, status: true, tank: { select: { id: true, code: true, name: true } } } },
       creator: { select: { id: true, displayName: true } },
     }
-    const [items, total] = await prisma.$transaction([
+    const [items, total, confirmed] = await prisma.$transaction([
       delegate.findMany({ where, include, orderBy: [{ [timestamp]: 'desc' }, { id: 'desc' }], skip: (page - 1) * limit, take: limit }),
       delegate.count({ where }),
+      delegate.findMany({ where: { ...where, status: 'completed', detectedCount: { not: null }, manualCount: { gt: 0 } }, select: { detectedCount: true, manualCount: true } }),
     ])
-    return { items, pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } }
+    return { items: items.map(withLowConfidenceRatio), accuracy: summarizeAccuracy(confirmed), pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } }
 }
