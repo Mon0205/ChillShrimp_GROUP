@@ -2,6 +2,12 @@ import { showToast } from '../../../composables/toast.js'
 import { api } from '../../../services/api.js'
 import { uploadCloudinaryFile } from '../../../services/cloudinary.js'
 import { checkPhotoFile } from '../../../utils/photo-precheck.js'
+import { capturePhoto, resizePhoto } from '../../../services/camera.js'
+
+// 0 = network error (no HTTP answer); 409 = another request is already analysing this inspection.
+const RETRYABLE_STATUSES = [0, 409, 502, 503, 504]
+const POLL_INTERVAL_MS = 5000
+const ANALYSIS_WAIT_MS = 4 * 60 * 1000
 
 export function useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue }) {
   function openInspectionUpload(batch) {
@@ -36,22 +42,52 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = { ...selectedAiInspection.value, status: 'processing' }
     try {
       const response = await api(`${inspectionUrl(batchId)}/${inspection.id}/analyze`, { method: 'POST' })
-      if (inspectionBatch.value?.id === batchId) {
-        aiInspections.value = aiInspections.value.map((item) => item.id === inspection.id ? response.data : item)
-        if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = response.data
-      }
-      const countText = formatInspectionValue(response.data.detectedCount, 0)
-      const photoIssues = (response.data.photoWarnings || []).filter((warning) => warning.level === 'warning').length
-      if (photoIssues) {
-        showToast(`AI đã đếm được ${countText} con nhưng ảnh có ${photoIssues} cảnh báo chất lượng, kết quả có thể sai. Hãy xem cảnh báo và điền "Số đếm xác nhận" sau khi đếm tay.`, 'warning')
-      } else {
-        showToast(`AI đã đếm được ${countText} con trong ảnh mẫu.`, 'success')
-      }
+      showAnalysisResult(batchId, response.data)
     } catch (err) {
-      if (inspectionBatch.value?.id === batchId) await loadAiInspectionHistory(inspectionBatch.value)
-      showToast(err.message, 'error')
+      // A sleeping AI service can make the request outlive the Vercel proxy (502/504) while the
+      // backend keeps analysing and saves the result; wait for that result before reporting an error.
+      const finished = RETRYABLE_STATUSES.includes(err.status ?? 0)
+        ? await waitForAnalysis(batchId, inspection.id).catch(() => null)
+        : null
+      if (finished?.status === 'completed') {
+        showAnalysisResult(batchId, finished)
+      } else {
+        if (inspectionBatch.value?.id === batchId) await loadAiInspectionHistory(inspectionBatch.value)
+        showToast(err.message, 'error')
+      }
     } finally {
       inspectionAnalyzingId.value = null
+    }
+  }
+
+  function showAnalysisResult(batchId, result) {
+    if (inspectionBatch.value?.id === batchId) {
+      aiInspections.value = aiInspections.value.map((item) => item.id === result.id ? result : item)
+      if (selectedAiInspection.value?.id === result.id) selectedAiInspection.value = result
+    }
+    const countText = formatInspectionValue(result.detectedCount, 0)
+    const photoIssues = (result.photoWarnings || []).filter((warning) => warning.level === 'warning').length
+    if (photoIssues) {
+      showToast(`AI đã đếm được ${countText} con nhưng ảnh có ${photoIssues} cảnh báo chất lượng, kết quả có thể sai. Hãy xem cảnh báo và điền "Số đếm xác nhận" sau khi đếm tay.`, 'warning')
+    } else {
+      showToast(`AI đã đếm được ${countText} con trong ảnh mẫu.`, 'success')
+    }
+  }
+
+  // Polls the history until the inspection leaves `processing`; returns it, or null on timeout.
+  async function waitForAnalysis(batchId, inspectionId) {
+    const deadline = Date.now() + ANALYSIS_WAIT_MS
+    let announced = false
+    for (;;) {
+      const response = await api(`${inspectionUrl(batchId)}?limit=100`)
+      const item = response.data.items.find((entry) => entry.id === inspectionId)
+      if (!item || item.status !== 'processing') return item || null
+      if (Date.now() + POLL_INTERVAL_MS > deadline) return null
+      if (!announced) {
+        showToast('AI đang khởi động sau thời gian nghỉ, kết quả sẽ có trong khoảng 1-2 phút.', 'info')
+        announced = true
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
     }
   }
 
@@ -76,7 +112,32 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
   async function uploadInspectionImage(event) {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file || !inspectionBatch.value) return
+    if (file) await handleInspectionFile(file)
+  }
+
+  // Phone browser: <input capture> returns a full-size camera photo; shrink it like the app does.
+  async function uploadCapturedImage(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    let photo
+    try { photo = await resizePhoto(file) }
+    catch (err) { return showToast(err.message, 'error') }
+    await handleInspectionFile(photo)
+  }
+
+  // Android app: the native camera. Cancelling the camera is not an error.
+  async function captureInspectionImage() {
+    if (!inspectionBatch.value || inspectionUploading.value) return
+    let photo
+    try { photo = await capturePhoto() }
+    catch (err) { return showToast(err.message, 'error') }
+    if (photo) await handleInspectionFile(photo)
+  }
+
+  // Every photo, picked or taken, goes through the same precheck before it is uploaded.
+  async function handleInspectionFile(file) {
+    if (!inspectionBatch.value) return
     Object.assign(inspectionForm.value, { mediaPublicId: '', previewUrl: '', filename: '', precheckWarnings: [], pendingFile: null })
 
     let warnings = []
@@ -170,5 +231,5 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     }
   }
 
-  return { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection }
+  return { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection }
 }

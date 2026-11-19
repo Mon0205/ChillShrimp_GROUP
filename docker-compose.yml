@@ -12,8 +12,8 @@ services:
         required: false
     environment:
       WATCHFILES_FORCE_POLLING: "true"
-      MODEL_PATH: /app/models/best.pt
-      MODEL_VERSION: v8_yolo26s_seed0
+      MODEL_PATH: /app/models/best.onnx
+      MODEL_VERSION: v8_yolo26s_seed0_onnx
       CLOUDINARY_INSPECTION_FOLDER: chillshrimp/ai-inspections/originals
     ports:
       - "127.0.0.1:8001:8001"

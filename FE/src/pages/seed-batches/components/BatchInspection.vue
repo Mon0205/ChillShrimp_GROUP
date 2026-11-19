@@ -1,12 +1,27 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useAuth } from '../../../composables/auth.js'
+import { canCaptureOnWeb, canUseNativeCamera } from '../../../services/camera.js'
 const props = defineProps({ model: { type: Object, required: true } })
-const { loading, error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, role, formatTimestamp, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection } = props.model
+const { loading, error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, role, formatTimestamp, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection } = props.model
 const auth = useAuth()
+// The camera button shows in the Android app and on phone browsers; desktops keep the file picker only.
+const nativeCamera = canUseNativeCamera()
+const showCameraButton = nativeCamera || canCaptureOnWeb()
+const cameraInput = ref(null)
+function takePhoto() {
+  if (nativeCamera) captureInspectionImage()
+  else cameraInput.value?.click()
+}
 // Mirrors the backend rule: managers in scope, or the person who created the inspection.
 const canChange = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role.value) || selectedAiInspection.value?.creator?.id === auth.user?.id)
 const canReview = computed(() => selectedAiInspection.value?.status === 'completed' && canChange.value)
+// Same rule as the backend (STALE_PROCESSING_MS): still `processing` 10 minutes after the photo was
+// saved means the analysis was cut off, so it may be started again.
+const STALE_PROCESSING_MS = 10 * 60 * 1000
+const isStuck = (inspection) => inspection?.status === 'processing' && inspectionAnalyzingId.value !== inspection.id &&
+  Date.now() - new Date(inspection.createdAt).getTime() > STALE_PROCESSING_MS
+const canAnalyze = computed(() => ['pending', 'failed'].includes(selectedAiInspection.value?.status) || isStuck(selectedAiInspection.value))
 const canDelete = computed(() => ['pending', 'failed'].includes(selectedAiInspection.value?.status) && canChange.value)
 const review = ref({ manualCount: '', sampleVolumeMl: '' })
 const reviewSaving = ref(false)
@@ -50,7 +65,7 @@ const CONFIDENCE_HINT = 'Cách tính: model chấm điểm từ 0 đến 100% ch
 <template>
 <v-dialog v-model="inspectionDialog" max-width="1040" scrollable><v-card class="dialog-card ai-dialog"><span class="eyebrow">MEDIA MANAGEMENT · AI INSPECTION</span><h2>Kiểm tra mẫu bằng AI</h2><p class="detail-subtitle">{{ inspectionBatch?.batchCode }} · {{ inspectionBatch?.tank?.name || inspectionBatch?.tank?.code }}</p>
       <section class="ai-upload-area"><div><h3>Tải ảnh kiểm tra</h3><p>Ảnh sẽ được lưu cùng hồ sơ lô giống. Ảnh annotate và kết quả sẽ hiển thị khi AI trả dữ liệu.</p></div><div class="ai-upload-fields">
-        <div><label>Ảnh mẫu *</label><input class="upload-input" type="file" accept="image/jpeg,image/png,image/webp" :disabled="inspectionUploading || inspectionSaving" @change="uploadInspectionImage"><div class="upload-hint">JPG, PNG hoặc WEBP · tối đa 10 MB · kiểm tra độ nét, độ sáng, độ phân giải trước khi tải lên</div></div>
+        <div><label>Ảnh mẫu *</label><template v-if="showCameraButton"><v-btn class="mb-2" color="primary" prepend-icon="mdi-camera" block :loading="inspectionUploading" :disabled="inspectionSaving" @click="takePhoto">Chụp ảnh</v-btn><input ref="cameraInput" type="file" accept="image/*" capture="environment" hidden @change="uploadCapturedImage"></template><input class="upload-input" type="file" accept="image/jpeg,image/png,image/webp" :disabled="inspectionUploading || inspectionSaving" @change="uploadInspectionImage"><div class="upload-hint">JPG, PNG hoặc WEBP · tối đa 10 MB · kiểm tra độ nét, độ sáng, độ phân giải trước khi tải lên</div></div>
         <div><label>Thể tích mẫu (ml)</label><v-text-field v-model="inspectionForm.sampleVolumeMl" type="number" min="0.001" max="1000000" step="any" hide-details="auto" /></div>
         <div class="ai-notes-field"><label>Ghi chú</label><v-textarea v-model="inspectionForm.notes" maxlength="4000" rows="2" auto-grow hide-details="auto" /></div>
       </div>
@@ -68,7 +83,7 @@ const CONFIDENCE_HINT = 'Cách tính: model chấm điểm từ 0 đến 100% ch
       <div v-else-if="aiInspectionError" class="notice error-notice" role="alert"><span>{{ aiInspectionError }}</span><v-btn size="small" variant="text" @click="loadAiInspectionHistory(inspectionBatch)">Thử lại</v-btn></div>
       <p v-else-if="!aiInspections.length" class="history-empty">Chưa có lịch sử kiểm tra AI cho lô này.</p>
       <template v-else-if="selectedAiInspection">
-        <div class="ai-result-heading"><div><span class="eyebrow">KẾT QUẢ ĐANG XEM</span><p>{{ formatTimestamp(selectedAiInspection.inspectedAt || selectedAiInspection.createdAt) }} · {{ selectedAiInspection.creator?.displayName || 'Người dùng' }}</p></div><div class="ai-result-actions"><span class="status-tag" :class="aiInspectionStatusClasses[selectedAiInspection.status]"><v-icon v-if="needsReview(selectedAiInspection)" icon="mdi-alert-outline" size="12" class="status-icon" />{{ aiInspectionStatusNames[selectedAiInspection.status] || selectedAiInspection.status }}</span><v-btn v-if="['pending', 'failed'].includes(selectedAiInspection.status)" size="small" variant="outlined" color="primary" :disabled="!!inspectionAnalyzingId" @click="runAiInspection(selectedAiInspection)">Phân tích AI</v-btn><v-btn v-if="canDelete" size="small" variant="text" color="error" prepend-icon="mdi-delete-outline" :disabled="!!inspectionAnalyzingId" @click="deleteAiInspection(selectedAiInspection)">Xóa</v-btn></div></div>
+        <div class="ai-result-heading"><div><span class="eyebrow">KẾT QUẢ ĐANG XEM</span><p>{{ formatTimestamp(selectedAiInspection.inspectedAt || selectedAiInspection.createdAt) }} · {{ selectedAiInspection.creator?.displayName || 'Người dùng' }}</p></div><div class="ai-result-actions"><span class="status-tag" :class="aiInspectionStatusClasses[selectedAiInspection.status]"><v-icon v-if="needsReview(selectedAiInspection)" icon="mdi-alert-outline" size="12" class="status-icon" />{{ aiInspectionStatusNames[selectedAiInspection.status] || selectedAiInspection.status }}</span><v-btn v-if="canAnalyze" size="small" variant="outlined" color="primary" :disabled="!!inspectionAnalyzingId" @click="runAiInspection(selectedAiInspection)">{{ selectedAiInspection.status === 'pending' ? 'Phân tích AI' : 'Phân tích lại' }}</v-btn><v-btn v-if="canDelete" size="small" variant="text" color="error" prepend-icon="mdi-delete-outline" :disabled="!!inspectionAnalyzingId" @click="deleteAiInspection(selectedAiInspection)">Xóa</v-btn></div></div>
         <v-progress-linear v-if="inspectionAnalyzingId === selectedAiInspection.id" indeterminate color="primary" class="ai-analysis-progress" />
         <div class="ai-result-layout"><section class="ai-media-grid"><figure><figcaption>Ảnh gốc</figcaption><a :href="selectedAiInspection.mediaUrl" target="_blank" rel="noopener noreferrer"><img :src="selectedAiInspection.mediaUrl" alt="Ảnh gốc của lần kiểm tra"></a></figure><figure v-if="selectedAiInspection.annotatedImageUrl"><figcaption>Ảnh đã đánh dấu kết quả AI</figcaption><a :href="selectedAiInspection.annotatedImageUrl" target="_blank" rel="noopener noreferrer"><img :src="selectedAiInspection.annotatedImageUrl" alt="Ảnh kết quả AI đã đánh dấu"></a></figure><div v-else class="annotated-empty">Chưa có ảnh annotate cho lần kiểm tra này.</div></section>
           <section class="ai-result-panel"><h3>Kết quả phân tích</h3><div class="ai-metrics">

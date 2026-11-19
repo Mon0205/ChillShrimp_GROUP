@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+docs/
+scripts/
+# Only best.onnx is served; the PyTorch weights stay in the repo for re-exporting.
+models/*.pt
