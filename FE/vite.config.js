@@ -8,7 +8,10 @@ export default defineConfig({
     port: 5173,
     watch: { usePolling: process.env.VITE_USE_POLLING === 'true' },
     proxy: process.env.VITE_PROXY_TARGET
-      ? { '/api': { target: process.env.VITE_PROXY_TARGET, changeOrigin: true } }
+      ? {
+          '/api': { target: process.env.VITE_PROXY_TARGET, changeOrigin: true },
+          '/socket.io': { target: process.env.VITE_PROXY_TARGET, changeOrigin: true, ws: true },
+        }
       : undefined,
   },
 })

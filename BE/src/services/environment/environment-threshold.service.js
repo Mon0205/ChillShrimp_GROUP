@@ -1,3 +1,4 @@
+import { publishAlertEvents } from '../../realtime/alert-events.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { isSystemAdmin } from '../auth/account-access.service.js'
@@ -285,6 +286,7 @@ export async function markEnvironmentalAlertRead(operation) {
     create: { alertId: existing.id, userId: operation.actor.id, readAt: new Date() },
     update: {},
   })
+  void publishAlertEvents([{ event: 'alert:read', farmId: operation.farmId, alertId: existing.id, userId: operation.actor.id }])
   return { id: existing.id, isRead: true, readAt: receipt.readAt }
 }
 
@@ -326,6 +328,7 @@ async function mutateAssignment(operation, input, action) {
     const updated = await tx.alertNotification.findFirst({ where: { id: context.alert.id, farmId: operation.farmId }, include: alertDetailInclude(operation.actor.id) })
     return personalAlert(updated)
   })
+  void publishAlertEvents([{ event: 'alert:updated', farmId: operation.farmId, alertId: item.id }])
   return item
 }
 export async function listEnvironmentalAlertAssignees(operation) {
@@ -339,7 +342,7 @@ export async function listEnvironmentalAlertAssignees(operation) {
 export async function assignEnvironmentalAlert(operation) {
   const input = assignmentInput(operation, ['responsibleUserId', 'assignmentVersion'])
   if (typeof input.responsibleUserId !== 'string' || !input.responsibleUserId.trim() || input.responsibleUserId.length > 255) throw createHttpError(400, 'Người phụ trách không hợp lệ.')
-  return mutateAssignment(operation, input, async (tx, { alert, actor }) => {
+  const item = await mutateAssignment(operation, input, async (tx, { alert, actor }) => {
     if (!assignmentManager(actor.role)) throw createHttpError(403, 'Chỉ quản lý được giao lại cảnh báo.')
     if (input.responsibleUserId === operation.actor.id) throw createHttpError(400, 'Không được giao cảnh báo cho chính mình.')
     const member = await tx.farmMember.findFirst({ where: { farmId: operation.farmId, userId: input.responsibleUserId } })
@@ -347,6 +350,8 @@ export async function assignEnvironmentalAlert(operation) {
     await tx.alertNotification.update({ where: { id: alert.id }, data: { responsibleUserId: input.responsibleUserId, assignedBy: operation.actor.id, assignedAt: new Date(), acceptedAt: null, assignmentVersion: { increment: 1 } } })
     await createAssignmentNotification(tx, { id: alert.id, farmId: operation.farmId, responsibleUserId: input.responsibleUserId, assignmentVersion: alert.assignmentVersion + 1 })
   })
+  void publishAlertEvents([{ event: 'notification:created', farmId: operation.farmId, alertId: item.id, userId: item.responsibleUserId }])
+  return item
 }
 export async function claimEnvironmentalAlert(operation) {
   const input = assignmentInput(operation, ['assignmentVersion'])

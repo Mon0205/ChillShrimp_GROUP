@@ -1,3 +1,4 @@
+import { alertEvents } from '../../realtime/alert-events.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { neonAuth } from '../../config/neon-auth.js'
@@ -5,9 +6,9 @@ import { accountAccess } from './account-access.service.js'
 
 const validEmail = (value) => typeof value === 'string' && /^\S+@\S+\.\S+$/.test(value)
 
-export async function readNeonSession() {
+export async function readNeonSession({ readOnly = false } = {}) {
   // Always ask Neon so a revoked session cannot survive the SDK cookie cache.
-  const { data, error } = await neonAuth.getSession({ query: { disableCookieCache: 'true' } })
+  const { data, error } = await neonAuth.getSession({ query: { disableCookieCache: 'true', ...(readOnly ? { disableRefresh: 'true' } : {}) } })
   if (error && Number(error.status) !== 401) {
     throw createHttpError(503, 'Tạm thời không thể kiểm tra phiên đăng nhập. Vui lòng thử lại.')
   }
@@ -47,7 +48,10 @@ export async function login({ input = {} }) {
 }
 
 export async function logout() {
+  let session
+  try { session = await readNeonSession({ readOnly: true }) } catch {}
   const { error } = await neonAuth.signOut()
   if (error) throw createHttpError(503, 'Tạm thời không thể đăng xuất. Vui lòng thử lại.')
+  if (session?.session?.id) alertEvents.emit('session:ended', session.session.id)
   return { signedOut: true }
 }

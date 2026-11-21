@@ -7,6 +7,7 @@ import DateRange from '../care/components/DateRange.vue'
 import { useAuth } from '../../composables/auth.js'
 import { useFarmContext } from '../../composables/farm-context.js'
 import { showToast } from '../../composables/toast.js'
+import { useAlertRealtime } from '../../composables/alert-realtime.js'
 import { api } from '../../services/api.js'
 
 const context = useFarmContext()
@@ -55,7 +56,6 @@ let listController
 let detailController
 let optionsController
 let actionController
-let timer
 const url = (farmId, suffix = '') => `/farms/${encodeURIComponent(farmId)}/environment-thresholds/alerts${suffix}`
 const dateTime = value => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—'
 const valueText = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 3 })
@@ -168,7 +168,30 @@ async function saveHandling() {
   if (!notes.value.trim() || notes.value.trim().length > 4000) { actionError.value = 'Nhập ghi chú xử lý từ 1 đến 4.000 ký tự.'; return }
   await mutateResponsibility('status', 'PATCH', { status: nextStatus.value, notes: notes.value.trim() })
 }
-function refreshVisible() { if (!document.hidden && !detailLoading.value && !saving.value) loadList() }
+async function refreshDetail() {
+  const id = typeof route.query.alertId === 'string' ? route.query.alertId : ''
+  if (!id || !canView.value || !context.farmId) return
+  detailController?.abort(); const current = detailController = new AbortController()
+  detailLoading.value = true
+  try {
+    const result = await api(url(context.farmId, `/${encodeURIComponent(id)}`), { signal: current.signal })
+    if (current.signal.aborted) return
+    detail.value = result.data; detailError.value = ''
+  } catch (err) {
+    if (!current.signal.aborted) {
+      detailError.value = err.message
+      if ([403, 404].includes(err.status)) detail.value = null
+    }
+  } finally { if (!current.signal.aborted) detailLoading.value = false }
+}
+useAlertRealtime({
+  farmId: () => context.farmId, enabled: () => canView.value && Boolean(auth.user?.id),
+  busy: () => saving.value || detailLoading.value,
+  refresh: changes => Promise.all([
+    loadList(),
+    changes.all || changes.alertIds.has(route.query.alertId) ? refreshDetail() : Promise.resolve(),
+  ]),
+})
 watch([() => context.farmId, () => role.value, () => auth.user?.id, () => context.farms.find(farm => farm.id === context.farmId)?.area?.id], () => {
   assigneesController?.abort(); assignees.value = []; assigneeId.value = ''; assigneesError.value = ''; assigneesLoading.value = false
   actionController?.abort(); detailController?.abort(); saving.value = false; detailLoading.value = false
@@ -188,10 +211,8 @@ watch(() => [route.query.alertId, canView.value], ([id]) => {
   openDetail(typeof id === 'string' ? id : '')
 }, { immediate: true, flush: 'sync' })
 loadOptions(); loadList()
-timer = setInterval(refreshVisible, 30000)
 onBeforeUnmount(() => {
   listController?.abort(); detailController?.abort(); optionsController?.abort(); actionController?.abort(); assigneesController?.abort()
-  clearInterval(timer)
 })
 </script>
 

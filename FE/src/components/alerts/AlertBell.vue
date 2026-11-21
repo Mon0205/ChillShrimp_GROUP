@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Pagination from '../pagination/index.vue'
 import { useAuth } from '../../composables/auth.js'
 import { useFarmContext } from '../../composables/farm-context.js'
+import { useAlertRealtime } from '../../composables/alert-realtime.js'
 import { api } from '../../services/api.js'
 const context = useFarmContext()
 const auth = useAuth()
@@ -16,7 +17,7 @@ const personalPage = ref(1), personalTotal = ref(0), reading = ref(false), readE
 const menuOpen = ref(false), tab = ref('system')
 const totalUnread = computed(() => unreadCount.value + personalUnreadCount.value)
 const hasError = computed(() => Boolean(error.value || personalError.value || readError.value))
-let controller, personalController, readController, timer
+let controller, personalController, readController
 const root = () => `/farms/${encodeURIComponent(context.farmId)}/environment-thresholds`
 async function refreshSystem() {
   controller?.abort(); const current = controller = new AbortController()
@@ -61,7 +62,7 @@ async function openPersonal(item) {
   } catch (err) { if (!current.signal.aborted) readError.value = err.message }
   finally { if (!current.signal.aborted) reading.value = false }
 }
-function refreshVisible() { if (!document.hidden) refresh() }
+useAlertRealtime({ farmId: () => context.farmId, enabled: allowed, busy: reading, refresh })
 watch([() => context.farmId, () => role.value, () => context.farms.find(farm => farm.id === context.farmId)?.area?.id, () => auth.user?.id], () => {
   controller?.abort(); personalController?.abort(); readController?.abort()
   items.value = []; unreadCount.value = 0; error.value = ''; loading.value = false
@@ -70,15 +71,8 @@ watch([() => context.farmId, () => role.value, () => context.farms.find(farm => 
   refresh()
 }, { immediate: true, flush: 'sync' })
 watch(personalPage, refreshPersonal)
-onMounted(() => {
-  timer = setInterval(refreshVisible, 30000)
-  window.addEventListener('alerts:refresh', refresh)
-  document.addEventListener('visibilitychange', refreshVisible)
-})
 onBeforeUnmount(() => {
-  controller?.abort(); personalController?.abort(); readController?.abort(); clearInterval(timer)
-  window.removeEventListener('alerts:refresh', refresh)
-  document.removeEventListener('visibilitychange', refreshVisible)
+  controller?.abort(); personalController?.abort(); readController?.abort()
 })
 </script>
 

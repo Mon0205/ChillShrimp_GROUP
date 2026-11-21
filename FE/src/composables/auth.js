@@ -1,3 +1,4 @@
+import { setAlertSocketUser } from '../services/alert-socket.js'
 import { reactive, watch } from 'vue'
 import { api } from '../services/api.js'
 import { showToast } from './toast.js'
@@ -23,6 +24,7 @@ export async function login(email, password) {
 }
 
 export async function logout() {
+  setAlertSocketUser(null)
   try { await api('/auth/logout', { method: 'POST' }) }
   finally {
     auth.user = null
@@ -38,6 +40,7 @@ let sessionHandlingInstalled = false
 export function installSessionHandling(router) {
   if (sessionHandlingInstalled) return
   sessionHandlingInstalled = true
+  watch(() => auth.user?.id, id => setAlertSocketUser(id), { immediate: true, flush: 'sync' })
 
   let expiryTimer
   let checkingSession = false

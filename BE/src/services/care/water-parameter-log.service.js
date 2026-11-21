@@ -1,3 +1,4 @@
+import { publishAlertEvents } from '../../realtime/alert-events.js'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
@@ -88,5 +89,9 @@ export async function createWaterParameterLog(operation) {
     const alerts = await createEnvironmentAlerts(tx, { farmId: tank.farmId, tank, log })
     return { ...log, alerts }
   })
+  void publishAlertEvents(result.alerts.flatMap(alert => [
+    { event: 'alert:created', farmId: operation.farmId, alertId: alert.id },
+    ...(alert.responsibleUserId ? [{ event: 'notification:created', farmId: operation.farmId, alertId: alert.id, userId: alert.responsibleUserId }] : []),
+  ]))
   return result
 }

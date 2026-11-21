@@ -1,3 +1,4 @@
+import { publishAlertEvents } from '../../realtime/alert-events.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { eligibleAlertWorker } from './alert-responsibility.service.js'
@@ -49,6 +50,7 @@ export async function listAlertAssignmentNotifications(operation) {
   return result
 }
 export async function markAlertAssignmentNotificationRead(operation) {
+  let alertId
   const id = operation.notificationId
   if (!uuidPattern.test(id || '')) throw createHttpError(400, 'Mã thông báo không hợp lệ.')
   const result = await prisma.$transaction(async tx => {
@@ -65,10 +67,12 @@ export async function markAlertAssignmentNotificationRead(operation) {
     if (!freshScope) throw createHttpError(404, 'Không tìm thấy thông báo cá nhân trong phạm vi được cấp quyền.')
     const current = await tx.alertAssignmentNotification.findFirst({ where: { id, ...freshScope }, include })
     if (!current) throw createHttpError(404, 'Không tìm thấy thông báo cá nhân trong phạm vi được cấp quyền.')
+    alertId = current.alertId
     if (current.readAt) return { id, isRead: true, readAt: current.readAt }
     const readAt = new Date()
     await tx.alertAssignmentNotification.updateMany({ where: { id, ...freshScope, readAt: null }, data: { readAt } })
     return { id, isRead: true, readAt }
   })
+  void publishAlertEvents([{ event: 'notification:read', farmId: operation.farmId, alertId, notificationId: id, userId: operation.actor.id }])
   return result
 }
