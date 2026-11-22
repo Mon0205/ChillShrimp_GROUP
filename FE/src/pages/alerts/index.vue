@@ -17,7 +17,8 @@ const router = useRouter()
 const role = computed(() => context.farms.find(farm => farm.id === context.farmId)?.role)
 const canView = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const wholeFarm = computed(() => ['OWNER', 'FARM_MANAGER'].includes(role.value))
-const filters = ref({ severity: '', isRead: '', status: '', areaId: '', tankId: '', from: '', to: '' })
+const emptyFilters = () => ({ severity: '', isRead: '', status: '', assignedToMe: '', areaId: '', tankId: '', from: '', to: '' })
+const filters = ref({ ...emptyFilters(), assignedToMe: route.query.assignedToMe === 'true' ? 'true' : '' })
 const areas = ref([])
 const tanks = ref([])
 const items = ref([])
@@ -44,10 +45,8 @@ let assigneesController
 const statusNames = { open: 'Chưa xử lý', in_progress: 'Đang xử lý', resolved: 'Đã xử lý' }
 const severityNames = { warning: 'Cảnh báo', critical: 'Nguy hiểm' }
 const isDetailPage = computed(() => typeof route.query.alertId === 'string' && Boolean(route.query.alertId))
-const pageSummary = computed(() => {
-  const pending = items.value.filter(item => item.status !== 'resolved')
-  return { pending: pending.length, critical: pending.filter(item => item.severity === 'critical').length, inProgress: pending.filter(item => item.status === 'in_progress').length, unassigned: pending.filter(item => !item.responsibleUserId).length }
-})
+const summary = ref({ pending: 0, critical: 0, inProgress: 0, unassigned: 0 })
+const showAssigneeFilter = computed(() => canWork.value || Boolean(filters.value.assignedToMe))
 const statusColor = status => ({ open: 'default', in_progress: 'info', resolved: 'success' })[status] || 'default'
 const initials = alert => responsibleName(alert).split(/\s+/).slice(-2).map(word => word[0]).join('').toUpperCase()
 
@@ -65,7 +64,7 @@ async function loadList() {
   listController?.abort()
   const current = new AbortController()
   listController = current
-  if (!canView.value || !context.farmId) { items.value = []; total.value = 0; loading.value = false; return }
+  if (!canView.value || !context.farmId) { items.value = []; total.value = 0; summary.value = { pending: 0, critical: 0, inProgress: 0, unassigned: 0 }; loading.value = false; return }
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   for (const [key, value] of Object.entries(filters.value)) {
     if (!value) continue
@@ -80,8 +79,9 @@ async function loadList() {
     if (page.value > lastPage) { page.value = lastPage; return }
     items.value = result.data.items
     total.value = result.data.pagination.total
+    summary.value = result.data.summary
   } catch (err) {
-    if (!current.signal.aborted) { items.value = []; total.value = 0; error.value = err.message }
+    if (!current.signal.aborted) { items.value = []; total.value = 0; summary.value = { pending: 0, critical: 0, inProgress: 0, unassigned: 0 }; error.value = err.message }
   } finally { if (!current.signal.aborted) loading.value = false }
 }
 async function loadOptions() {
@@ -196,7 +196,7 @@ watch([() => context.farmId, () => role.value, () => auth.user?.id, () => contex
   assigneesController?.abort(); assignees.value = []; assigneeId.value = ''; assigneesError.value = ''; assigneesLoading.value = false
   actionController?.abort(); detailController?.abort(); saving.value = false; detailLoading.value = false
   page.value = 1
-  filters.value = { severity: '', isRead: '', status: '', areaId: '', tankId: '', from: '', to: '' }
+  filters.value = emptyFilters()
   detail.value = null; items.value = []; total.value = 0; detailError.value = ''; error.value = ''
   loadOptions(); loadList()
   // A notification id belongs to the previously selected farm; never carry it into another farm.
@@ -206,6 +206,13 @@ watch(page, loadList)
 watch(pageSize, () => { if (page.value === 1) loadList(); else page.value = 1 })
 watch(filters, () => { if (page.value === 1) loadList(); else page.value = 1 }, { deep: true })
 watch(() => filters.value.areaId, () => { filters.value.tankId = '' })
+watch(() => filters.value.assignedToMe, (value) => {
+  if ((route.query.assignedToMe === 'true') === (value === 'true')) return
+  const query = { ...route.query }
+  if (value === 'true') query.assignedToMe = 'true'
+  else delete query.assignedToMe
+  router.replace({ path: '/alerts', query })
+})
 watch(() => [route.query.alertId, canView.value], ([id]) => {
   actionController?.abort(); saving.value = false
   openDetail(typeof id === 'string' ? id : '')
@@ -276,11 +283,11 @@ onBeforeUnmount(() => {
       </template>
       <template v-else>
         <header class="page-header"><div><p class="eyebrow">GIÁM SÁT & XỬ LÝ</p><h1>Cảnh báo môi trường</h1><p>Nắm bắt bất thường. Giao đúng người. Theo dõi đến khi xử lý xong.</p></div><v-btn variant="outlined" prepend-icon="mdi-refresh" :loading="loading" @click="loadList(); loadOptions(); notifyRefresh()">Làm mới</v-btn></header>
-        <div v-if="!error" class="summary-strip" aria-label="Tóm tắt cảnh báo trên trang hiện tại"><div class="summary-item highlight"><span><v-icon icon="mdi-alert-circle-outline" size="17" />Cần chú ý</span><strong>{{ loading ? '—' : pageSummary.pending }}</strong><small>Chưa kết thúc trên trang này</small></div><div class="summary-item"><span>Nguy hiểm</span><strong class="danger">{{ loading ? '—' : pageSummary.critical }}</strong><small>Ưu tiên kiểm tra ngay</small></div><div class="summary-item"><span>Đang xử lý</span><strong>{{ loading ? '—' : pageSummary.inProgress }}</strong><small>Trên trang hiện tại</small></div><div class="summary-item"><span>Chưa phân công</span><strong class="warning">{{ loading ? '—' : pageSummary.unassigned }}</strong><small>Trên trang hiện tại</small></div></div>
+        <div v-if="!error" class="summary-strip" aria-label="Tóm tắt cảnh báo theo bộ lọc hiện tại"><div class="summary-item highlight"><span><v-icon icon="mdi-alert-circle-outline" size="17" />Cần chú ý</span><strong>{{ loading ? '—' : summary.pending }}</strong><small>Chưa kết thúc theo bộ lọc</small></div><div class="summary-item"><span>Nguy hiểm</span><strong class="danger">{{ loading ? '—' : summary.critical }}</strong><small>Ưu tiên kiểm tra ngay</small></div><div class="summary-item"><span>Đang xử lý</span><strong>{{ loading ? '—' : summary.inProgress }}</strong><small>Theo bộ lọc hiện tại</small></div><div class="summary-item"><span>Chưa phân công</span><strong class="warning">{{ loading ? '—' : summary.unassigned }}</strong><small>Theo bộ lọc hiện tại</small></div></div>
         <section class="surface list-card" aria-labelledby="alerts-list-heading">
           <div class="list-heading"><h2 id="alerts-list-heading">Danh sách cảnh báo <span class="count">{{ total }}</span></h2><small>Theo bộ lọc đang chọn</small></div>
           <v-tabs v-model="filters.status" color="primary" class="status-tabs" aria-label="Trạng thái xử lý cảnh báo"><v-tab value="">Tất cả</v-tab><v-tab value="open">Chưa xử lý</v-tab><v-tab value="in_progress">Đang xử lý</v-tab><v-tab value="resolved">Đã xử lý</v-tab></v-tabs>
-          <div class="filters"><v-select v-model="filters.severity" density="compact" label="Mức độ" :items="[{ title: 'Cảnh báo', value: 'warning' }, { title: 'Nguy hiểm', value: 'critical' }]" clearable hide-details /><v-select v-model="filters.isRead" density="compact" label="Trạng thái đọc" :items="[{ title: 'Chưa đọc', value: 'false' }, { title: 'Đã đọc', value: 'true' }]" clearable hide-details /><v-select v-if="wholeFarm" v-model="filters.areaId" density="compact" label="Khu vực" :items="areas" item-title="name" item-value="id" clearable hide-details /><v-select v-model="filters.tankId" density="compact" label="Ao/bể" :items="visibleTanks" item-title="name" item-value="id" clearable hide-details /><DateRange v-model="filters" /></div>
+          <div class="filters"><v-select v-model="filters.severity" density="compact" label="Mức độ" :items="[{ title: 'Cảnh báo', value: 'warning' }, { title: 'Nguy hiểm', value: 'critical' }]" clearable hide-details /><v-select v-model="filters.isRead" density="compact" label="Trạng thái đọc" :items="[{ title: 'Chưa đọc', value: 'false' }, { title: 'Đã đọc', value: 'true' }]" clearable hide-details /><v-select v-if="showAssigneeFilter" v-model="filters.assignedToMe" density="compact" label="Người phụ trách" :items="[{ title: 'Giao cho tôi', value: 'true' }]" clearable hide-details /><v-select v-if="wholeFarm" v-model="filters.areaId" density="compact" label="Khu vực" :items="areas" item-title="name" item-value="id" clearable hide-details /><v-select v-model="filters.tankId" density="compact" label="Ao/bể" :items="visibleTanks" item-title="name" item-value="id" clearable hide-details /><DateRange v-model="filters" /></div>
           <v-alert v-if="optionsError" type="warning" variant="tonal" class="ma-4">Không tải được bộ lọc: {{ optionsError }}</v-alert>
           <v-progress-linear v-if="loading" indeterminate color="primary" aria-label="Đang tải cảnh báo" />
           <v-alert v-if="error" type="error" variant="tonal" class="ma-4">{{ error }} <v-btn variant="text" @click="loadList">Thử lại</v-btn></v-alert>

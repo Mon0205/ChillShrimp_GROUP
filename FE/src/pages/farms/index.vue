@@ -32,7 +32,7 @@ const editingArea = ref(null)
 const selectedArea = ref(null)
 const farmForm = ref({ code: '', name: '', address: '', status: 'active' })
 const areaForm = ref({ code: '', name: '' })
-const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Kỹ thuật viên', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 const areasDialog = ref(false)
 const areaFarmId = ref('')

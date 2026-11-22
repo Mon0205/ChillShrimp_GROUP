@@ -1,180 +1,236 @@
 <script setup>
 import AppShell from '../../components/shell/index.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAlertRealtime } from '../../composables/alert-realtime.js'
 import { loadFarmContext, useFarmContext } from '../../composables/farm-context.js'
-import { showToast } from '../../composables/toast.js'
 import { api } from '../../services/api.js'
+import AlertsByArea from './components/AlertsByArea.vue'
+import BusinessBlock from './components/BusinessBlock.vue'
+import PendingOrdersTable from './components/PendingOrdersTable.vue'
+import ShiftProgress from './components/ShiftProgress.vue'
+import StatTile from './components/StatTile.vue'
+import TankTodayTable from './components/TankTodayTable.vue'
+import TaskCards from './components/TaskCards.vue'
+import { amount, count, money } from './format.js'
 
+// Role-based dashboard (spec: docs/superpowers/specs/2026-11-21-dashboard-design.md).
+// Owner and farm manager share one frame: to-do cards, business block, production figures, then a main table.
+// Area manager and technician get their own layouts (technician: "Việc hôm nay": progress, cards, own tanks). The backend
+// decides which cards and figures a role receives. Warehouse staff are sent to Inventory by the router.
+const MANAGEMENT_ROLES = ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER']
+const DASHBOARD_ROLES = [...MANAGEMENT_ROLES, 'TECHNICIAN']
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Kỹ thuật viên', WAREHOUSE_STAFF: 'Nhân viên kho' }
+
+const router = useRouter()
 const farmContext = useFarmContext()
-const loading = ref(true)
-const error = ref('')
-const reportLoading = ref(false)
-const reportError = ref('')
-const feedingReport = ref(null)
-const reportTanks = ref([])
-const reportFilters = ref(defaultReportFilters())
-const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
-const farms = computed(() => farmContext.farms)
-const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmContext.farmId))
-const canViewFeedingReport = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(selectedFarm.value?.role))
-const selectedRole = computed(() => roleNames[selectedFarm.value?.role] || 'Chưa xác định')
-const selectedScope = computed(() => selectedFarm.value?.area?.name || 'Toàn trại')
+const contextLoading = ref(true)
+const contextError = ref('')
+const summary = ref(null)
+const summaryLoading = ref(false)
+const summaryError = ref('')
+const feeding = ref(null)
+const feedingError = ref('')
+let summaryController = null
+let feedingController = null
 
-function localDateString(date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 10)
+const selectedFarm = computed(() => farmContext.farms.find((farm) => farm.id === farmContext.farmId))
+const role = computed(() => selectedFarm.value?.role || '')
+const hasDashboard = computed(() => DASHBOARD_ROLES.includes(role.value))
+const isManagement = computed(() => MANAGEMENT_ROLES.includes(role.value))
+const farmWide = computed(() => ['OWNER', 'FARM_MANAGER'].includes(role.value))
+const scopeText = computed(() => {
+  if (farmWide.value) return 'Toàn trại'
+  if (role.value === 'WAREHOUSE_STAFF') return 'Kho của trại'
+  return selectedFarm.value?.area?.name || 'Chưa được gán khu vực'
+})
+const technicianScope = computed(() => {
+  const scope = stats.value.scope
+  if (role.value !== 'TECHNICIAN' || !scope) return ''
+  return scope.wholeArea ? 'Chưa phụ trách ao/bể nào, hiển thị toàn khu vực' : `Phụ trách ${scope.tanks} ao/bể, ${scope.batches} lô`
+})
+const infoLine = computed(() => [selectedFarm.value?.code, selectedFarm.value?.name, roleNames[role.value], scopeText.value, technicianScope.value].filter(Boolean).join(' · '))
+// Names of the empty tanks of the area (as far as the rows shown), for the "ao/bể đang nuôi" tile.
+const emptyTankNames = computed(() => (stats.value.tankRows || []).filter((row) => row.status !== 'active').map((row) => row.code))
+const updatedAt = computed(() => (summary.value ? new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(new Date(summary.value.generatedAt)) : ''))
+const stats = computed(() => summary.value?.stats || {})
+
+const feedingTotals = computed(() => {
+  if (!feeding.value) return null
+  return {
+    units: feeding.value.amountsByUnit.map((item) => `${amount(item.actualAmount)} ${item.unit}`).join(' + ') || 'Chưa có',
+    feedings: feeding.value.totalFeedings,
+    tanks: new Set(feeding.value.byTank.map((row) => row.tankId)).size,
+  }
+})
+
+// "Sản xuất" tiles of the owner and the farm manager. The last two differ: the owner sees the stock value,
+// the farm manager sees how fast alerts get resolved.
+const productionTiles = computed(() => {
+  const production = stats.value.production
+  if (!production) return []
+  const idle = production.tanks.total - production.tanks.active
+  const tiles = [
+    { key: 'tanks', label: 'Ao/bể đang nuôi', value: count(production.tanks.active), suffix: `/ ${count(production.tanks.total)}`, sub: `${count(idle)} ao/bể trống` },
+    { key: 'batches', label: 'Lô trong bể', value: `${count(production.batches.total)} lô`, sub: `${count(production.batches.active)} đang ương · ${count(production.batches.readyForSale)} sẵn sàng bán` },
+    { key: 'fish', label: 'Số con trong bể', value: count(production.estimatedQuantity), sub: 'Ước tính, tự trừ khi giao hàng' },
+    { key: 'sellable', label: 'Giống còn bán được', value: `${count(production.sellable.available)} con`, sub: `Đã giữ ${count(production.sellable.reserved)} con cho đơn`, accent: '#1d6fb8' },
+  ]
+  if (role.value === 'OWNER') tiles.push({ key: 'stock', label: 'Giá trị tồn kho', value: money(stats.value.inventoryValue), sub: 'Theo đơn giá nhập gần nhất', accent: '#1d6fb8' })
+  if (role.value === 'FARM_MANAGER') {
+    const resolution = stats.value.alertResolution
+    tiles.push({ key: 'resolution', label: 'Xử lý cảnh báo trung bình', value: resolution?.count ? `${amount(resolution.averageHours)} giờ` : '—', sub: `${count(resolution?.count)} cảnh báo đã xong trong 30 ngày`, accent: '#7a5cc2' })
+  }
+  tiles.push({
+    key: 'feeding',
+    label: 'Thức ăn 30 ngày qua',
+    value: feedingTotals.value ? feedingTotals.value.units : feedingError.value ? 'Không tải được' : 'Đang tải…',
+    sub: feedingTotals.value ? `${count(feedingTotals.value.feedings)} lần · ${count(feedingTotals.value.tanks)} ao/bể · Xem báo cáo →` : '',
+    accent: '#1d6fb8',
+    to: '/care-logs?tab=feeding-report',
+  })
+  return tiles
+})
+
+async function loadSummary() {
+  summaryController?.abort()
+  summaryError.value = ''
+  if (!farmContext.farmId || !hasDashboard.value) { summary.value = null; return }
+  const controller = new AbortController()
+  summaryController = controller
+  summaryLoading.value = true
+  try {
+    const result = await api(`/farms/${encodeURIComponent(farmContext.farmId)}/dashboard/summary`, { signal: controller.signal })
+    if (summaryController === controller) summary.value = result.data
+  } catch (err) {
+    if (summaryController === controller && err.name !== 'AbortError') summaryError.value = err.message
+  } finally {
+    if (summaryController === controller) summaryLoading.value = false
+  }
 }
 
-function defaultReportFilters() {
+// One-line feeding summary for the last 30 days; the full report lives in Care logs › Báo cáo cho ăn.
+async function loadFeeding() {
+  feedingController?.abort()
+  feeding.value = null
+  feedingError.value = ''
+  if (!farmContext.farmId || !isManagement.value) return
+  const controller = new AbortController()
+  feedingController = controller
   const to = new Date()
   const from = new Date(to)
   from.setDate(from.getDate() - 29)
-  return { from: localDateString(from), to: localDateString(to), tankId: '' }
-}
-
-function reportDate(value, endOfDay = false) {
-  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`).toISOString()
-}
-
-function formatReportAmount(value, digits = 3) {
-  return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: digits })
-}
-
-function formatReportTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
-
-function formatReportDay(value) {
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(`${value}T12:00:00`))
-}
-
-async function loadFeedingTanks() {
-  reportTanks.value = []
-  if (!farmContext.farmId || !canViewFeedingReport.value) return
+  from.setHours(0, 0, 0, 0)
   try {
-    const response = await api(`/farms/${encodeURIComponent(farmContext.farmId)}/ponds-tanks`)
-    reportTanks.value = response.data
+    const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+    const result = await api(`/farms/${encodeURIComponent(farmContext.farmId)}/reports/feeding?${params}`, { signal: controller.signal })
+    if (feedingController === controller) feeding.value = result.data
   } catch (err) {
-    reportError.value = err.message
+    if (feedingController === controller && err.name !== 'AbortError') feedingError.value = err.message
   }
 }
 
-async function loadFeedingReport() {
-  if (!farmContext.farmId || !canViewFeedingReport.value) { feedingReport.value = null; return }
-  if (!reportFilters.value.from || !reportFilters.value.to || reportFilters.value.from > reportFilters.value.to) {
-    reportError.value = 'Chọn khoảng ngày hợp lệ.'
-    return
-  }
-  reportLoading.value = true
-  reportError.value = ''
-  try {
-    const params = new URLSearchParams({ from: reportDate(reportFilters.value.from), to: reportDate(reportFilters.value.to, true) })
-    if (reportFilters.value.tankId) params.set('tankId', reportFilters.value.tankId)
-    feedingReport.value = (await api(`/farms/${encodeURIComponent(farmContext.farmId)}/reports/feeding?${params}`)).data
-  } catch (err) {
-    feedingReport.value = null
-    reportError.value = err.message
-    showToast(err.message, 'error')
-  } finally { reportLoading.value = false }
+function refreshAll() {
+  summary.value = null
+  return Promise.all([loadSummary(), loadFeeding()])
 }
 
-async function loadDashboard() {
-  try {
-    await loadFarmContext(true)
-    await Promise.all([loadFeedingTanks(), loadFeedingReport()])
-  }
-  catch (err) { error.value = err.message; showToast(err.message, 'error') }
-  finally { loading.value = false }
-}
+// Alert cards follow realtime alert events, like the bell and the alerts page.
+useAlertRealtime({ farmId: () => farmContext.farmId, enabled: hasDashboard, busy: summaryLoading, refresh: loadSummary })
 
-watch(() => farmContext.farmId, async () => {
-  reportFilters.value.tankId = ''
-  try { await Promise.all([loadFeedingTanks(), loadFeedingReport()]) }
-  catch (err) { reportError.value = err.message }
+watch([() => farmContext.farmId, role], () => {
+  if (role.value === 'WAREHOUSE_STAFF') { router.replace('/inventory-supplies'); return }
+  if (!contextLoading.value) refreshAll()
 })
 
-onMounted(loadDashboard)
+onMounted(async () => {
+  try { await loadFarmContext(true) }
+  catch (err) { contextError.value = err.message }
+  finally { contextLoading.value = false }
+  if (role.value === 'WAREHOUSE_STAFF') { router.replace('/inventory-supplies'); return }
+  refreshAll()
+})
+onBeforeUnmount(() => { summaryController?.abort(); feedingController?.abort() })
 </script>
 
 <template>
 <AppShell>
+  <div class="dashboard">
     <header class="page-header">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-view-dashboard-outline" size="25" /></v-avatar><h1>Dashboard</h1></div>
-      </header>
-      <div class="page-actions list-actions"><v-btn to="/farms" color="primary" variant="outlined">Quản lý trang trại</v-btn>
-        <v-btn to="/users" color="primary">Quản lý người dùng</v-btn></div>
+      <div class="heading">
+        <h1>{{ role === 'TECHNICIAN' ? 'Việc hôm nay' : 'Dashboard' }}</h1>
+        <p v-if="selectedFarm">{{ infoLine }}</p>
+      </div>
+      <div v-if="hasDashboard" class="refresh">
+        <span v-if="updatedAt">Cập nhật lúc {{ updatedAt }}</span>
+        <v-btn variant="outlined" color="primary" prepend-icon="mdi-refresh" :loading="summaryLoading" @click="refreshAll">Làm mới</v-btn>
+      </div>
+    </header>
 
-    <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
-    <div v-else-if="error" class="notice error-notice">Không thể tải thông tin tổng quan.</div>
-    <template v-else-if="farms.length">
-      <section class="metrics-grid">
-        <v-card class="metric-card" elevation="0"><span>Trang trại tham gia</span><strong>{{ farms.length }}</strong><small>Thành viên đang hoạt động</small></v-card>
-        <v-card class="metric-card" elevation="0"><span>Trang trại đang chọn</span><strong>{{ selectedFarm?.code || '—' }}</strong><small>{{ selectedFarm?.name || 'Chưa chọn trang trại' }}</small></v-card>
-        <v-card class="metric-card" elevation="0"><span>Vai trò hiện tại</span><strong class="metric-role">{{ selectedRole }}</strong><small>Phạm vi: {{ selectedScope }}</small></v-card>
-      </section>
-
-      <v-card class="overview-card" elevation="0">
-        <div class="overview-grid">
-          <div><span class="detail-label">Địa chỉ</span><strong>{{ selectedFarm?.address || 'Chưa cập nhật' }}</strong></div>
-          <div><span class="detail-label">Phạm vi</span><strong>{{ selectedScope }}</strong></div>
-          <div><span class="detail-label">Quyền truy cập</span><strong>{{ selectedRole }}</strong></div>
-        </div>
-        <div class="overview-actions"><v-btn to="/farms" color="primary" variant="text">Xem thông tin trại</v-btn><v-btn to="/users" color="primary" variant="text">Xem thành viên</v-btn></div>
-      </v-card>
-      <v-card v-if="canViewFeedingReport" class="overview-card feeding-report" elevation="0">
-        <div class="report-heading">
-          <div><span class="eyebrow">BÁO CÁO VẬN HÀNH</span><h2>Thức ăn đã ghi nhận</h2><p>Số liệu chỉ tổng hợp nhật ký cho ăn đã lưu; không đại diện cho kế hoạch hoặc lượng xuất kho.</p></div>
-          <v-btn to="/feeding-logs" color="primary" variant="outlined">Mở nhật ký</v-btn>
-        </div>
-        <div class="report-filters">
-          <v-text-field v-model="reportFilters.from" type="date" label="Từ ngày" density="compact" hide-details />
-          <v-text-field v-model="reportFilters.to" type="date" label="Đến ngày" density="compact" hide-details />
-          <v-select v-model="reportFilters.tankId" :items="reportTanks" item-title="name" item-value="id" label="Ao/bể" clearable density="compact" hide-details />
-          <v-btn color="primary" :loading="reportLoading" @click="loadFeedingReport">Cập nhật</v-btn>
-        </div>
-        <v-progress-linear v-if="reportLoading" indeterminate color="primary" />
-        <div v-else-if="reportError" class="notice error-notice">{{ reportError }}</div>
-        <template v-else-if="feedingReport">
-          <div class="report-meta">{{ feedingReport.totalFeedings }} lần ghi nhận trong khoảng đã chọn</div>
-          <div v-if="feedingReport.amountsByUnit.length" class="report-summary">
-            <article v-for="item in feedingReport.amountsByUnit" :key="item.unit" class="report-stat">
-              <span>Tổng lượng thực tế · {{ item.unit }}</span><strong>{{ formatReportAmount(item.actualAmount) }} {{ item.unit }}</strong>
-              <small>{{ item.feedingCount }} lần cho ăn</small>
-            </article>
-          </div>
-          <div v-else class="report-empty">Chưa có nhật ký cho ăn trong khoảng thời gian này.</div>
-
-          <div v-if="feedingReport.byTank.length" class="report-block">
-            <h3>Theo ao/bể và đơn vị</h3>
-            <v-table class="app-data-table" density="compact"><thead><tr><th>Ao/bể</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
-              <tbody><tr v-for="row in feedingReport.byTank" :key="`${row.tankId}-${row.unit}`"><td>{{ row.tankCode }} · {{ row.tankName }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
-            </v-table>
-          </div>
-
-          <div v-if="feedingReport.daily.length" class="report-block">
-            <h3>Theo ngày</h3>
-            <v-table class="app-data-table" density="compact"><thead><tr><th>Ngày</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
-              <tbody><tr v-for="row in feedingReport.daily" :key="`${row.date}-${row.unit}`"><td>{{ formatReportDay(row.date) }}</td><td>{{ row.unit }}</td><td>{{ formatReportAmount(row.actualAmount) }}</td><td>{{ row.feedingCount }}</td></tr></tbody>
-            </v-table>
-          </div>
-
-          <div v-if="feedingReport.recent.length" class="report-block">
-            <h3>Nhật ký gần đây</h3>
-            <v-table class="app-data-table" density="compact"><thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Thức ăn</th><th>Lượng ghi nhận</th><th>Sàng ăn</th></tr></thead>
-              <tbody><tr v-for="row in feedingReport.recent" :key="row.id"><td>{{ formatReportTime(row.feedingTime) }}</td><td>{{ row.tankCode }} · {{ row.tankName }}</td><td>{{ row.feedName }}</td><td>{{ formatReportAmount(row.amount) }} {{ row.unit }}</td><td>{{ ({ consumed: 'Đã ăn hết', leftover: 'Còn thức ăn', not_checked: 'Chưa kiểm tra' })[row.feedCheckStatus] || '—' }}</td></tr></tbody>
-            </v-table>
-          </div>
-        </template>
-      </v-card>
-    </template>
-    <v-card v-else class="empty-card" elevation="0">
-      <div class="empty-icon">+</div><h2>Chưa có trang trại</h2><p>Tạo trang trại đầu tiên để bắt đầu quản lý dữ liệu vận hành.</p><v-btn to="/farms" color="primary">Mở quản lý trang trại</v-btn>
+    <v-progress-linear v-if="contextLoading" indeterminate color="primary" rounded />
+    <div v-else-if="contextError" class="notice error-notice" role="alert">Không tải được danh sách trại: {{ contextError }}</div>
+    <v-card v-else-if="!farmContext.farms.length" class="empty-card" elevation="0">
+      <h2>Chưa có trang trại</h2>
+      <p>Tạo trang trại đầu tiên để bắt đầu quản lý dữ liệu vận hành.</p>
+      <v-btn to="/farms" color="primary">Mở quản lý trang trại</v-btn>
     </v-card>
-  </AppShell>
+
+    <template v-else-if="hasDashboard">
+      <div v-if="summaryError" class="notice error-notice" role="alert"><span>Không tải được Dashboard: {{ summaryError }}</span><v-btn size="small" variant="text" @click="loadSummary">Thử lại</v-btn></div>
+
+      <ShiftProgress v-if="summary && role === 'TECHNICIAN' && stats.progress" :progress="stats.progress" />
+
+      <TaskCards :title="role === 'TECHNICIAN' ? 'Việc cần làm' : 'Việc cần xử lý'" :cards="summary?.cards ?? null" />
+
+      <!-- Owner and farm manager: business, production, then the main table -->
+      <template v-if="summary && farmWide">
+        <BusinessBlock v-if="stats.business" :key="farmContext.farmId" :business="stats.business" :farm-id="farmContext.farmId" />
+
+        <section class="block" aria-labelledby="production-heading">
+          <h2 id="production-heading">Sản xuất</h2>
+          <div class="tile-grid">
+            <StatTile v-for="tile in productionTiles" :key="tile.key" :label="tile.label" :value="tile.value" :suffix="tile.suffix" :sub="tile.sub" :accent="tile.accent" :to="tile.to" />
+          </div>
+        </section>
+
+        <PendingOrdersTable v-if="role === 'OWNER'" :orders="stats.pendingOrders" />
+        <AlertsByArea v-else :areas="stats.alertsByArea" />
+      </template>
+
+      <!-- Area manager: area figures and today's board of the area's tanks -->
+      <template v-else-if="summary && role === 'AREA_MANAGER'">
+        <section class="block" aria-labelledby="area-heading">
+          <h2 id="area-heading">Tình hình khu</h2>
+          <div class="tile-grid">
+            <StatTile label="Ao/bể đang nuôi" :value="count(stats.production.tanks.active)" :suffix="`/ ${count(stats.production.tanks.total)}`" :sub="stats.production.tanks.total > stats.production.tanks.active ? `${count(stats.production.tanks.total - stats.production.tanks.active)} ao/bể trống${emptyTankNames.length ? ` (${emptyTankNames.slice(0, 3).join(', ')})` : ''}` : 'Không có ao/bể trống'" />
+            <StatTile label="Lô đang ương" :value="`${count(stats.activeBatches.count)} lô`" :sub="`${count(stats.activeBatches.estimatedQuantity)} con (ước tính)`" />
+            <StatTile label="Tiến độ hôm nay" :value="`${stats.progress.fed}/${stats.progress.tanks}`" suffix="ao đã cho ăn" :sub="`${stats.progress.waterChecked}/${stats.progress.tanks} ao đã đo nước trong 24 giờ`" accent="#1d6fb8" />
+            <StatTile label="Thức ăn 30 ngày qua" :value="feedingTotals ? feedingTotals.units : feedingError ? 'Không tải được' : 'Đang tải…'" :sub="feedingTotals ? `${count(feedingTotals.feedings)} lần · ${count(feedingTotals.tanks)} ao/bể · Xem báo cáo →` : ''" accent="#1d6fb8" to="/care-logs?tab=feeding-report" />
+          </div>
+        </section>
+        <TankTodayTable title="Ao/bể trong khu hôm nay" :rows="stats.tankRows" responsible />
+      </template>
+
+      <!-- Technician: "Việc hôm nay" - progress of the shift comes first, then the tanks the technician covers -->
+      <TankTodayTable v-else-if="summary && role === 'TECHNICIAN'" :title="stats.scope?.wholeArea ? 'Ao/bể trong khu hôm nay' : 'Ao/bể của tôi hôm nay'" :rows="stats.tankRows" quick />
+    </template>
+  </div>
+</AppShell>
 </template>
 
 <style scoped>
-.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px}.page-header p{margin:0;color:#70817e;font-size:13px}.page-actions{display:flex;gap:10px}.eyebrow{display:block;margin-bottom:8px;color:#087f6e;font-size:10px;font-weight:800;letter-spacing:.13em}h1{margin:0 0 9px;color:#134e4a;font-size:clamp(1.85rem,3vw,2.55rem)}h2{margin:0;color:#134e4a;font-size:1.25rem}.notice{padding:16px;border-radius:12px;font-size:13px}.error-notice{color:#9b3e3e;background:#fff0ef}.metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.metric-card,.overview-card,.empty-card{border:1px solid #dce7e4!important;border-radius:18px!important;background:white!important}.metric-card{display:grid;gap:8px;padding:22px}.metric-card span,.detail-label{color:#82908d;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.metric-card strong{color:#087f6e;font-size:28px}.metric-card small{color:#74837f;font-size:11px}.metric-role{font-size:18px!important}.overview-card{margin-top:20px;padding:26px}.overview-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:20px;border-bottom:1px solid #e5ecea}.farm-code{padding:6px 10px;border-radius:8px;color:#087f6e;background:#e7f4f1;font-size:11px;font-weight:800}.overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:22px 0}.overview-grid div{display:grid;gap:7px}.overview-grid strong{color:#365751;font-size:13px}.overview-actions{display:flex;justify-content:flex-end;gap:4px}.empty-card{padding:46px;text-align:center}.empty-icon{width:48px;height:48px;display:grid;place-items:center;margin:0 auto 14px;border-radius:14px;color:#087f6e;background:#e7f4f1;font-size:25px}.empty-card p{margin:8px 0 20px;color:#70817e;font-size:13px}@media(max-width:760px){.page-header{align-items:stretch;flex-direction:column}.page-actions .v-btn{flex:1}.metrics-grid,.overview-grid{grid-template-columns:1fr}.overview-actions{justify-content:stretch;flex-direction:column}.empty-card{padding:34px 22px}}
-.feeding-report{display:grid;gap:18px}.report-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.report-heading p{margin:7px 0 0;color:#71827e;font-size:12px}.report-filters{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid #e5ecea}.report-meta{color:#71827e;font-size:11px}.report-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.report-stat{display:grid;gap:5px;padding:15px;border:1px solid #dce7e4;border-radius:9px;background:#fff}.report-stat span,.report-stat small{color:#71827e;font-size:10px}.report-stat strong{color:#087f6e;font-size:20px}.report-block{overflow:hidden;border:1px solid #e1eae7;border-radius:8px}.report-block h3{margin:0;padding:13px 15px;border-bottom:1px solid #e5ecea;color:#315650;font-size:13px}.report-block :deep(th){color:#71827e;font-size:10px;font-weight:800;text-transform:uppercase;white-space:nowrap}.report-block :deep(td){color:#34514c;font-size:11px;white-space:nowrap}.report-empty{margin:0;color:#71827e;font-size:12px}@media(max-width:760px){.report-heading{align-items:stretch;flex-direction:column}.report-filters{grid-template-columns:1fr 1fr}.report-filters .v-btn{grid-column:1/-1}.report-block{overflow-x:auto}}
+.dashboard { display: grid; gap: 18px; min-width: 0; color: #1f3a35; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.heading { display: grid; gap: 6px; }
+h1 { margin: 0; color: #134e4a; font-size: clamp(1.7rem, 3vw, 1.75rem); }
+.heading p { margin: 0; color: #5f716d; font-size: 14px; }
+.refresh { display: flex; align-items: center; gap: 12px; color: #5f716d; font-size: 12px; }
+h2 { margin: 0; color: #134e4a; font-size: 15px; }
+.block { display: grid; gap: 10px; }
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 12px; font-size: 13px; }
+.error-notice { color: #9b3e3e; background: #fff0ef; }
+.empty-card { display: grid; justify-items: center; gap: 10px; padding: 40px 24px; border: 1px solid #dce7e4 !important; border-radius: 14px !important; text-align: center; }
+.empty-card h2 { font-size: 1.15rem; }
+.empty-card p { margin: 0; color: #5f716d; font-size: 14px; }
 </style>

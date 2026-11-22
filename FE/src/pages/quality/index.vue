@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppShell from '../../components/shell/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
 import Pagination from '../../components/pagination/index.vue'
@@ -9,9 +10,18 @@ import { useSeedBatches } from '../seed-batches/composables/useSeedBatches.js'
 import { api } from '../../services/api.js'
 import { showToast } from '../../composables/toast.js'
 
+const route = useRoute()
+const router = useRouter()
 const model = useSeedBatches()
-const { farmId, canView, inspectionDialog, openInspectionUpload, selectedAiInspection, aiInspections, aiInspectionStatusNames, formatTimestamp, formatInspectionValue } = model
+const { farmId, canView, role, inspectionDialog, openInspectionUpload, selectedAiInspection, aiInspections, aiInspectionStatusNames, formatTimestamp, formatInspectionValue } = model
 const batchId = ref(''), tankId = ref('')
+// "?status=pending,failed&mine=true" is what the technician dashboard card opens: the same inspections the card counts.
+const INSPECTION_STATUSES = ['pending', 'processing', 'completed', 'failed']
+const fromQuery = () => String(route.query.status || '').split(',').filter(value => INSPECTION_STATUSES.includes(value))
+const statuses = ref(fromQuery())
+const mine = ref(route.query.mine === 'true')
+const statusOptions = computed(() => INSPECTION_STATUSES.map(value => ({ title: aiInspectionStatusNames[value] || value, value })))
+const showMine = computed(() => ['TECHNICIAN', 'AREA_MANAGER'].includes(role.value) || mine.value)
 const dates = ref({ from: '', to: '' })
 const batches = ref([]), tanks = ref([]), rows = ref([])
 const accuracy = ref(null)
@@ -54,6 +64,8 @@ async function loadRows() {
     const query = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
     if (batchId.value) query.set('batchId', batchId.value)
     if (tankId.value) query.set('tankId', tankId.value)
+    if (statuses.value.length) query.set('status', statuses.value.join(','))
+    if (mine.value) query.set('mine', 'true')
     if (dates.value.from) query.set('from', new Date(`${dates.value.from}T00:00:00`).toISOString())
     if (dates.value.to) query.set('to', new Date(`${dates.value.to}T23:59:59.999`).toISOString())
     const result = await api(`${base()}/inspection-history?${query}`)
@@ -70,10 +82,18 @@ const warningCount = (item) => (Array.isArray(item.photoWarnings) ? item.photoWa
 function create() {
   if (selectedBatch.value) openInspectionUpload(selectedBatch.value)
 }
-watch([batchId, tankId, dates, pageSize], () => { if (page.value !== 1) page.value = 1; else loadRows() }, { deep: true })
+watch([batchId, tankId, dates, pageSize, statuses, mine], () => { if (page.value !== 1) page.value = 1; else loadRows() }, { deep: true })
 watch(page, loadRows)
 watch(tankId, () => { if (selectedBatch.value && !batchOptions.value.some(batch => batch.id === batchId.value)) batchId.value = '' })
-watch([farmId, canView], () => { batchId.value = ''; tankId.value = ''; page.value = 1; loadOptions(); loadRows() })
+watch([statuses, mine], () => {
+  const query = { ...route.query }
+  if (statuses.value.length) query.status = statuses.value.join(',')
+  else delete query.status
+  if (mine.value) query.mine = 'true'
+  else delete query.mine
+  router.replace({ query })
+}, { deep: true })
+watch([farmId, canView], () => { batchId.value = ''; tankId.value = ''; statuses.value = []; mine.value = false; page.value = 1; loadOptions(); loadRows() })
 watch(inspectionDialog, (open, previous) => { if (previous && !open) loadRows() })
 onMounted(() => { loadOptions(); loadRows() })
 </script>
@@ -92,6 +112,8 @@ onMounted(() => { loadOptions(); loadRows() })
         <div class="quality-filters">
           <v-select v-model="tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể" clearable density="compact" variant="outlined" hide-details />
           <v-select v-model="batchId" :items="batchOptions" item-title="batchCode" item-value="id" label="Lô giống" clearable density="compact" variant="outlined" hide-details />
+          <v-select v-model="statuses" :items="statusOptions" label="Trạng thái" multiple chips closable-chips clearable density="compact" variant="outlined" hide-details />
+          <v-switch v-if="showMine" v-model="mine" label="Lần của tôi" color="primary" density="compact" hide-details />
           <DateRange v-model="dates" />
         </div>
         <section v-if="!loading && accuracy" class="accuracy-card" aria-label="Độ tin cậy của AI">
@@ -126,6 +148,7 @@ onMounted(() => { loadOptions(); loadRows() })
 .list-card { border:1px solid #dce6e2; background:#fff; }
 .quality-filters { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
 .quality-filters > .v-input { flex:0 0 180px; max-width:100%; }
+.quality-filters > .v-switch { flex:0 0 auto; }
 .quality-filters > .date-range { flex-basis:300px; }
 .quality-row { cursor:pointer; }
 .accuracy-card { margin-bottom:20px; padding:14px 16px; border:1px solid #dce6e2; border-radius:8px; background:#f7faf9; }

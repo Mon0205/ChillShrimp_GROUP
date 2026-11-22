@@ -33,7 +33,7 @@ const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmI
 const selectedRole = computed(() => selectedFarm.value?.role || '')
 const canManage = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(selectedRole.value))
 const isAreaManager = computed(() => selectedRole.value === 'AREA_MANAGER')
-const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Kỹ thuật viên', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const typeOptions = [
   { title: 'Bể ương', value: 'nursery_tank' },
   { title: 'Ao', value: 'pond' },

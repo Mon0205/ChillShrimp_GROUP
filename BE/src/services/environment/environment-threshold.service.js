@@ -255,7 +255,15 @@ export async function listEnvironmentalAlerts(operation) {
     if (!['true', 'false'].includes(operation.filters.isRead)) throw createHttpError(400, 'isRead phải là true hoặc false.')
     where.reads = { [operation.filters.isRead === 'true' ? 'some' : 'none']: { userId: operation.actor.id } }
   }
-  const [items, total, unreadCount] = await prisma.$transaction([
+  // "Giao cho tôi": only alerts whose responsible person is the signed-in user (the technician dashboard links here).
+  if (operation.filters.assignedToMe !== undefined && operation.filters.assignedToMe !== '') {
+    if (!['true', 'false'].includes(operation.filters.assignedToMe)) throw createHttpError(400, 'assignedToMe phải là true hoặc false.')
+    if (operation.filters.assignedToMe === 'true') where.responsibleUserId = operation.actor.id
+  }
+  // The four summary figures use the same filters as the list but ignore paging: "pending" is every alert not
+  // resolved yet, and the other three are counted inside that group.
+  const pendingWhere = (extra) => ({ ...where, AND: [...(where.AND || []), { status: { not: 'resolved' } }, ...(extra ? [extra] : [])] })
+  const [items, total, unreadCount, pending, critical, inProgress, unassigned] = await prisma.$transaction([
     prisma.alertNotification.findMany({
       where, include: alertInclude(operation.actor.id),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -263,8 +271,17 @@ export async function listEnvironmentalAlerts(operation) {
     }),
     prisma.alertNotification.count({ where }),
     prisma.alertNotification.count({ where: { ...scope, reads: { none: { userId: operation.actor.id } } } }),
+    prisma.alertNotification.count({ where: pendingWhere() }),
+    prisma.alertNotification.count({ where: pendingWhere({ severity: 'critical' }) }),
+    prisma.alertNotification.count({ where: pendingWhere({ status: 'in_progress' }) }),
+    prisma.alertNotification.count({ where: pendingWhere({ responsibleUserId: null }) }),
   ])
-  return { items: items.map(personalAlert), unreadCount, pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } }
+  return {
+    items: items.map(personalAlert),
+    unreadCount,
+    summary: { pending, critical, inProgress, unassigned },
+    pagination: { page, limit, total, pageCount: Math.ceil(total / limit) },
+  }
 }
 
 export async function getEnvironmentalAlert(operation) {

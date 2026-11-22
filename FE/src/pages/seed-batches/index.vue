@@ -5,9 +5,24 @@ import Form from './components/BatchForm.vue'
 import Details from './components/BatchDetails.vue'
 import Inspection from './components/BatchInspection.vue'
 import { useSeedBatches } from './composables/useSeedBatches.js'
+import { watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const model = useSeedBatches()
 const { farms, batches, loading, listLoading, error, search, statusFilter, page, pageSize, pagination, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, statusNames, speciesNames, transitions, formatDate, formatQuantity, openInspectionUpload, loadPage, openCreate, openEdit, openDetails, openStatus, statusSaving, statusDialog, selectedBatch, nextStatus, saveStatus, } = model
+
+// "?batchId=" opens that lot's details (links from the revenue report); closing the dialog clears it.
+const route = useRoute()
+const router = useRouter()
+watch([() => route.query.batchId, farmId, canView], ([batchId]) => {
+  if (batchId && farmId.value && canView.value) model.openDetailsById(String(batchId))
+}, { immediate: true })
+watch(model.detailDialog, (open) => {
+  if (!open && route.query.batchId) {
+    const { batchId: _batchId, ...query } = route.query
+    router.replace({ query })
+  }
+})
 </script>
 
 <template>

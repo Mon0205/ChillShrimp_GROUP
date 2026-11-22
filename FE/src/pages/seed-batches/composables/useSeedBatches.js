@@ -182,6 +182,16 @@ export function useSeedBatches() {
     return String(value ?? '').trim() || null
   }
 
+  // Opens a lot that may not be on the current page (e.g. from the revenue report's lot table).
+  async function openDetailsById(batchId) {
+    try {
+      const result = await api(batchUrl(batchId))
+      openDetails(result.data)
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
   function openDetails(batch) {
     selectedBatch.value = batch
     detailDialog.value = true
@@ -220,5 +230,5 @@ export function useSeedBatches() {
   watch(pageSize, () => { if (page.value === 1) loadBatches(); else page.value = 1 })
   onMounted(loadPage)
 
-  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection, loadPage, openCreate, openEdit, saveBatch, openDetails, openStatus, saveStatus, ref }
+  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection, loadPage, openCreate, openEdit, saveBatch, openDetails, openDetailsById, openStatus, saveStatus, ref }
 }

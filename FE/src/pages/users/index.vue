@@ -26,7 +26,7 @@ const editDialog = ref(false), savingUser = ref(false), editingUser = ref(null)
 const editForm = ref({ displayName: '', email: '', phone: '', role: 'TECHNICIAN', areaId: '', status: 'active' })
 const areaDialog = ref(false), creatingArea = ref(false)
 const newArea = ref({ code: '', name: '' })
-const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Nhân viên kỹ thuật', WAREHOUSE_STAFF: 'Nhân viên kho' }
+const roleNames = { OWNER: 'Chủ trại', FARM_MANAGER: 'Quản lý trại', AREA_MANAGER: 'Quản lý khu vực', TECHNICIAN: 'Kỹ thuật viên', WAREHOUSE_STAFF: 'Nhân viên kho' }
 const selectedFarm = computed(() => manageableFarms.value.find((farm) => farm.id === farmId.value))
 const areas = computed(() => selectedFarm.value?.areas || [])
 const roleOptions = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm.value?.role) ? Object.entries(roleNames).filter(([value]) => value !== 'OWNER' || selectedFarm.value?.role === 'OWNER').map(([value, title]) => ({ title, value })) : [{ title: roleNames.TECHNICIAN, value: 'TECHNICIAN' }])
