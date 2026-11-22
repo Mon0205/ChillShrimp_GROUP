@@ -7,6 +7,7 @@ import WaterChangeLogsPage from './components/WaterChanges.vue'
 import WaterParameterLogsPage from './components/WaterParameters.vue'
 import EnvironmentThresholdsPage from './components/WaterThresholds.vue'
 import TreatmentLogsPage from './components/TreatmentLogs.vue'
+import FeedingReportPage from './components/FeedingReport.vue'
 import { loadFarmContext, selectFarm, useFarmContext } from '../../composables/farm-context.js'
 import { api } from '../../services/api.js'
 
@@ -25,6 +26,7 @@ const tabs = [
   { value: 'water-parameters', title: 'Môi trường nước', icon: 'mdi-water-thermometer-outline', component: WaterParameterLogsPage },
   { value: 'thresholds', title: 'Ngưỡng môi trường', icon: 'mdi-chart-bell-curve-cumulative', component: EnvironmentThresholdsPage },
   { value: 'treatments', title: 'Thuốc/chế phẩm', icon: 'mdi-flask-outline', component: TreatmentLogsPage },
+  { value: 'feeding-report', title: 'Báo cáo cho ăn', icon: 'mdi-chart-box-outline', component: FeedingReportPage },
 ]
 const activeTab = computed({
   get: () => tabs.some(tab => tab.value === route.query.tab) ? route.query.tab : 'feeding',

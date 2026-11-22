@@ -9,6 +9,7 @@ import FarmsPage from '../pages/farms/index.vue'
 import PondsTanksPage from '../pages/ponds-tanks/index.vue'
 import SeedSuppliersPage from '../pages/seed-suppliers/index.vue'
 import SalesOrdersPage from '../pages/sales-orders/index.vue'
+import SalesRevenuePage from '../pages/sales-revenue/index.vue'
 import SeedBatchesPage from '../pages/seed-batches/index.vue'
 import QualityPage from '../pages/quality/index.vue'
 import InventoryUsagePage from '../pages/usage/index.vue'
@@ -33,6 +34,7 @@ const router = createRouter({
     { path: '/seed-suppliers', component: SeedSuppliersPage, meta: { auth: true } },
     { path: '/sales-orders', component: SalesOrdersPage, meta: { auth: true } },
     { path: '/customers', component: SalesOrdersPage, meta: { auth: true } },
+    { path: '/sales-revenue', component: SalesRevenuePage, meta: { auth: true } },
     { path: '/seed-batches', component: SeedBatchesPage, meta: { auth: true } },
     { path: '/quality-checks', component: QualityPage, meta: { auth: true } },
     { path: '/alerts', component: AlertsPage, meta: { auth: true } },
@@ -64,6 +66,9 @@ router.beforeEach(async (to) => {
       }
       if (context.farms.length === 1) confirmFarmSelection(context.farms[0].id)
       if (to.path === '/select-farm' && context.farms.length < 2) return '/dashboard'
+      // Warehouse staff have no dashboard: their work is all in Inventory.
+      const role = context.farms.find((farm) => farm.id === context.farmId)?.role
+      if (to.path === '/dashboard' && role === 'WAREHOUSE_STAFF') return '/inventory-supplies'
     } catch {
       if (to.path !== '/select-farm') return { path: '/select-farm', query: { redirect: to.fullPath } }
     }

@@ -22,6 +22,9 @@ const canViewSeedSuppliers = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANA
 const canViewSeedBatches = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const canViewCareLogs = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const canViewInventory = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
+// Warehouse staff have no dashboard; technicians and warehouse staff may not see the member list.
+const canViewDashboard = computed(() => role.value !== 'WAREHOUSE_STAFF')
+const canViewUsers = computed(() => !['TECHNICIAN', 'WAREHOUSE_STAFF'].includes(role.value))
 
 onMounted(async () => {
   try { await loadFarmContext(true) }
@@ -108,11 +111,11 @@ async function signOut() {
       :rail-width="72"
     >
       <v-list nav class="sidebar-links pa-3" aria-label="Điều hướng chính">
-        <v-list-item to="/dashboard" prepend-icon="mdi-view-dashboard-outline" title="Dashboard" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item to="/users" prepend-icon="mdi-account-group-outline" title="Người dùng" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewDashboard" to="/dashboard" prepend-icon="mdi-view-dashboard-outline" title="Dashboard" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewUsers" to="/users" prepend-icon="mdi-account-group-outline" title="Người dùng" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item to="/farms" :active="['/farms', '/ponds-tanks'].includes(route.path)" prepend-icon="mdi-home-city-outline" title="Trại giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedSuppliers" to="/seed-suppliers" prepend-icon="mdi-truck-outline" title="Nhà cung cấp giống" rounded="lg" @click="closeMobileDrawer" />
-        <v-list-item v-if="canViewSeedSuppliers" to="/sales-orders" :active="['/sales-orders', '/customers'].includes(route.path)" prepend-icon="mdi-cart-outline" title="Kinh doanh" rounded="lg" @click="closeMobileDrawer" />
+        <v-list-item v-if="canViewSeedSuppliers" to="/sales-orders" :active="['/sales-orders', '/customers', '/sales-revenue'].includes(route.path)" prepend-icon="mdi-cart-outline" title="Kinh doanh" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/seed-batches" prepend-icon="mdi-fishbowl" title="Lô giống" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewSeedBatches" to="/quality-checks" prepend-icon="mdi-clipboard-check-outline" title="Kiểm tra AI" rounded="lg" @click="closeMobileDrawer" />
         <v-list-item v-if="canViewCareLogs" to="/care-logs" prepend-icon="mdi-notebook-outline" title="Nhật ký chăm sóc" rounded="lg" @click="closeMobileDrawer" />

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { uuid, text, fields, statuses, pagination, normalizeCustomer, normalizeOrder, normalizeDelivery, normalizePayment } from '../../utils/sales.validation.js'
+import { findOwingOrderIds } from './revenue-report.service.js'
 
 const actor = { select: { id: true, displayName: true, email: true } }
 const include = {
@@ -102,9 +103,15 @@ export async function listSalesBatches(operation) {
   return await pageResult(operation,prisma.seedBatch,{status:'ready_for_sale',tank:{...tankScope(operation),status:'active',deletedAt:null,OR:[{areaId:null},{area:{is:{status:'active'}}}]},...(q?{batchCode:{contains:q,mode:'insensitive'}}:{})},{include:{tank:true},orderBy:[{batchCode:'asc'},{id:'asc'}]},b=>({...b,availableQuantity:b.currentEstimatedQuantity-b.reservedQuantity}))
 }
 export async function listSalesOrders(operation) {
-  role(operation); const q=search(operation),status=operation.filters.status
-  if(status&&!statuses.includes(status)) throw createHttpError(400,'Trạng thái phiếu không hợp lệ.')
-  return await pageResult(operation,prisma.salesOrder,{...orderScope(operation),...(status?{status}:{}),...(q?{OR:[{orderCode:{contains:q,mode:'insensitive'}},{customerName:{contains:q,mode:'insensitive'}},{customerPhone:{contains:q,mode:'insensitive'}}]}:{})},{include,orderBy:[{createdAt:'desc'},{id:'desc'}]},serializeOrder)
+  role(operation); const q=search(operation)
+  // One status, or several separated by commas ("confirmed,partially_delivered" = waiting for delivery).
+  const status=operation.filters.status?String(operation.filters.status).split(','):[]
+  if(status.some(value=>!statuses.includes(value))) throw createHttpError(400,'Trạng thái phiếu không hợp lệ.')
+  // payment=due: only orders that still owe money (same condition as the dashboard's "Còn phải thu").
+  const payment=operation.filters.payment
+  if(payment!==undefined&&payment!==''&&payment!=='due') throw createHttpError(400,'Bộ lọc thanh toán không hợp lệ.')
+  const owing=payment==='due'?{id:{in:await findOwingOrderIds(operation.farmId)}}:{}
+  return await pageResult(operation,prisma.salesOrder,{...orderScope(operation),...owing,...(status.length?{status:status.length===1?status[0]:{in:status}}:{}),...(q?{OR:[{orderCode:{contains:q,mode:'insensitive'}},{customerName:{contains:q,mode:'insensitive'}},{customerPhone:{contains:q,mode:'insensitive'}}]}:{})},{include,orderBy:[{createdAt:'desc'},{id:'desc'}]},serializeOrder)
 }
 export async function getSalesOrder(operation) {role(operation);return serializeOrder(await findOrder(prisma,operation))}
 async function draftData(tx,operation,input) {

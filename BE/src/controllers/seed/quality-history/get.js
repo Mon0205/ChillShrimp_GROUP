@@ -5,6 +5,7 @@ export async function listQualityHistory(req, res) {
   const result = await qualityHistoryService.listQualityHistory({
     filters: req.query,
     membership: req.membership,
+    actor: req.auth,
     farmId: req.params?.farmId,
   })
   return sendData(res, result)

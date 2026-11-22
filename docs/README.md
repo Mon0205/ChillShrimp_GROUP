@@ -25,6 +25,7 @@
 | | [SEQUENCE-DIAGRAMS.md](./04-use-cases/SEQUENCE-DIAGRAMS.md) | Xem tương tác giữa các thành phần |
 | `05-business-domain` | [WORKFLOWS.md](./05-business-domain/WORKFLOWS.md) | Hiểu quy trình vận hành xuyên suốt |
 | | [ALERTS-AND-SALES.md](./05-business-domain/ALERTS-AND-SALES.md) | Tra cảnh báo, phân công, thông báo, khách hàng và bán giống |
+| | [DASHBOARD-AND-REVENUE.md](./05-business-domain/DASHBOARD-AND-REVENUE.md) | Tra Dashboard theo vai trò và báo cáo doanh thu |
 | | [HATCHERY-REFERENCE.md](./05-business-domain/HATCHERY-REFERENCE.md) | Tham khảo kỹ thuật, công thức và quy chuẩn trại giống |
 
 Các file nguồn sơ đồ `.drawio`, DBML và dữ liệu xuất giữ cùng thư mục chuyên môn; không thay thế tài liệu nghiệp vụ.

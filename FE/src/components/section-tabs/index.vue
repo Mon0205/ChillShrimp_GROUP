@@ -8,6 +8,7 @@ const context = useFarmContext()
 const role = computed(() => context.farms.find(farm => farm.id === context.farmId)?.role)
 const canViewPonds = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role.value))
 const canViewBusiness = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(role.value))
+const canViewRevenue = computed(() => ['OWNER', 'FARM_MANAGER'].includes(role.value))
 </script>
 
 <template>
@@ -19,6 +20,7 @@ const canViewBusiness = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER']
     <template v-else-if="props.section === 'business' && canViewBusiness">
       <v-tab value="/sales-orders" to="/sales-orders">Bán giống</v-tab>
       <v-tab value="/customers" to="/customers">Khách hàng</v-tab>
+      <v-tab v-if="canViewRevenue" value="/sales-revenue" to="/sales-revenue">Doanh thu</v-tab>
     </template>
   </v-tabs>
 </template>

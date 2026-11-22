@@ -16,3 +16,12 @@ export function registerListSalesBatches(router) {
 export function registerGetSalesOrder(router) {
   router.get('/:orderId', asyncHandler(sales.getSalesOrder))
 }
+
+// Must be registered before registerGetSalesOrder, or "/:orderId" would take "reports" as an order id.
+export function registerGetRevenueReport(router) {
+  router.get('/reports/revenue', asyncHandler(sales.getRevenueReport))
+}
+
+export function registerGetCombinedRevenueReport(router) {
+  router.get('/revenue', asyncHandler(sales.getCombinedRevenueReport))
+}
