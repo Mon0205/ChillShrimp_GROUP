@@ -16,6 +16,8 @@
 | `01-requirements` | [SRS.md](./01-requirements/SRS.md) | Tra yêu cầu chức năng, phi chức năng và quy tắc hệ thống |
 | `02-architecture` | [ARCHITECTURE.md](./02-architecture/ARCHITECTURE.md) | Hiểu thành phần, phân lớp backend, phân quyền và triển khai |
 | | [PERMISSIONS.md](./02-architecture/PERMISSIONS.md) | Ma trận quyền hiện tại theo vai trò, trại/khu vực và từng nghiệp vụ |
+| | [DEPLOY.md](./02-architecture/DEPLOY.md) | Triển khai thử lên Render, Vercel, Neon và build app Android |
+| | [DEPLOY-BRANCH.md](./02-architecture/DEPLOY-BRANCH.md) | Phân tích nhánh `deploy`: file đã thêm/sửa, lý do, kiểm tra, việc cần làm trước khi merge |
 | `03-database` | [DATABASE.md](./03-database/DATABASE.md) | Đọc tổng quan thiết kế dữ liệu và quy tắc liên quan |
 | | [DATABASE-FIELDS.md](./03-database/DATABASE-FIELDS.md) | Tra ý nghĩa từng bảng/cột |
 | | [ERD.md](./03-database/ERD.md) | Xem quan hệ dữ liệu bằng Mermaid |

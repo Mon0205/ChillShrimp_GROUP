@@ -6,22 +6,22 @@ from typing import Annotated, Any, Optional
 
 import cloudinary.uploader
 import numpy as np
-import torch
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageOps
-from ultralytics import YOLO
-from ultralytics.engine.results import Results
 
 from app.cloudinary_config import CLOUDINARY_CONFIGURED
+from app.detector import Detection, OnnxYoloDetector
 from app.photo_check import check_photo
 
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_MODEL_PATH = SERVICE_DIR / "models" / "best.pt"
+# best.onnx is exported from best.pt by scripts/export_onnx.py; app/detector.py runs it
+# without PyTorch so the service fits a 512 MB free host.
+DEFAULT_MODEL_PATH = SERVICE_DIR / "models" / "best.onnx"
 MODEL_PATH = Path(os.getenv("MODEL_PATH", str(DEFAULT_MODEL_PATH)))
-# Recorded by the backend with every inspection; keep it distinct per model.
-DEFAULT_MODEL_VERSION = "v8_yolo26s_seed0"
+# Recorded by the backend with every inspection; keep it distinct per model and runtime.
+DEFAULT_MODEL_VERSION = "v8_yolo26s_seed0_onnx"
 INSPECTION_FOLDER = os.getenv("CLOUDINARY_INSPECTION_FOLDER", "chillshrimp/ai-inspections/originals")
 
 
@@ -47,14 +47,13 @@ app = FastAPI(
     version="0.2.0",
 )
 
-model: Optional[YOLO] = None
-# One shared YOLO instance is not safe to call from several threads at once, and requests now
-# run in a threadpool. The lock loads the weights once and runs one prediction at a time;
-# the event loop (and /health) stays free while a prediction waits or runs.
+model: Optional[OnnxYoloDetector] = None
+# Requests run in a threadpool. The lock loads the model once and runs one prediction at a time,
+# which also bounds peak memory on a small host; the event loop (and /health) stays free meanwhile.
 MODEL_LOCK = threading.RLock()
 
 
-def get_model() -> YOLO:
+def get_model() -> OnnxYoloDetector:
     global model
 
     with MODEL_LOCK:
@@ -64,7 +63,7 @@ def get_model() -> YOLO:
                     status_code=503,
                     detail=f"Model file not found. Expected: {MODEL_PATH}. Set MODEL_PATH to override.",
                 )
-            model = YOLO(str(MODEL_PATH))
+            model = OnnxYoloDetector(MODEL_PATH)
 
     return model
 
@@ -89,12 +88,9 @@ def upload_original_to_cloudinary(file_bytes: bytes, filename: Optional[str]) ->
     )
 
 
-def upload_annotated_to_cloudinary(plotted_bgr: np.ndarray) -> dict[str, Any]:
-    """Results.plot returns BGR; convert to RGB before encoding.
-
-    JPEG keeps the file small enough for Cloudinary's per-image size limit on large photos.
-    """
-    annotated = Image.fromarray(plotted_bgr[..., ::-1].copy())
+def upload_annotated_to_cloudinary(annotated_rgb: np.ndarray) -> dict[str, Any]:
+    """JPEG keeps the file small enough for Cloudinary's per-image size limit on large photos."""
+    annotated = Image.fromarray(annotated_rgb)
     stream = BytesIO()
     annotated.save(stream, format="JPEG", quality=90)
     stream.seek(0)
@@ -106,32 +102,16 @@ def upload_annotated_to_cloudinary(plotted_bgr: np.ndarray) -> dict[str, Any]:
     )
 
 
-def plot_detections(image: Image.Image, names: dict[int, str], detections: list[dict[str, Any]]) -> np.ndarray:
-    """Plot final merged tile detections on the original image, never individual tiles."""
-    boxes = np.asarray([
-        [det["box"]["x1"], det["box"]["y1"], det["box"]["x2"], det["box"]["y2"],
-         det["confidence"], det["class_id"]]
-        for det in detections
-    ], dtype=np.float32).reshape(-1, 6)
-    result = Results(
-        orig_img=np.asarray(image)[..., ::-1].copy(), path="", names=names, boxes=torch.from_numpy(boxes)
-    )
-    return result.plot(labels=False, conf=False)
-
-
-def detection_to_dict(box: Any, names: dict[int, str]) -> dict[str, Any]:
-    class_id = int(box.cls[0].item())
-    x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
-
+def detection_to_dict(detection: Detection, names: dict[int, str]) -> dict[str, Any]:
     return {
-        "class_id": class_id,
-        "class": names.get(class_id, str(class_id)),
-        "confidence": float(box.conf[0].item()),
+        "class_id": detection.class_id,
+        "class": names.get(detection.class_id, str(detection.class_id)),
+        "confidence": detection.confidence,
         "box": {
-            "x1": round(x1, 2),
-            "y1": round(y1, 2),
-            "x2": round(x2, 2),
-            "y2": round(y2, 2),
+            "x1": round(detection.x1, 2),
+            "y1": round(detection.y1, 2),
+            "x2": round(detection.x2, 2),
+            "y2": round(detection.y2, 2),
         },
     }
 
@@ -194,7 +174,7 @@ def merge_detections(detections: list[dict[str, Any]], iou_threshold: float) -> 
 
 
 def detect_tiled(
-    detector: YOLO,
+    detector: OnnxYoloDetector,
     image: Image.Image,
     conf: float,
     imgsz: int,
@@ -208,21 +188,20 @@ def detect_tiled(
     Returns (names, merged detections, truncated). max_det caps each crop, so truncated is
     True when any crop hit that cap, not when the merged total exceeds it.
     """
-    # Ultralytics expects BGR for NumPy inputs; Pillow images are RGB.
-    pixels = np.asarray(image)[..., ::-1].copy()
-    names: dict[int, str] = {}
+    # The detector takes RGB, the channel order Pillow gives.
+    pixels = np.asarray(image)
+    names = detector.names
     detections: list[dict[str, Any]] = []
     truncated = False
 
     for y0 in tile_origins(image.height, tile_size, overlap):
         for x0 in tile_origins(image.width, tile_size, overlap):
             crop = pixels[y0 : y0 + tile_size, x0 : x0 + tile_size]
-            result = detector.predict(source=crop, conf=conf, imgsz=imgsz, max_det=max_det, verbose=False)[0]
-            names = {int(key): value for key, value in result.names.items()}
-            truncated = truncated or len(result.boxes) >= max_det
+            found = detector.predict(crop, conf=conf, imgsz=imgsz, max_det=max_det)
+            truncated = truncated or len(found) >= max_det
 
-            for box in result.boxes:
-                det = detection_to_dict(box, names)
+            for detection in found:
+                det = detection_to_dict(detection, names)
                 det["box"] = {
                     "x1": round(det["box"]["x1"] + x0, 2),
                     "y1": round(det["box"]["y1"] + y0, 2),
@@ -245,25 +224,26 @@ def run_detection(
 ) -> tuple[list[dict[str, Any]], np.ndarray, bool, float]:
     """Blocking model work; called through run_in_threadpool so the event loop stays free.
 
-    Returns (detections, plotted image, max_det reached, inference scale). The scale is how much
-    the image (or each tile) is shrunk before the model sees it, so photo checks can judge the
-    head size the model actually works with.
+    Returns (detections, annotated RGB image, max_det reached, inference scale). The scale is how
+    much the image (or each tile) is shrunk before the model sees it, so photo checks can judge the
+    head size the model actually works with. Boxes are drawn without labels or confidence: the
+    final merged detections on the original image, never individual tiles.
     """
     detector = get_model()
+    pixels = np.asarray(image)
 
     with MODEL_LOCK:
         if tile_size:
-            names, detections, truncated = detect_tiled(
+            _, detections, truncated = detect_tiled(
                 detector, image, conf, imgsz, max_det, tile_size, tile_overlap, merge_iou
             )
-            plotted = plot_detections(image, names, detections)
-            return detections, plotted, truncated, min(1.0, imgsz / tile_size)
+            annotated = detector.annotate(pixels, detections)
+            return detections, annotated, truncated, min(1.0, imgsz / tile_size)
 
-        result = detector.predict(source=image, conf=conf, imgsz=imgsz, max_det=max_det, verbose=False)[0]
-        names = {int(key): value for key, value in result.names.items()}
-        detections = [detection_to_dict(box, names) for box in result.boxes]
-        plotted = result.plot(labels=False, conf=False)
-        return detections, plotted, len(detections) >= max_det, min(1.0, imgsz / max(image.size))
+        found = detector.predict(pixels, conf=conf, imgsz=imgsz, max_det=max_det)
+        detections = [detection_to_dict(detection, detector.names) for detection in found]
+        annotated = detector.annotate(pixels, detections)
+        return detections, annotated, len(detections) >= max_det, min(1.0, imgsz / max(image.size))
 
 
 @app.get("/health")
@@ -317,7 +297,7 @@ async def predict(
             },
         )
 
-    detections, plotted_bgr, max_det_reached, inference_scale = await run_in_threadpool(
+    detections, annotated_rgb, max_det_reached, inference_scale = await run_in_threadpool(
         run_detection, image, conf, imgsz, max_det, tile_size, tile_overlap, merge_iou
     )
     # Before any upload: a failing photo check must not leave assets behind on Cloudinary.
@@ -344,7 +324,7 @@ async def predict(
         ) from exc
 
     try:
-        annotated_asset = await run_in_threadpool(upload_annotated_to_cloudinary, plotted_bgr)
+        annotated_asset = await run_in_threadpool(upload_annotated_to_cloudinary, annotated_rgb)
         if not annotated_asset.get("secure_url") or not annotated_asset.get("public_id"):
             raise RuntimeError("Cloudinary annotated upload response is missing URL or public ID.")
     except Exception as exc:

@@ -1,5 +1,9 @@
 FROM node:22-alpine
 
+# Prisma picks its query engine by the OpenSSL version it finds; Alpine ships without it,
+# so on Render the engine fails to load ("libssl not found") unless OpenSSL is installed.
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./

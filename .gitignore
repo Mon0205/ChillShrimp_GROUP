@@ -3,4 +3,9 @@ node_modules/
 dist/
 .DS_Store
 npm-debug.log*
+__pycache__/
+# Deploy and Android signing: Vercel CLI link, release keystores must never be committed.
+.vercel/
+*.keystore
+*.jks
 

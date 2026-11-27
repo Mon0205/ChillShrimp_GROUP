@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { createUploadSignature, deleteCloudinaryAsset, getOwnedCloudinaryAsset } from '../../config/cloudinary.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { aiServiceUrl, waitForAiService, wakeAiServiceEarly } from './ai-service-client.js'
 
 const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'webp']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -10,6 +11,11 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 // Same cut-off as AI_SERVICE (LOW_CONFIDENCE_THRESHOLD). Computed from the stored detections,
 // so it also works for inspections analysed before this field existed.
 const LOW_CONFIDENCE_THRESHOLD = 0.4
+// An analysis takes at most about 6 minutes (Cloudinary 30 s + AI wake 150 s + predict 180 s), so a row
+// still `processing` 10 minutes after it was created was left behind by a backend that stopped mid-analysis
+// (possibly another instance sharing the database). There is no claim timestamp, so the age is counted
+// from createdAt: a re-analysis started later than that can be claimed twice; both runs save a valid result.
+export const STALE_PROCESSING_MS = 10 * 60 * 1000
 
 export function withLowConfidenceRatio(item) {
   const detections = Array.isArray(item?.detections) ? item.detections : []
@@ -47,6 +53,8 @@ export async function createAiInspectionUploadSignature(context) {
   const folder = `chillshrimp/farms/${context.farmId}/seed-batches/${batch.id}/ai-inspections`
   const publicId = randomUUID()
   const signed = createUploadSignature({ folder, publicId, allowedFormats: IMAGE_FORMATS.join(',') })
+  // An analysis usually follows within a minute: give a sleeping AI_SERVICE a head start.
+  wakeAiServiceEarly()
   return { ...signed, folder, publicId, resourceType: 'image', maxBytes: MAX_IMAGE_BYTES }
 }
 
@@ -252,6 +260,19 @@ function readPhotoWarnings(prediction) {
     .map(({ code, level, message }) => ({ code, level, message }))
 }
 
+// analyzeAiInspection moves a row to `failed` on every error it can catch (image fetch and AI
+// timeouts included), so a row stays `processing` only when the backend process died mid-analysis
+// (crash, redeploy, Render free instance restart). Run at startup: such rows can then be analysed
+// again or deleted instead of being stuck. Safe with one backend instance; during a rolling deploy
+// an analysis still running on the old instance overwrites `failed` with its result when it finishes.
+export async function recoverInterruptedAiInspections() {
+  const { count } = await prisma.aiInspection.updateMany({
+    where: { status: 'processing' },
+    data: { status: 'failed' },
+  })
+  return count
+}
+
 export async function analyzeAiInspection(context) {
   const batch = await findBatch(context)
   const id = validateUuid(context.inspectionId, 'Mã lần kiểm tra')
@@ -263,23 +284,31 @@ export async function analyzeAiInspection(context) {
   }
 
   const claimed = await prisma.aiInspection.updateMany({
-    where: { id, status: { in: ['pending', 'failed'] } },
+    where: {
+      id,
+      OR: [
+        { status: { in: ['pending', 'failed'] } },
+        { status: 'processing', createdAt: { lt: new Date(Date.now() - STALE_PROCESSING_MS) } },
+      ],
+    },
     data: { status: 'processing' },
   })
   if (!claimed.count) throw createHttpError(409, 'Lần kiểm tra AI đang được xử lý.')
 
+  const giveUp = new AbortController()
   try {
-    const imageResponse = await fetch(inspection.mediaUrl, {
-      redirect: 'error', signal: AbortSignal.timeout(30000),
-    })
+    // Load the photo while a sleeping AI_SERVICE wakes up; if either fails, stop the other.
+    const [imageResponse] = await Promise.all([
+      fetch(inspection.mediaUrl, { redirect: 'error', signal: AbortSignal.any([giveUp.signal, AbortSignal.timeout(30000)]) }),
+      waitForAiService({ signal: giveUp.signal }),
+    ].map((step) => step.catch((error) => { giveUp.abort(); throw error })))
     if (!imageResponse.ok) throw new Error('Could not load the original image from Cloudinary.')
     const imageBytes = Buffer.from(await imageResponse.arrayBuffer())
     if (!imageBytes.length || imageBytes.length > MAX_IMAGE_BYTES) throw new Error('The original image is empty or too large.')
 
     const form = new FormData()
     form.append('file', new Blob([imageBytes], { type: imageResponse.headers.get('content-type') || 'image/jpeg' }), `${id}.jpg`)
-    const baseUrl = (process.env.AI_SERVICE_URL || 'http://localhost:8001').replace(/\/$/, '')
-    const response = await fetch(`${baseUrl}/predict?save_original=false`, {
+    const response = await fetch(`${aiServiceUrl()}/predict?save_original=false`, {
       method: 'POST', body: form, signal: AbortSignal.timeout(180000),
     })
     if (!response.ok) throw new Error(`AI Service returned HTTP ${response.status}.`)
