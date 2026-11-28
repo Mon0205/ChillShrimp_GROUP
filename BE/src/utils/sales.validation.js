@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { createHttpError } from './http.js'
+import { normalizePhone } from './phone.validation.js'
 export const statuses = ['draft', 'confirmed', 'partially_delivered', 'delivered', 'completed', 'cancelled']
 export function uuid(value) {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) throw createHttpError(400, 'Mã định danh không hợp lệ.')
@@ -34,6 +35,7 @@ export function normalizeCustomer(body, partial = false) {
   const result = {}
   for (const [key, max] of [['name',150],['phone',30],['address',4000]]) if (Object.hasOwn(body,key)) result[key] = text(body[key], max, key === 'name')
   if ((!partial && !result.name) || !Object.keys(result).length) throw createHttpError(400, 'Tên khách hàng là bắt buộc.')
+  if (result.phone) result.phone = normalizePhone(result.phone)
   return result
 }
 export function normalizeOrder(body) {

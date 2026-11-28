@@ -5,6 +5,9 @@ import { app } from './app.js'
 import { prisma } from './config/prisma.js'
 import { recoverInterruptedAiInspections } from './services/seed/ai-inspection.service.js'
 
+if (!process.env.ADMIN_EMAIL?.trim()) console.warn('Chưa đặt ADMIN_EMAIL: không có tài khoản quản trị hệ thống.')
+if (!process.env.SMTP_HOST) console.warn('Chưa đặt SMTP_HOST: chỉ môi trường localhost mới mời được thành viên, liên kết mời in ra log.')
+
 const port = Number(process.env.PORT || 8000)
 const server = createServer(app)
 const io = attachAlertSocket(server)

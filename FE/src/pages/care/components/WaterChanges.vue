@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
@@ -189,7 +190,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>Ghi nhật ký thay nước</v-card-title>
           <v-card-text>
-            <v-form ref="formRef" @submit.prevent="saveLog">
+            <v-form ref="formRef" @submit.prevent="singleFlight(saveLog, $event)">
               <v-select v-model="form.tankId" :items="tanks" :item-title="tank => [tank?.name, tank?.code].filter(Boolean).join(' · ')" item-value="id" label="Ao/bể *" :rules="[tankRule]" />
               <v-text-field v-model="form.waterChangePercentage" type="number" min="0" max="100" step="0.01" suffix="%" label="Tỷ lệ nước thay *" :rules="[percentageRule]" />
               <v-text-field v-model="form.performedAt" type="datetime-local" label="Thời điểm thực hiện *" :rules="[dateRule]" />

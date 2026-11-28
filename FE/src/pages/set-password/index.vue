@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import { required, passwordRule, matchingPassword } from '../../utils/validation.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -39,7 +40,7 @@ async function submit(event) {
       <template v-else-if="invitation">
         <h1>Thiết lập mật khẩu</h1>
         <p class="muted">Bạn được mời vào <strong>{{ invitation.farmName }}</strong> với chức vụ <strong>{{ roleNames[invitation.role] }}</strong><template v-if="invitation.areaName"> tại khu vực <strong>{{ invitation.areaName }}</strong></template>.</p>
-        <v-form class="auth-form" @submit.prevent="submit">
+        <v-form class="auth-form" @submit.prevent="singleFlight(submit, $event)">
           <label class="auth-field-label">Email</label>
           <v-text-field :model-value="invitation.email" disabled hide-details="auto" />
           <label class="auth-field-label" for="new-password">Mật khẩu</label>

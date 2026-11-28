@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
@@ -152,7 +153,7 @@ onMounted(load)
       <template v-else>
         <section v-if="canCreate" class="request-form">
           <h2>Tạo yêu cầu</h2>
-          <v-form ref="formRef" @submit.prevent="submit">
+          <v-form ref="formRef" @submit.prevent="singleFlight(submit, $event)">
             <div class="form-grid">
               <v-select v-model="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Vật tư *" :rules="[required]" />
               <v-select v-if="['OWNER', 'FARM_MANAGER'].includes(role)" v-model="form.areaId" :items="areas" item-title="name" item-value="id" label="Khu vực *" :rules="[required]" />
@@ -197,7 +198,7 @@ onMounted(load)
               <div class="detail-wide"><dt>Ghi chú yêu cầu</dt><dd>{{ selectedRequest.notes || '—' }}</dd></div>
               <div v-if="selectedRequest.rejectionReason" class="detail-wide"><dt>Lý do từ chối</dt><dd>{{ selectedRequest.rejectionReason }}</dd></div>
             </dl>
-            <v-form v-if="canApprove && selectedRequest.status === 'pending'" ref="decisionFormRef" validate-on="submit" @submit.prevent="processRequest">
+            <v-form v-if="canApprove && selectedRequest.status === 'pending'" ref="decisionFormRef" validate-on="submit" @submit.prevent="singleFlight(processRequest, $event)">
               <v-select v-model="decision" :items="[{ title: 'Đồng ý cấp', value: 'approve', props: { disabled: !selectedRequest.tankId } }, { title: 'Từ chối', value: 'reject' }]" label="Kết quả xử lý *" :rules="[required]" :disabled="processing" />
               <v-textarea v-if="decision === 'reject'" v-model="rejectionReason" label="Lý do từ chối *" maxlength="4000" rows="3" :rules="[value => Boolean(String(value || '').trim()) || 'Nhập lý do từ chối.', value => String(value || '').trim().length <= 4000 || 'Tối đa 4.000 ký tự.']" :disabled="processing" />
               <v-alert v-if="processingError" type="error" variant="tonal" class="mb-3" role="alert">{{ processingError }}</v-alert>

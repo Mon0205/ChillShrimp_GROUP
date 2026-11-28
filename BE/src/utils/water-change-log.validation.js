@@ -7,8 +7,11 @@ export function normalizeWaterChangeLogInput(body) {
   if (unknown) throw new Error(`Trường ${unknown} không được hỗ trợ.`)
   if (typeof body.tankId !== 'string' || !UUID_PATTERN.test(body.tankId)) throw new Error('Mã ao/bể không hợp lệ.')
 
-  const percentage = Number(body.waterChangePercentage)
-  if (body.waterChangePercentage === '' || !Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+  const rawPercentage = body.waterChangePercentage
+  // Number() would turn null, blank text and [] into 0, and true into 1.
+  const isNumeric = typeof rawPercentage === 'number' || (typeof rawPercentage === 'string' && rawPercentage.trim() !== '')
+  const percentage = Number(rawPercentage)
+  if (!isNumeric || !Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
     throw new Error('Tỷ lệ thay nước phải nằm trong khoảng 0 đến 100%.')
   }
   if (Math.abs(percentage * 100 - Math.round(percentage * 100)) > 1e-7) {

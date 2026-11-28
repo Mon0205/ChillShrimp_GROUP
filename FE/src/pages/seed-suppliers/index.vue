@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import Pagination from '../../components/pagination/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -259,7 +260,7 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
       <v-card class="dialog-card">
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="supplierDialog = false" />
           <span class="eyebrow">{{ editingSupplier ? 'CẬP NHẬT DANH BẠ' : 'DANH BẠ GIỐNG' }}</span><h2>{{ editingSupplier ? 'Thông tin nhà cung cấp' : 'Thêm nhà cung cấp' }}</h2>
-        <v-form ref="supplierFormRef" class="dialog-form" validate-on="blur" @submit.prevent="saveSupplier">
+        <v-form ref="supplierFormRef" class="dialog-form" validate-on="blur" @submit.prevent="singleFlight(saveSupplier, $event)">
           <label for="supplier-name">Tên cơ sở <span class="required-mark">*</span></label>
           <v-text-field id="supplier-name" v-model="form.name" maxlength="150" counter="150" :rules="nameRules" hide-details="auto" />
           <div class="field-grid"><div><label for="supplier-phone">Điện thoại</label><v-text-field id="supplier-phone" v-model="form.phone" maxlength="20" :rules="phoneRules" hide-details="auto" /></div></div>

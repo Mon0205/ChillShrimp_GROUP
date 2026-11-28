@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import { waterChartWindow } from './water-chart-window.js'
 import { buildWaterChart } from './water-chart.js'
 import Pagination from '../../../components/pagination/index.vue'
@@ -360,7 +361,7 @@ watch([() => selectedMeasurement.value?.id, chartHours, chartOffset, chartMetric
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>Ghi thông số môi trường</v-card-title>
           <v-card-text>
-            <v-form ref="formRef" @submit.prevent="saveLog">
+            <v-form ref="formRef" @submit.prevent="singleFlight(saveLog, $event)">
               <div class="form-grid">
                 <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[tankRule]" />
                 <v-text-field v-model="form.recordedAt" type="datetime-local" label="Thời điểm đo *" :rules="[dateRule]" />

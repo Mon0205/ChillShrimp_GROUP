@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import { computed, ref, watch } from 'vue'
 import { useAuth } from '../../../composables/auth.js'
@@ -100,7 +101,7 @@ const CONFIDENCE_HINT = 'Cách tính: model chấm điểm từ 0 đến 100% ch
               </template>
               <p v-else class="metric-note">Chưa nhập thể tích mẫu nên không tính được mật độ.</p>
             </div>
-            <form v-if="canReview" class="ai-review" @submit.prevent="saveReview">
+            <form v-if="canReview" class="ai-review" @submit.prevent="singleFlight(saveReview, $event)">
               <p class="ai-review-title">Xác nhận kết quả</p>
               <div class="ai-review-fields">
                 <v-text-field v-model="review.manualCount" label="Số đếm xác nhận (con)" type="number" min="0" step="1" density="compact" variant="outlined" hide-details />

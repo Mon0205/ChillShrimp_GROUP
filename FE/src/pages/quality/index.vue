@@ -95,7 +95,12 @@ watch([statuses, mine], () => {
   else delete query.mine
   router.replace({ query })
 }, { deep: true })
-watch([farmId, canView], () => { chooseBatch.value = false; batchId.value = ''; tankId.value = ''; statuses.value = []; mine.value = false; page.value = 1; loadOptions(); loadRows() })
+watch([farmId, canView], ([farm], [previousFarm]) => {
+  chooseBatch.value = false; batchId.value = ''; tankId.value = ''; page.value = 1
+  // Filters from the URL must survive the first load; they are cleared only when switching farms.
+  if (previousFarm && farm !== previousFarm) { statuses.value = []; mine.value = false }
+  loadOptions(); loadRows()
+})
 watch(inspectionDialog, (open, previous) => { if (previous && !open) loadRows() })
 onMounted(() => { loadOptions(); loadRows() })
 </script>

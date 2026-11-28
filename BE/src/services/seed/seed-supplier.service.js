@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { normalizePhone } from '../../utils/phone.validation.js'
 
 const SUPPLIER_FIELDS = ['name', 'phone', 'address']
 const FIELD_LIMITS = {
@@ -37,6 +38,7 @@ function normalizeSupplierInput(body, { partial = false } = {}) {
       throw createHttpError(400, `Trường ${field} không được vượt quá ${FIELD_LIMITS[field]} ký tự.`)
     }
     data[field] = typeof value === 'string' ? (value.trim() || null) : null
+    if (field === 'phone') data.phone = normalizePhone(data.phone)
   }
 
   if (!partial && !data.name) {
@@ -90,19 +92,34 @@ export async function getSeedSupplier(context) {
   return supplier
 }
 
+// Locking the farm row makes two simultaneous saves take turns, so both cannot pass the check.
+async function assertSupplierNameFree(tx, farmId, name, exceptId = null) {
+  await tx.$queryRaw`SELECT id FROM farms WHERE id = ${farmId}::uuid FOR UPDATE`
+  const [duplicate] = await tx.$queryRaw`
+    SELECT id FROM seed_suppliers
+    WHERE farm_id = ${farmId}::uuid AND lower(btrim(name)) = lower(${name}) AND id::text <> ${exceptId ?? ''}
+    LIMIT 1`
+  if (duplicate) throw createHttpError(409, 'Tên nhà cung cấp đã tồn tại trong trang trại.')
+}
+
 export async function createSeedSupplier(context) {
   const data = normalizeSupplierInput(context.input)
-  const supplier = await prisma.seedSupplier.create({
-    data: { ...data, farmId: context.farmId },
+  return prisma.$transaction(async (tx) => {
+    await assertSupplierNameFree(tx, context.farmId, data.name)
+    return tx.seedSupplier.create({ data: { ...data, farmId: context.farmId } })
   })
-  return supplier
 }
 
 export async function updateSeedSupplier(context) {
   const existing = await findSupplier(context.farmId, context.supplierId)
   const data = normalizeSupplierInput(context.input, { partial: true })
-  const supplier = await prisma.seedSupplier.update({ where: { id: existing.id }, data })
-  return supplier
+  return prisma.$transaction(async (tx) => {
+    // Only a rename is checked, so an older duplicate can still have its phone or address edited.
+    if (data.name && data.name.toLowerCase() !== existing.name.trim().toLowerCase()) {
+      await assertSupplierNameFree(tx, context.farmId, data.name, existing.id)
+    }
+    return tx.seedSupplier.update({ where: { id: existing.id }, data })
+  })
 }
 
 export async function listSupplierSeedBatches(context) {

@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import LocalPages from '../../../components/pagination/LocalPages.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -164,7 +165,7 @@ onMounted(loadPage)
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>{{ editingId ? 'Cập nhật ngưỡng môi trường' : 'Thêm ngưỡng môi trường' }}</v-card-title>
         <v-card-text><p class="form-note">Ngưỡng mới sẽ ở trạng thái chờ Owner duyệt. Sửa ngưỡng đã duyệt sẽ ngừng áp dụng cấu hình cũ cho đến khi được duyệt lại.</p>
-          <v-form ref="formRef" @submit.prevent="saveThreshold"><div class="form-grid">
+          <v-form ref="formRef" @submit.prevent="singleFlight(saveThreshold, $event)"><div class="form-grid">
             <v-select v-model="form.species" :items="speciesOptions" item-title="title" item-value="value" label="Loài *" :rules="[requiredRule]" />
             <v-combobox v-model="form.developmentStage" :items="stageOptions" label="Giai đoạn *" />
             <v-select v-model="form.tankType" :items="tankTypes" item-title="title" item-value="value" label="Loại ao/bể *" :rules="[requiredRule]" />

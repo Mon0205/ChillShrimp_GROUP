@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
@@ -173,7 +174,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
         <v-card class="form-card">
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>Ghi nhật ký thuốc/chế phẩm</v-card-title><v-card-text>
-          <v-form ref="formRef" @submit.prevent="saveLog"><div class="form-grid">
+          <v-form ref="formRef" @submit.prevent="singleFlight(saveLog, $event)"><div class="form-grid">
             <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[tankRule]" />
             <v-text-field v-model="form.performedAt" type="datetime-local" label="Thời điểm thực hiện *" :rules="[dateRule]" />
             <v-select :model-value="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Sản phẩm trong danh mục (không bắt buộc)" clearable @update:model-value="selectSupply" />

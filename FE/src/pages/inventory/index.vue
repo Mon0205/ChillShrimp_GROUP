@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import { computed } from 'vue'
@@ -64,7 +65,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>{{ editingSupply ? 'Cập nhật vật tư' : 'Thêm vật tư' }}</v-card-title>
           <v-card-text>
-            <v-form ref="formRef" @submit.prevent="saveSupply">
+            <v-form ref="formRef" @submit.prevent="singleFlight(saveSupply, $event)">
               <div class="form-grid">
                 <v-text-field v-model="form.name" label="Tên vật tư *" :rules="nameRules" />
                 <v-select v-model="form.category" :items="categoryOptions" label="Nhóm vật tư *" :rules="categoryRules" />
@@ -84,7 +85,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="importing" @click="importDialog = false" />
           <v-card-title>Nhập kho{{ importTarget ? ` · ${importTarget.name}` : '' }}</v-card-title>
           <v-card-text>
-            <v-form ref="importFormRef" @submit.prevent="submitImport">
+            <v-form ref="importFormRef" @submit.prevent="singleFlight(submitImport, $event)">
               <div class="form-grid">
                 <v-text-field :model-value="importTarget?.unit" label="Đơn vị" readonly />
                 <v-text-field v-model="importForm.quantity" type="number" min="0.001" max="999999999.999" step="0.001" label="Số lượng nhập *" :rules="[requiredRule('Số lượng nhập'), importQuantityRule]" />
@@ -121,7 +122,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-card-title>Điều chỉnh tồn kho{{ adjustmentTarget ? ` · ${adjustmentTarget.name}` : '' }}</v-card-title>
           <v-card-text>
             <p class="adjustment-stock">Tồn hiện tại: <strong>{{ formatNumber(adjustmentTarget?.quantity) }} {{ adjustmentTarget?.unit }}</strong></p>
-            <v-form ref="adjustmentFormRef" @submit.prevent="submitAdjustment">
+            <v-form ref="adjustmentFormRef" @submit.prevent="singleFlight(submitAdjustment, $event)">
               <div class="form-grid">
                 <v-select v-model="adjustmentForm.direction" :items="[{ title: 'Tăng tồn', value: 'increase' }, { title: 'Giảm tồn', value: 'decrease' }]" label="Chiều điều chỉnh *" :rules="[requiredRule('Chiều điều chỉnh')]" />
                 <v-text-field :model-value="adjustmentTarget?.unit" label="Đơn vị" readonly />

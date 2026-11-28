@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import LocalPages from '../../components/pagination/LocalPages.vue'
 import tankIllustration from '../../assets/ponds/tank-photo.png'
 import AppShell from '../../components/shell/index.vue'
@@ -295,7 +296,7 @@ onMounted(loadPage)
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="farmDialog = false" />
           <span class="eyebrow">{{ editing ? 'CẬP NHẬT AO/BỂ' : 'AO/BỂ MỚI' }}</span>
         <h2>{{ editing ? 'Chỉnh sửa thông tin' : 'Thêm ao/bể' }}</h2>
-        <v-form ref="tankFormRef" class="dialog-form" validate-on="blur" @submit.prevent="saveTank">
+        <v-form ref="tankFormRef" class="dialog-form" validate-on="blur" @submit.prevent="singleFlight(saveTank, $event)">
           <div class="field-grid">
             <div>
               <label>Mã ao/bể</label>

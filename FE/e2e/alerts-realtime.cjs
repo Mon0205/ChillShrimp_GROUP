@@ -6,7 +6,7 @@ const base='http://127.0.0.1:43173', api='http://127.0.0.1:43273'
 const farmId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', farmB='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const alertId='11111111-1111-4111-8111-111111111111'
 let browser
-before(async()=>{ browser=await chromium.launch({headless:true,args:['--no-sandbox']}) })
+before(async()=>{ browser=await chromium.launch({headless:true,args:['--no-sandbox'],channel:process.env.PLAYWRIGHT_CHANNEL||undefined}) })
 after(async()=>{ await browser?.close() })
 async function control(path,body) {
  const r=await fetch(`${api}/__test/${path}`,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})

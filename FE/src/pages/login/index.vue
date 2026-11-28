@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import { required, emailRule, passwordRule, matchingPassword, otpRule } from '../../utils/validation.js'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -81,7 +82,7 @@ async function resetPassword(event) {
       <span class="card-brand" aria-hidden="true">CS</span>
       <h2>Chào mừng trở lại</h2>
       <p class="muted intro">Đăng nhập vào không gian của bạn.</p>
-      <v-form class="auth-form" @submit.prevent="submit">
+      <v-form class="auth-form" @submit.prevent="singleFlight(submit, $event)">
         <label class="auth-field-label" for="login-email">Email</label>
         <v-text-field id="login-email" :rules="[required('email'), emailRule]" v-model="email" type="email" autocomplete="email" prepend-inner-icon="mdi-email-outline" placeholder="Nhập email của bạn" density="comfortable" variant="outlined" hide-details="auto" required />
         <div class="password-label"><label class="auth-field-label" for="login-password">Mật khẩu</label><v-btn variant="text" class="forgot-link" type="button" @click="openForgotPassword">Quên mật khẩu?</v-btn></div>
@@ -100,12 +101,12 @@ async function resetPassword(event) {
       <v-card class="forgot-card" elevation="0">
         <div class="forgot-heading"><div><span>KHÔI PHỤC TÀI KHOẢN</span><h2 id="forgot-title">Quên mật khẩu</h2></div><v-btn variant="text" type="button" aria-label="Đóng" @click="forgotDialog = false" icon="mdi-close" /></div>
         <p class="muted">Nhận mã OTP qua email để đặt lại mật khẩu.</p>
-        <v-form v-if="!otpSent" class="forgot-form" @submit.prevent="sendOtp">
+        <v-form v-if="!otpSent" class="forgot-form" @submit.prevent="singleFlight(sendOtp, $event)">
           <label class="auth-field-label" for="forgot-email">Email tài khoản</label>
           <v-text-field id="forgot-email" :rules="[required('email'), emailRule]" v-model="forgotEmail" type="email" autocomplete="email" hide-details="auto" required />
           <v-btn type="submit" color="primary" size="large" block :loading="sendingOtp">Gửi mã OTP</v-btn>
         </v-form>
-        <v-form v-else class="forgot-form" @submit.prevent="resetPassword">
+        <v-form v-else class="forgot-form" @submit.prevent="singleFlight(resetPassword, $event)">
           <div class="sent-to">Mã đã gửi tới <strong>{{ forgotEmail }}</strong></div>
           <p role="status">{{ secondsLeft > 0 ? `Mã OTP còn hiệu lực ${secondsLeft} giây.` : 'Mã OTP đã hết hạn. Vui lòng gửi mã mới.' }}</p>
           <label class="auth-field-label" id="forgot-otp-label">Mã OTP</label>

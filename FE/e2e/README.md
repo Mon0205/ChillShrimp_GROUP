@@ -21,6 +21,8 @@ docker run --rm --network host \
   node /tests/alerts-realtime.cjs
 ```
 
+Trên Windows có thể dùng Edge đã cài sẵn: đặt `PLAYWRIGHT_CHANNEL=msedge` cùng `PLAYWRIGHT_MODULE`.
+
 Nếu đã có Playwright và Chromium tương thích trên máy, có thể dùng `PLAYWRIGHT_MODULE=/absolute/path/to/playwright-core node FE/e2e/alerts-realtime.cjs` thay container.
 
 Dừng fixture bằng Ctrl+C sau khi chạy xong. Suite kiểm tra burst sự kiện, cập nhật chi tiết và giữ nháp, sự kiện khi đang lưu, đồng bộ nhiều tab, offline/reconnect, lỗi truy vấn sau commit, đổi trại và response cũ, lọc sự kiện trại khác, unmount, logout, hết phiên và không polling sau 31 giây.

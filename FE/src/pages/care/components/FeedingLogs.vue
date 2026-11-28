@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
@@ -230,7 +231,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
           <v-card-title>Ghi nhận lần cho ăn</v-card-title>
           <v-card-text>
             <p v-if="!tanks.length" class="mb-4 text-body-2">Chưa có ao/bể đang ương để ghi cho ăn. Vào trang Ao/bể để kiểm tra trạng thái ao/bể của trại này.</p>
-            <v-form ref="formRef" @submit.prevent="saveLog">
+            <v-form ref="formRef" @submit.prevent="singleFlight(saveLog, $event)">
               <div class="form-grid">
                 <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[requiredRule('Ao/bể')]" />
                 <v-text-field v-model="form.feedingTime" type="datetime-local" label="Thời gian *" :rules="[requiredRule('Thời gian')]" />

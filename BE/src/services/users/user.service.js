@@ -2,7 +2,8 @@ import crypto from 'node:crypto'
 import { prisma } from '../../config/prisma.js'
 import { neonAuth } from '../../config/neon-auth.js'
 import { createHttpError } from '../../utils/http.js'
-import { sendInvitationEmail } from '../notifications/email.service.js'
+import { assertInvitationEmailAvailable, sendInvitationEmail } from '../notifications/email.service.js'
+import { normalizePhone } from '../../utils/phone.validation.js'
 import { loadMembership } from './membership.service.js'
 import { isSystemAdmin } from '../auth/account-access.service.js'
 
@@ -126,6 +127,7 @@ export async function createInvitation({ input = {}, membership, actor }) {
   if (!farm) throw createHttpError(404, 'Không tìm thấy trại.')
   if (user) throw createHttpError(409, 'Email này đã có tài khoản trong hệ thống.')
   if (pending) throw createHttpError(409, 'Email này đã có lời mời đang chờ.')
+  assertInvitationEmailAvailable()
   const token = crypto.randomBytes(32).toString('hex')
   const invitation = await prisma.farmInvitation.create({ data: {
     farmId, email, role, areaId, invitedBy: actor.id,
@@ -173,13 +175,13 @@ export async function acceptInvitation({ input = {} }) {
 
 export async function updateProfile({ input = {}, actor }) {
   const displayName = typeof input.displayName === 'string' ? input.displayName.trim() : ''
-  const phone = typeof input.phone === 'string' ? input.phone.trim() : ''
   if (!displayName || displayName.length > 100) throw createHttpError(400, 'Họ tên phải có từ 1 đến 100 ký tự.')
-  if (phone.length > 30) throw createHttpError(400, 'Số điện thoại không được vượt quá 30 ký tự.')
+  if (typeof input.phone === 'string' && input.phone.trim().length > 30) throw createHttpError(400, 'Số điện thoại không được vượt quá 30 ký tự.')
+  const phone = normalizePhone(input.phone)
 
   const user = await prisma.user.update({
     where: { id: actor.id },
-    data: { displayName, phone: phone || null },
+    data: { displayName, phone },
     select: { id: true, email: true, displayName: true, phone: true },
   })
   return user
@@ -217,10 +219,10 @@ export async function updateManagedUser({ input = {}, userId, actor, membership 
   assertCanManageMember(membership, target, farmId)
 
   const displayName = typeof input.displayName === 'string' ? input.displayName.trim() : ''
-  const phone = typeof input.phone === 'string' ? input.phone.trim() : ''
   const status = input.status
   if (!displayName || displayName.length > 100) throw createHttpError(400, 'Họ tên phải có từ 1 đến 100 ký tự.')
-  if (phone.length > 30) throw createHttpError(400, 'Số điện thoại không được vượt quá 30 ký tự.')
+  if (typeof input.phone === 'string' && input.phone.trim().length > 30) throw createHttpError(400, 'Số điện thoại không được vượt quá 30 ký tự.')
+  const phone = normalizePhone(input.phone)
   if (!['active', 'suspended'].includes(status)) throw createHttpError(400, 'Trạng thái thành viên không hợp lệ.')
 
   let role = target.role
@@ -246,7 +248,7 @@ export async function updateManagedUser({ input = {}, userId, actor, membership 
       const updatedMembership = await tx.farmMember.update({
         where: memberUpdateWhere(actor, membership, target), data: { role, areaId, status }, include: { area: { select: { id: true, code: true, name: true } } },
       })
-      const user = await tx.user.update({ where: { id: target.userId }, data: { displayName, phone: phone || null }, select: { id: true, email: true, displayName: true, phone: true } })
+      const user = await tx.user.update({ where: { id: target.userId }, data: { displayName, phone }, select: { id: true, email: true, displayName: true, phone: true } })
       return { ...user, role: updatedMembership.role, status: updatedMembership.status, area: updatedMembership.area, createdAt: updatedMembership.createdAt }
     })
   } catch (error) { rethrowMembershipChange(error) }

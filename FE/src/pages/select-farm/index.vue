@@ -1,4 +1,5 @@
 <script setup>
+import { singleFlight } from '../../utils/single-flight.js'
 import LoadingIndicator from '../../components/loading/index.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -31,7 +32,7 @@ onMounted(() => { if (!farms.ready) retry() })
       <h2 id="select-farm-title">Chọn trang trại</h2>
       <LoadingIndicator v-if="farms.loading" />
       <div v-else-if="error"><p role="alert">{{ error }}</p><v-btn @click="retry">Thử lại</v-btn></div>
-      <form v-else class="farm-selection" @submit.prevent="choose">
+      <form v-else class="farm-selection" @submit.prevent="singleFlight(choose, $event)">
         <v-select :model-value="selectedFarmId || null" @update:model-value="selectedFarmId = $event ?? ''" :items="farms.farms" item-title="name" item-value="id" aria-label="Trang trại" placeholder="Trang trại" variant="outlined" hide-details />
         <v-btn type="submit" color="primary" :disabled="!selectedFarmId" block>Tiếp tục</v-btn>
       </form>

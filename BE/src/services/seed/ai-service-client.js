@@ -25,13 +25,17 @@ export async function waitForAiService({ baseUrl = aiServiceUrl(), timeoutMs = W
     signal?.throwIfAborted()
     const remaining = deadline - Date.now()
     const attempt = AbortSignal.timeout(Math.max(1000, Math.min(HEALTH_ATTEMPT_MS, remaining)))
+    let misconfigured = false
     try {
       const response = await fetch(`${baseUrl}/health`, { signal: signal ? AbortSignal.any([signal, attempt]) : attempt })
       if (response.ok) return
       lastProblem = `HTTP ${response.status}`
+      // A sleeping or starting service is worth waiting for; one reporting not_ready will not recover.
+      if (response.status === 503) misconfigured = (await response.json().catch(() => null))?.status === 'not_ready'
     } catch (error) {
       lastProblem = error.name === 'TimeoutError' ? 'timeout' : error.message
     }
+    if (misconfigured) throw new Error('AI Service is not ready: check its model file and Cloudinary settings.')
     if (Date.now() + retryDelayMs >= deadline) {
       throw new Error(`AI Service did not become ready within ${Math.round(timeoutMs / 1000)} s (${lastProblem}).`)
     }

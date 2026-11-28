@@ -1,6 +1,7 @@
 // Isolated browser fixture: no real Neon calls or database writes.
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 const requireBE = createRequire(new URL('../package.json', import.meta.url))
 const requireFE = createRequire(new URL('../../FE/package.json', import.meta.url))
 const express = requireBE('express')
@@ -14,7 +15,7 @@ const { createExpressRequestContext } = await import('../src/middlewares/auth-co
 const { setPrismaClientForTests } = await import('../src/config/prisma.js')
 const { attachAlertSocket } = await import('../src/realtime/alert-socket.js')
 const { publishAlertEvents, alertEvents } = await import('../src/realtime/alert-events.js')
-const { createServer: createVite } = await import(requireFE.resolve('vite'))
+const { createServer: createVite } = await import(pathToFileURL(requireFE.resolve('vite')).href)
 const farmId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', farmB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const alertId = '11111111-1111-4111-8111-111111111111', tankId = '22222222-2222-4222-8222-222222222222'
 const noteId = '33333333-3333-4333-8333-333333333333'
@@ -64,7 +65,9 @@ app.get(`${root}/alerts`, async (req,res) => {
   const snapshot = req.params.farmId === farmId ? [serialized(req.userId)] : []
   const items = snapshot.filter(item => (!req.query.isRead || String(item.isRead)===req.query.isRead) && (!req.query.status || item.status===req.query.status) && (!req.query.severity || item.severity===req.query.severity))
   const delay=listDelay; if(delay) await new Promise(resolve=>setTimeout(resolve,delay))
-  send(res,{items,unreadCount:snapshot.filter(item=>!item.isRead).length,pagination:{total:items.length,page:1,limit:Number(req.query.limit||10)}})
+  const open=snapshot.filter(item=>item.status!=='resolved')
+  const summary={pending:open.filter(item=>item.status==='open').length,critical:open.filter(item=>item.severity==='critical').length,inProgress:open.filter(item=>item.status==='in_progress').length,unassigned:open.filter(item=>!item.responsibleUserId).length}
+  send(res,{items,summary,unreadCount:snapshot.filter(item=>!item.isRead).length,pagination:{total:items.length,page:1,limit:Number(req.query.limit||10)}})
 })
 app.get(`${root}/alerts/:id`, (req,res) => send(res,serialized(req.userId)))
 app.get(`${root}/alerts/:id/assignees`, (_req,res) => send(res,{items:[user('worker'),user('other')]}))
@@ -82,7 +85,7 @@ app.get(`${root}/notifications`, (req,res) => {
 })
 app.patch(`${root}/notifications/:id/read`, async (req,res) => { personalReads.add(req.userId); if(!omitEvents) await publish('notification:read',req.userId); send(res,{id:noteId,isRead:true,readAt:new Date().toISOString()}) })
 await new Promise(resolve=>server.listen(43273,'0.0.0.0',resolve))
-const vite=await createVite({root:new URL('../../FE',import.meta.url).pathname,server:{host:'0.0.0.0',port:43173,strictPort:true},logLevel:'warn'})
+const vite=await createVite({root:fileURLToPath(new URL('../../FE',import.meta.url)),server:{host:'0.0.0.0',port:43173,strictPort:true},logLevel:'warn'})
 await vite.listen()
 console.log('REALTIME_BROWSER_FIXTURE_READY')
 async function stop() { await vite.close(); await io.close(); process.exit(0) }

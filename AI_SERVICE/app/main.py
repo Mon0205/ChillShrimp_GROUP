@@ -6,7 +6,7 @@ from typing import Annotated, Any, Optional
 
 import cloudinary.uploader
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile, Response
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageOps
 
@@ -247,9 +247,13 @@ def run_detection(
 
 
 @app.get("/health")
-def health() -> dict[str, Any]:
+def health(response: Response) -> dict[str, Any]:
+    # A service that cannot analyse photos must not pass a health check.
+    ready = MODEL_PATH.exists() and CLOUDINARY_CONFIGURED
+    if not ready:
+        response.status_code = 503
     return {
-        "status": "ok",
+        "status": "ok" if ready else "not_ready",
         "model_path": str(MODEL_PATH),
         "model_exists": MODEL_PATH.exists(),
         "model_loaded": model is not None,
