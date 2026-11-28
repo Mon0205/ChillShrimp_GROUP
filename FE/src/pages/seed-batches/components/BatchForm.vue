@@ -10,7 +10,7 @@ const { canManage, transitions, statusNames, suppliers, tanks, loading, saving, 
           <span class="eyebrow">{{ editingBatch ? 'CẬP NHẬT HỒ SƠ' : 'TIẾP NHẬN ĐẦU VÀO' }}</span><h2>{{ editingBatch ? 'Thông tin lô giống' : 'Tiếp nhận lô giống' }}</h2>
         <v-form ref="formRef" class="dialog-form" validate-on="blur" @submit.prevent="saveBatch">
           <div v-if="!editingBatch" class="form-grid">
-            <div class="span-2"><label>Ao/bể đang trống <span class="required-mark">*</span></label><v-select v-model="form.tankId" :items="tanks" :item-title="tank => [tank?.code, tank?.name, tank?.area?.name].filter(Boolean).join(' · ')" item-value="id" :rules="[requiredRule('Ao/bể')]" hide-details="auto" /></div>
+            <div class="span-2"><label>Ao/bể đang trống <span class="required-mark">*</span></label><v-select v-model="form.tankId" :items="tanks" :item-title="tank => [tank?.code, tank?.name, tank?.area?.name].filter(Boolean).join(' · ')" item-value="id" no-data-text="Không có ao/bể đang trống" :rules="[requiredRule('Ao/bể')]" hide-details="auto" /></div>
             <div><label>Mã lô giống <span class="required-mark">*</span></label><v-text-field v-model="form.batchCode" maxlength="50" :rules="batchCodeRules" hide-details="auto" /></div>
           </div>
           <div class="form-grid">

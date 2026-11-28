@@ -269,7 +269,8 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
       </v-card>
     </v-dialog>
 <v-dialog v-model="detailDialog" max-width="600">
-      <v-card class="dialog-card"><span class="eyebrow">CHI TIẾT NHÀ CUNG CẤP</span>
+      <v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" @click="detailDialog = false" /><span class="eyebrow">CHI TIẾT NHÀ CUNG CẤP</span>
         <v-progress-linear v-if="detailLoading" indeterminate color="primary" rounded />
         <template v-else-if="selectedSupplier">
           <h2>{{ selectedSupplier.name }}</h2>
@@ -283,7 +284,8 @@ watch(historySize, () => { if (historyPage.value === 1) loadHistory(); else hist
       </v-card>
     </v-dialog>
 <v-dialog v-model="historyDialog" max-width="900">
-      <v-card class="dialog-card history-card"><span class="eyebrow">TRUY XUẤT ĐẦU VÀO</span><h2>Lịch sử lô · {{ selectedSupplier?.name }}</h2>
+      <v-card class="dialog-card history-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" @click="historyDialog = false" /><span class="eyebrow">TRUY XUẤT ĐẦU VÀO</span><h2>Lịch sử lô · {{ selectedSupplier?.name }}</h2>
         <v-progress-linear v-if="historyLoading" indeterminate color="primary" rounded />
         <div v-else-if="!historyItems.length" class="empty-state history-empty"><div>0</div><strong>Chưa có lô giống từ nhà cung cấp này</strong><p>Lịch sử xuất hiện sau khi lô được ghi nhận trong hệ thống.</p></div>
         <div v-else class="table-wrap history-table-wrap"><table class="mobile-records app-data-table">

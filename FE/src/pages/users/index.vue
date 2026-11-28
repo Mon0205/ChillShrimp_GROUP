@@ -191,7 +191,9 @@ watch([search, farmId, pageSize], () => { page.value = 1 })
     </template>
 
     <v-dialog :model-value="!!confirmation" :persistent="revokingInvitation" max-width="440" @update:model-value="value => { if (!value) confirmation = null }">
-      <v-card title="Xác nhận thao tác"><v-card-text><p class="confirmation-message">{{ confirmation?.message }}</p></v-card-text><v-card-actions><v-spacer /><v-btn :disabled="revokingInvitation" @click="confirmation = null">Hủy</v-btn><v-btn color="primary" :loading="revokingInvitation" @click="confirmAction">Xác nhận</v-btn></v-card-actions></v-card>
+      <v-card>
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" :disabled="revokingInvitation" @click="confirmation = null" />
+          <v-card-title>Xác nhận thao tác</v-card-title><v-card-text><p class="confirmation-message">{{ confirmation?.message }}</p></v-card-text><v-card-actions><v-spacer /><v-btn :disabled="revokingInvitation" @click="confirmation = null">Hủy</v-btn><v-btn color="primary" :loading="revokingInvitation" @click="confirmAction">Xác nhận</v-btn></v-card-actions></v-card>
     </v-dialog>
 <v-dialog v-model="inviteDialog" :persistent="sending" max-width="560"><v-card class="dialog-card">
           <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="sending" @click="inviteDialog = false" />

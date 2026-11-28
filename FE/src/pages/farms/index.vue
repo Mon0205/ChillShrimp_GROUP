@@ -254,6 +254,7 @@ onMounted(loadPage)
           <span class="eyebrow">PHẠM VI PHÂN QUYỀN</span><h2>{{ editingArea ? 'Chỉnh sửa khu vực' : 'Tạo khu vực' }}</h2><v-form class="dialog-form" @submit.prevent="saveArea"><label>Mã khu vực</label><v-text-field v-model="areaForm.code" @update:model-value="areaForm.code = areaForm.code.toUpperCase()" required hide-details="auto"/><label>Tên khu vực</label><v-text-field v-model="areaForm.name" required hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="areaDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="areaSaving">{{ editingArea ? 'Lưu thay đổi' : 'Tạo khu vực' }}</v-btn></div></v-form></v-card></v-dialog>
 <v-dialog v-model="areaStatusDialog" max-width="500">
       <v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" :disabled="changingAreaStatus" @click="areaStatusDialog = false" />
         <span class="eyebrow">TRẠNG THÁI KHU VỰC</span>
         <h2>{{ nextAreaStatus === 'active' ? 'Kích hoạt khu vực' : 'Ngừng hoạt động khu vực' }}</h2>
         <p v-if="nextAreaStatus === 'inactive'">Khu vực <strong>{{ selectedArea?.name }}</strong> chỉ có thể ngừng hoạt động khi không còn thành viên đang hoạt động, lời mời đang chờ hoặc ao/bể chưa ngừng hoạt động.</p>
@@ -263,6 +264,7 @@ onMounted(loadPage)
     </v-dialog>
 <v-dialog v-model="areaDeleteDialog" max-width="500">
       <v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" :disabled="deletingArea" @click="areaDeleteDialog = false" />
         <span class="eyebrow eyebrow--danger">XÓA KHU VỰC</span>
         <h2>Xóa {{ selectedArea?.name }}?</h2>
         <p>Thao tác này không thể hoàn tác. Hệ thống chỉ cho phép xóa khu vực đã ngừng hoạt động và chưa có nhân viên, lời mời hoặc ao/bể liên kết.</p>

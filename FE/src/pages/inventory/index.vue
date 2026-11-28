@@ -100,6 +100,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
       </v-dialog>
 <v-dialog v-model="importHistoryDialog" max-width="760">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" @click="importHistoryDialog = false" />
           <v-card-title>Lịch sử nhập kho{{ importTarget ? ` · ${importTarget.name}` : '' }}</v-card-title>
           <v-card-text>
             <LoadingIndicator v-if="importHistoryLoading" />
@@ -135,6 +136,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
       </v-dialog>
 <v-dialog v-model="adjustmentHistoryDialog" max-width="760">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" @click="adjustmentHistoryDialog = false" />
           <v-card-title>Lịch sử điều chỉnh{{ adjustmentTarget ? ` · ${adjustmentTarget.name}` : '' }}</v-card-title>
           <v-card-text>
             <LoadingIndicator v-if="adjustmentHistoryLoading" />
@@ -149,8 +151,9 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-card-actions><v-spacer /><v-btn variant="text" @click="adjustmentHistoryDialog = false">Đóng</v-btn></v-card-actions>
         </v-card>
       </v-dialog>
-<v-dialog :model-value="Boolean(deletingSupply)" max-width="460" @update:model-value="(value) => { if (!value && !deleting.value) deletingSupply = null }">
+<v-dialog :model-value="Boolean(deletingSupply)" max-width="460" @update:model-value="(value) => { if (!value && !deleting) deletingSupply = null }">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" :disabled="deleting" @click="deletingSupply = null" />
           <v-card-title>Xóa vật tư</v-card-title>
           <v-card-text>
             <p v-if="deletingSupply">Bạn có chắc muốn xóa <strong>{{ deletingSupply.name }}</strong>?</p>

@@ -6,6 +6,7 @@ const { detailDialog, selectedBatch, statusNames, speciesNames, formatDate, form
 <template>
   <v-dialog v-model="detailDialog" max-width="760" scrollable>
     <v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng hộp thoại" @click="detailDialog = false" />
       <template v-if="selectedBatch">
         <h2>{{ selectedBatch.batchCode }}</h2>
         <p>{{ speciesNames[selectedBatch.species] || selectedBatch.species }} · {{ selectedBatch.developmentStage }}</p>

@@ -25,7 +25,7 @@ const vuetify = createVuetify({
   defaults: {
     VBtn: { rounded: 'lg', elevation: 0 },
     VTextField: { singleLine: true, variant: 'outlined', density: 'comfortable', color: 'primary' },
-    VSelect: { singleLine: true, variant: 'outlined', density: 'comfortable', color: 'primary' },
+    VSelect: { noDataText: 'Không có lựa chọn', singleLine: true, variant: 'outlined', density: 'comfortable', color: 'primary' },
     VAutocomplete: { singleLine: true },
     VCombobox: { singleLine: true },
     VTextarea: { singleLine: true },

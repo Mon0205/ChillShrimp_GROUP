@@ -135,12 +135,15 @@
 }
 
 .v-dialog .v-card > .form-dialog-close {
-  position: absolute;
+  position: sticky;
   inset-block-start: 9px;
-  inset-inline-end: 9px;
+  align-self: flex-end;
+  flex: 0 0 auto;
+  margin: 9px 9px -41px 0;
   z-index: 2;
+  background: rgb(var(--v-theme-surface));
   color: #48625e;
 }
-.v-dialog .v-card:has(> .form-dialog-close) > :is(.v-card-title, h2, .eyebrow) {
+.v-dialog .v-card:has(> .form-dialog-close) > :is(.v-card-item, .v-card-title, h2, .eyebrow) {
   padding-inline-end: 44px;
 }
