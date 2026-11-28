@@ -4,6 +4,7 @@ export async function deleteFarm(req, res) {
   const result = await farmService.deleteFarm({
     filters: req.query,
     actor: req.auth,
+    membership: req.membership,
     input: req.body,
     farmId: req.params?.farmId,
   })

@@ -15,6 +15,7 @@ export async function updateFarmStatus(req, res) {
   const result = await farmService.updateFarmStatus({
     filters: req.query,
     actor: req.auth,
+    membership: req.membership,
     input: req.body,
     farmId: req.params?.farmId,
   })

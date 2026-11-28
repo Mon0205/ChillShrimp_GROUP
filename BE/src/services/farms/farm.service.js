@@ -94,6 +94,11 @@ export async function updateFarm(context) {
   }
 }
 
+// Closing a farm is the owner's decision; a manager may still edit, pause and reactivate it.
+function assertCanArchive(context) {
+  if (context.membership?.role !== 'OWNER') throw createHttpError(403, 'Chỉ Chủ trại được lưu trữ trang trại.')
+}
+
 async function archiveFarm(context) {
   const farmId = context.farmId
   const [activeAreas, operationalPondsTanks, pendingInvitations, activeStaff] = await Promise.all([
@@ -117,6 +122,7 @@ async function archiveFarm(context) {
 export async function updateFarmStatus(context) {
   const status = context.input.status
   if (!FARM_STATUSES.includes(status)) throw createHttpError(400, 'Trạng thái trang trại không hợp lệ.')
+  if (status === 'archived') assertCanArchive(context)
   const farm = await prisma.farm.findUnique({ where: { id: context.farmId } })
   if (!farm) throw createHttpError(404, 'Không tìm thấy trang trại.')
   if (farm.status === status) return farm
@@ -129,6 +135,7 @@ export async function updateFarmStatus(context) {
 }
 
 export async function deleteFarm(context) {
+  assertCanArchive(context)
   const farm = await prisma.farm.findUnique({ where: { id: context.farmId } })
   if (!farm) throw createHttpError(404, 'Không tìm thấy trang trại.')
   if (farm.status !== 'archived') await archiveFarm(context)

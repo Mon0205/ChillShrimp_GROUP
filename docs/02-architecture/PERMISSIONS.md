@@ -75,7 +75,8 @@ Các giới hạn bổ sung:
 | --- | --- | --- | --- | --- | --- |
 | Xem trại mình được cấp quyền | Có | Có | Có | Có | Có |
 | Tạo trại mới | Có | Không | Không | Không | Không |
-| Sửa thông tin/trạng thái trại, lưu trữ trại | Trại | Trại | Không | Không | Không |
+| Sửa thông tin, ngừng/kích hoạt trại | Trại | Trại | Không | Không | Không |
+| Lưu trữ trại | Trại | Không | Không | Không | Không |
 | Xem danh sách khu vực qua API khu vực | Trại | Trại | Chỉ khu được giao | Không | Không |
 | Tạo/sửa/kích hoạt/ngừng/xóa khu vực | Trại | Trại | Không | Không | Không |
 | Xem khu vực ngừng hoạt động | Có | Có | Không | Không | Không |
@@ -87,6 +88,7 @@ Các giới hạn bổ sung:
 - Quản lý khu vực không được tạo ao/bể trong khu khác hoặc chuyển ao sang khu khác.
 - Lưu trữ trại, ngừng/xóa khu vực vẫn phải thỏa điều kiện dữ liệu liên quan. Có quyền không đồng nghĩa được bỏ qua kiểm tra thành viên, lời mời, khu vực hoặc ao/bể đang vận hành.
 - API xóa trại hiện thực hiện lưu trữ, không xóa vật lý toàn bộ dữ liệu trại.
+- Chỉ Chủ trại được lưu trữ trại, qua cả API trạng thái và API xóa. Điều kiện dữ liệu tính mọi thành viên đang hoạt động ngoài Chủ trại, gồm cả Quản lý trại.
 - Kỹ thuật viên không truy cập API danh sách khu vực, nhưng vẫn được xem thông tin khu vực liên quan qua các dữ liệu được cấp quyền như ao/bể.
 
 ## 5. Nhà cung cấp, lô giống và kiểm tra AI
