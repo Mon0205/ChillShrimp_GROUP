@@ -6,7 +6,7 @@ import { normalizeInventoryRequestInput } from '../../utils/inventory-request.va
 function pagination(query) {
   const page = query.page === undefined ? 1 : Number(query.page)
   const limit = query.limit === undefined ? 50 : Number(query.limit)
-  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw createHttpError(400, 'Tham sá»‘ page/limit khÃ´ng há»£p lá»‡.')
+  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw createHttpError(400, 'Tham số page/limit không hợp lệ.')
   return { page, limit, skip: (page - 1) * limit }
 }
 
@@ -17,10 +17,10 @@ function serialize(item) {
 export async function listInventorySupplyRequests(operation) {
   const { page, limit, skip } = pagination(operation.filters)
   const status = operation.filters.status || ''
-  if (status && !['pending', 'fulfilled', 'rejected', 'cancelled'].includes(status)) throw createHttpError(400, 'Tráº¡ng thÃ¡i yÃªu cáº§u khÃ´ng há»£p lá»‡.')
+  if (status && !['pending', 'fulfilled', 'rejected', 'cancelled'].includes(status)) throw createHttpError(400, 'Trạng thái yêu cầu không hợp lệ.')
   const where = { farmId: operation.farmId, ...(status ? { status } : {}) }
   if (operation.membership.role === 'AREA_MANAGER') {
-    if (!operation.membership.areaId) throw createHttpError(403, 'Area Manager chÆ°a Ä‘Æ°á»£c gÃ¡n khu vá»±c.')
+    if (!operation.membership.areaId) throw createHttpError(403, 'Quản lý khu vực chưa được gán khu vực.')
     where.areaId = operation.membership.areaId
   }
   const [items, total] = await prisma.$transaction([

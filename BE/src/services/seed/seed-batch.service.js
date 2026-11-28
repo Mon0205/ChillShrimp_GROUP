@@ -235,7 +235,7 @@ export async function updateSeedBatch(context) {
 
 export async function updateSeedBatchStatus(context) {
   if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(context.membership.role)) {
-    throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực được cập nhật trạng thái lô giống.')
+    throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Quản lý khu vực được cập nhật trạng thái lô giống.')
   }
   const status = context.input.status
   if (!BATCH_STATUSES.includes(status)) throw createHttpError(400, 'Trạng thái lô giống không hợp lệ.')

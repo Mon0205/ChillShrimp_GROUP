@@ -2,6 +2,7 @@ import { sendPasswordOtp, resetPasswordOtp } from './password-otp.service.js'
 import { neonAuth } from '../../config/neon-auth.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { passwordProviderMessage } from '../../utils/auth-provider-message.js'
 
 function validateNewPassword(password, confirmPassword) {
   if (typeof password !== 'string' || password.length < 8) throw createHttpError(400, 'Mật khẩu mới cần ít nhất 8 ký tự.')
@@ -17,7 +18,10 @@ export async function changePassword({ input = {} }) {
     newPassword,
     revokeOtherSessions: true,
   })
-  if (error) throw createHttpError(400, error.message || 'Mật khẩu hiện tại không đúng.')
+  if (error) {
+    console.warn('Change password rejected:', error.code || error.message)
+    throw createHttpError(400, passwordProviderMessage(error) || 'Không đổi được mật khẩu. Vui lòng kiểm tra mật khẩu hiện tại và thử lại.')
+  }
   return { message: 'Đổi mật khẩu thành công.' }
 }
 

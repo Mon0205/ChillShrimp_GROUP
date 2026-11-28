@@ -5,7 +5,7 @@ const ALLOWED_FORMATS = 'jpg,jpeg,png,webp,pdf'
 function config() {
   const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = process.env
   if (!cloudName || !apiKey || !apiSecret) {
-    const error = new Error('Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.')
+    const error = new Error('Chưa cấu hình Cloudinary. Cần đặt CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.')
     error.status = 503
     throw error
   }
@@ -30,7 +30,7 @@ export async function getOwnedCloudinaryAsset({ resourceType, publicId, expected
   const response = await fetch(url, { headers: { Authorization: `Basic ${authorization}` } })
   if (response.status === 404) return null
   if (!response.ok) {
-    const error = new Error('Could not verify the uploaded Cloudinary asset.')
+    const error = new Error('Không xác minh được tệp đã tải lên Cloudinary.')
     error.status = response.status === 401 || response.status === 403 ? 503 : 502
     throw error
   }

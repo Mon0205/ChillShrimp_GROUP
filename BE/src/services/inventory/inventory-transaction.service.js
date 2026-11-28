@@ -24,7 +24,7 @@ function parseDate(value, label) {
 
 function areaScope(operation) {
   if (['OWNER', 'FARM_MANAGER'].includes(operation.membership.role)) return {}
-  if (!operation.membership.areaId) throw createHttpError(403, 'Technician chưa được gán khu vực.')
+  if (!operation.membership.areaId) throw createHttpError(403, 'Tài khoản chưa được gán khu vực.')
   return { areaId: operation.membership.areaId }
 }
 
@@ -87,10 +87,10 @@ export async function listInventoryUsageTransactions(operation) {
 export async function listInventoryImports(operation) {
   const { page, limit, skip } = parsePagination(operation.filters)
   const supplyId = operation.filters.supplyId || null
-  const from = parseDate(operation.filters.from, 'Start date')
-  const to = parseDate(operation.filters.to, 'End date')
-  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'Supply id is invalid.')
-  if (from && to && from > to) throw createHttpError(400, 'Start date must be on or before end date.')
+  const from = parseDate(operation.filters.from, 'Ngày bắt đầu')
+  const to = parseDate(operation.filters.to, 'Ngày kết thúc')
+  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'Mã vật tư không hợp lệ.')
+  if (from && to && from > to) throw createHttpError(400, 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.')
 
   const where = {
     transactionType: 'import',
@@ -129,16 +129,16 @@ export async function recordInventoryImport(operation) {
         AND "farm_id" = CAST(${farmId} AS UUID)
       FOR UPDATE
     `)
-    if (!lockedSupply.length) throw createHttpError(404, 'Supply was not found in this farm.')
+    if (!lockedSupply.length) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
 
     const supply = await tx.inventorySupply.findFirst({ where: { id: input.supplyId, farmId } })
-    if (!supply) throw createHttpError(404, 'Supply was not found in this farm.')
+    if (!supply) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
 
     const stockUpdate = await tx.inventorySupply.updateMany({
       where: { id: supply.id, farmId },
       data: { quantity: { increment: quantity }, unitPrice },
     })
-    if (!stockUpdate.count) throw createHttpError(409, 'Stock changed while importing. Reload and try again.')
+    if (!stockUpdate.count) throw createHttpError(409, 'Tồn kho vừa thay đổi; tải lại dữ liệu rồi thử lại.')
 
     return tx.inventoryTransaction.create({
       data: {
@@ -163,10 +163,10 @@ export async function recordInventoryImport(operation) {
 export async function listInventoryAdjustments(operation) {
   const { page, limit, skip } = parsePagination(operation.filters)
   const supplyId = operation.filters.supplyId || null
-  const from = parseDate(operation.filters.from, 'NgÃ y báº¯t Ä‘áº§u')
-  const to = parseDate(operation.filters.to, 'NgÃ y káº¿t thÃºc')
-  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'MÃ£ váº­t tÆ° khÃ´ng há»£p lá»‡.')
-  if (from && to && from > to) throw createHttpError(400, 'NgÃ y báº¯t Ä‘áº§u pháº£i trÆ°á»›c hoáº·c báº±ng ngÃ y káº¿t thÃºc.')
+  const from = parseDate(operation.filters.from, 'Ngày bắt đầu')
+  const to = parseDate(operation.filters.to, 'Ngày kết thúc')
+  if (supplyId && !UUID_PATTERN.test(supplyId)) throw createHttpError(400, 'Mã vật tư không hợp lệ.')
+  if (from && to && from > to) throw createHttpError(400, 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.')
   const where = {
     transactionType: 'adjustment',
     supply: { is: { farmId: operation.farmId } },
@@ -203,17 +203,17 @@ export async function recordInventoryAdjustment(operation) {
         AND "farm_id" = CAST(${farmId} AS UUID)
       FOR UPDATE
     `)
-    if (!lockedSupply.length) throw createHttpError(404, 'KhÃ´ng tÃ¬m tháº¥y váº­t tÆ° trong trang tráº¡i.')
+    if (!lockedSupply.length) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
     const supply = await tx.inventorySupply.findFirst({ where: { id: input.supplyId, farmId } })
-    if (!supply) throw createHttpError(404, 'KhÃ´ng tÃ¬m tháº¥y váº­t tÆ° trong trang tráº¡i.')
-    if (delta.lessThan(0) && supply.quantity.lessThan(amount)) throw createHttpError(409, 'Äiá»u chá»‰nh sáº½ lÃ m tá»“n kho Ã¢m.')
-    if (delta.greaterThan(0) && supply.quantity.plus(amount).greaterThan('999999999.999')) throw createHttpError(409, 'Äiá»u chá»‰nh vÆ°á»£t quÃ¡ giá»›i háº¡n tá»“n kho.')
+    if (!supply) throw createHttpError(404, 'Không tìm thấy vật tư trong trang trại.')
+    if (delta.lessThan(0) && supply.quantity.lessThan(amount)) throw createHttpError(409, 'Điều chỉnh sẽ làm tồn kho âm.')
+    if (delta.greaterThan(0) && supply.quantity.plus(amount).greaterThan('999999999.999')) throw createHttpError(409, 'Điều chỉnh vượt quá giới hạn tồn kho.')
 
     const stockUpdate = await tx.inventorySupply.updateMany({
       where: { id: supply.id, farmId, ...(delta.lessThan(0) ? { quantity: { gte: amount } } : {}) },
       data: { quantity: delta.greaterThan(0) ? { increment: amount } : { decrement: amount } },
     })
-    if (!stockUpdate.count) throw createHttpError(409, 'Tá»“n kho vá»«a thay Ä‘á»•i; táº£i láº¡i dá»¯ liá»‡u rá»“i thá»­ láº¡i.')
+    if (!stockUpdate.count) throw createHttpError(409, 'Tồn kho vừa thay đổi; tải lại dữ liệu rồi thử lại.')
 
     return tx.inventoryTransaction.create({
       data: {

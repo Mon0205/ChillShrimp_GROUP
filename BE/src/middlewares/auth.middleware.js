@@ -43,7 +43,7 @@ export async function requirePondTankManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(membership.role)) {
-      throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực mới có quyền quản lý ao/bể.')
+      throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Quản lý khu vực mới có quyền quản lý ao/bể.')
     }
     req.membership = membership
     next()
@@ -63,7 +63,7 @@ export async function requireSeedSupplierViewer(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»‰ Owner hoáº·c Quáº£n lÃ½ khu vá»±c Ä‘Æ°á»£c xem nhÃ  cung cáº¥p giá»‘ng.')
+      throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Quản lý khu vực được xem nhà cung cấp giống.')
     }
     req.membership = membership
     next()
@@ -74,7 +74,7 @@ export async function requireSeedSupplierManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»‰ Owner má»›i Ä‘Æ°á»£c quáº£n lÃ½ nhÃ  cung cáº¥p giá»‘ng.')
+      throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được quản lý nhà cung cấp giống.')
     }
     req.membership = membership
     next()
@@ -96,7 +96,7 @@ export async function requireSeedBatchManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER'].includes(membership.role)) {
-      throw createHttpError(403, 'Chỉ Owner hoặc Quản lý khu vực được tiếp nhận lô giống.')
+      throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Quản lý khu vực được tiếp nhận lô giống.')
     }
     req.membership = membership
     next()
@@ -120,7 +120,7 @@ export async function requireCareLogAccess(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n ghi hoáº·c xem nháº­t kÃ½ chÄƒm sÃ³c ao/bá»ƒ.')
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền ghi hoặc xem nhật ký chăm sóc ao/bể.')
     }
     req.membership = membership
     next()
@@ -133,7 +133,7 @@ export async function requireEnvironmentThresholdViewer(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(membership.role)) {
-      throw createHttpError(403, 'Your farm role cannot view environmental thresholds or alerts.')
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền xem ngưỡng môi trường hoặc cảnh báo.')
     }
     req.membership = membership
     next()
@@ -143,7 +143,7 @@ export async function requireEnvironmentThresholdViewer(req, _res, next) {
 export async function requireEnvironmentThresholdManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
-    if (!['OWNER', 'FARM_MANAGER'].includes(membership.role)) throw createHttpError(403, 'Only the farm owner or farm manager can configure or approve farm-wide thresholds.')
+    if (!['OWNER', 'FARM_MANAGER'].includes(membership.role)) throw createHttpError(403, 'Chỉ Chủ trại hoặc Quản lý trại được cấu hình và duyệt ngưỡng của trại.')
     req.membership = membership
     next()
   } catch (error) { next(error) }
@@ -166,7 +166,7 @@ export async function requireInventorySupplyManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(membership.role)) {
-      throw createHttpError(403, 'Chỉ Owner hoặc Nhân viên kho mới được quản lý danh mục vật tư.')
+      throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Nhân viên kho được quản lý danh mục vật tư.')
     }
     req.membership = membership
     next()
@@ -192,7 +192,7 @@ export async function requireInventoryRequestAccess(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'WAREHOUSE_STAFF'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»©c vá»¥ hiá»‡n táº¡i khÃ´ng cÃ³ quyá»n xem yÃªu cáº§u cáº¥p váº­t tÆ°.')
+      throw createHttpError(403, 'Chức vụ hiện tại không có quyền xem yêu cầu cấp vật tư.')
     }
     req.membership = membership
     next()
@@ -212,7 +212,7 @@ export async function requireInventoryAdjustmentManager(req, _res, next) {
   try {
     const membership = await loadMembership(req)
     if (!['OWNER', 'FARM_MANAGER', 'WAREHOUSE_STAFF'].includes(membership.role)) {
-      throw createHttpError(403, 'Chá»‰ Owner hoáº·c Warehouse Staff Ä‘Æ°á»£c Ä‘iá»u chá»‰nh tá»“n kho.')
+      throw createHttpError(403, 'Chỉ Chủ trại, Quản lý trại hoặc Nhân viên kho được điều chỉnh tồn kho.')
     }
     req.membership = membership
     next()
@@ -240,7 +240,7 @@ export async function requireFarmOwnerIncludingArchived(req, _res, next) {
 export async function requireOwnerAccount(req, _res, next) {
   try {
     const { canCreateFarm } = await accountAccess(req.auth)
-    if (!canCreateFarm) throw createHttpError(403, 'Chỉ Owner mới được tạo trại.')
+    if (!canCreateFarm) throw createHttpError(403, 'Chỉ Chủ trại mới được tạo trại.')
     next()
   } catch (error) { next(error) }
 }

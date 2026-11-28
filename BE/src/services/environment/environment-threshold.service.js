@@ -141,7 +141,7 @@ export async function updateEnvironmentThreshold(operation) {
     where: { id: operation.thresholdId, farmId: operation.farmId },
     select: { id: true, approvedAt: true },
   })
-  if (!existing) throw createHttpError(404, 'Environmental threshold not found in this farm.')
+  if (!existing) throw createHttpError(404, 'Không tìm thấy ngưỡng môi trường trong trang trại này.')
 
   if (existing.approvedAt) {
     const revision = await prisma.environmentThreshold.create({
@@ -164,7 +164,7 @@ export async function approveEnvironmentThreshold(operation) {
     where: { id: operation.thresholdId, farmId: operation.farmId },
     select: { id: true },
   })
-  if (!existing) throw createHttpError(404, 'Environmental threshold not found in this farm.')
+  if (!existing) throw createHttpError(404, 'Không tìm thấy ngưỡng môi trường trong trang trại này.')
 
   const item = await prisma.environmentThreshold.update({
     where: { id: existing.id },
@@ -175,13 +175,13 @@ export async function approveEnvironmentThreshold(operation) {
 }
 
 export async function setEnvironmentThresholdStatus(operation) {
-  if (typeof operation.input?.isActive !== 'boolean') throw createHttpError(400, 'isActive must be a boolean.')
+  if (typeof operation.input?.isActive !== 'boolean') throw createHttpError(400, 'Trạng thái kích hoạt không hợp lệ.')
   const existing = await prisma.environmentThreshold.findFirst({
     where: { id: operation.thresholdId, farmId: operation.farmId },
     select: { id: true, approvedAt: true },
   })
-  if (!existing) throw createHttpError(404, 'Environmental threshold not found in this farm.')
-  if (operation.input.isActive && !existing.approvedAt) throw createHttpError(409, 'Approve the threshold before activating it.')
+  if (!existing) throw createHttpError(404, 'Không tìm thấy ngưỡng môi trường trong trang trại này.')
+  if (operation.input.isActive && !existing.approvedAt) throw createHttpError(409, 'Cần duyệt ngưỡng trước khi kích hoạt.')
 
   const item = await prisma.environmentThreshold.update({
     where: { id: existing.id },

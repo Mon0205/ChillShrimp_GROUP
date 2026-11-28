@@ -20,9 +20,17 @@ export async function uploadCloudinaryFile(signaturePath, file, { imagesOnly = f
   form.append('allowed_formats', signed.params?.allowed_formats || 'jpg,jpeg,png,webp,pdf')
 
   const resourceType = signed.resourceType === 'image' ? 'image' : 'auto'
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/${resourceType}/upload`, { method: 'POST', body: form })
+  let response
+  try {
+    response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/${resourceType}/upload`, { method: 'POST', body: form })
+  } catch (cause) {
+    throw new Error('Không tải được tệp lên Cloudinary. Vui lòng kiểm tra mạng và thử lại.', { cause })
+  }
   const uploaded = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(uploaded.error?.message || 'Không tải được tệp lên Cloudinary.')
+  if (!response.ok) {
+    console.warn('Cloudinary upload failed:', uploaded.error?.message)
+    throw new Error('Không tải được tệp lên Cloudinary.')
+  }
   const uploadedPublicId = String(uploaded.public_id || '')
   if (uploadedPublicId !== signed.publicId && !uploadedPublicId.endsWith(`/${signed.publicId}`)) {
     throw new Error('Cloudinary trả về mã tệp không khớp với yêu cầu đã ký.')

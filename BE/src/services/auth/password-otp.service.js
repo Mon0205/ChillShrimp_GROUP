@@ -1,5 +1,6 @@
 import { createAuthClient } from '@neondatabase/auth'
 import { createHttpError } from '../../utils/http.js'
+import { passwordProviderMessage } from '../../utils/auth-provider-message.js'
 
 // The vanilla SDK exposes the current OTP routes. In 0.5.0-beta the
 // server SDK maps emailOtp.resetPassword to /email-otp/passcode instead.
@@ -24,13 +25,14 @@ async function callOtp(method, body) {
     // Vietnamese messages when the provider describes the OTP error in text.
     const otpExpired = failure.code === 'OTP_EXPIRED' || /otp.*expired|expired.*otp/i.test(failure.message || '')
     const invalidOtp = failure.code === 'INVALID_OTP' || /invalid.*otp|otp.*invalid/i.test(failure.message || '')
+    const tooManyAttempts = /too[ _]many[ _]attempts/i.test(`${failure.code || ''} ${failure.message || ''}`)
     const messages = {
       INVALID_OTP: 'Mã OTP không đúng. Vui lòng kiểm tra lại.',
       OTP_EXPIRED: 'Mã OTP đã hết hạn. Vui lòng gửi mã mới.',
       TOO_MANY_ATTEMPTS: 'Bạn đã thử quá nhiều lần. Vui lòng gửi mã OTP mới.',
     }
     const status = failure.status === 429 ? 429 : otpExpired ? 410 : !error || failure.status >= 500 ? 502 : 400
-    const httpError = createHttpError(status, messages[otpExpired ? 'OTP_EXPIRED' : invalidOtp ? 'INVALID_OTP' : failure.code] || (status === 429 ? 'Dịch vụ gửi OTP đang giới hạn số lượt. Vui lòng thử lại sau.' : failure.message || 'Không thể xử lý OTP lúc này.'))
+    const httpError = createHttpError(status, messages[otpExpired ? 'OTP_EXPIRED' : invalidOtp ? 'INVALID_OTP' : tooManyAttempts ? 'TOO_MANY_ATTEMPTS' : failure.code] || (status === 429 ? 'Dịch vụ gửi OTP đang giới hạn số lượt. Vui lòng thử lại sau.' : passwordProviderMessage(failure) || 'Không thể xử lý OTP lúc này.'))
     httpError.providerStatus = failure.status
     throw httpError
   }

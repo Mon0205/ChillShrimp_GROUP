@@ -10,7 +10,7 @@ const FIELD_LIMITS = {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function validateUuid(value, label) {
-  if (!UUID_PATTERN.test(value || '')) throw createHttpError(400, `${label} khÃ´ng há»£p lá»‡.`)
+  if (!UUID_PATTERN.test(value || '')) throw createHttpError(400, `${label} không hợp lệ.`)
 }
 
 function normalizeSupplierInput(body, { partial = false } = {}) {
@@ -24,26 +24,26 @@ function normalizeSupplierInput(body, { partial = false } = {}) {
     const value = body[field]
     if (field === 'name') {
       if (typeof value !== 'string' || !value.trim() || value.trim().length > FIELD_LIMITS.name) {
-        throw createHttpError(400, 'TÃªn nhÃ  cung cáº¥p báº¯t buá»™c vÃ  khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 150 kÃ½ tá»±.')
+        throw createHttpError(400, 'Tên nhà cung cấp bắt buộc và không được vượt quá 150 ký tự.')
       }
       data.name = value.trim()
       continue
     }
 
     if (value !== null && typeof value !== 'string') {
-      throw createHttpError(400, `TrÆ°á»ng ${field} pháº£i lÃ  chuá»—i hoáº·c null.`)
+      throw createHttpError(400, `Trường ${field} phải là chuỗi hoặc null.`)
     }
     if (typeof value === 'string' && value.trim().length > FIELD_LIMITS[field]) {
-      throw createHttpError(400, `TrÆ°á»ng ${field} khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ ${FIELD_LIMITS[field]} kÃ½ tá»±.`)
+      throw createHttpError(400, `Trường ${field} không được vượt quá ${FIELD_LIMITS[field]} ký tự.`)
     }
     data[field] = typeof value === 'string' ? (value.trim() || null) : null
   }
 
   if (!partial && !data.name) {
-    throw createHttpError(400, 'TÃªn nhÃ  cung cáº¥p lÃ  báº¯t buá»™c.')
+    throw createHttpError(400, 'Tên nhà cung cấp là bắt buộc.')
   }
   if (partial && !Object.keys(data).length) {
-    throw createHttpError(400, 'KhÃ´ng cÃ³ thÃ´ng tin nhÃ  cung cáº¥p cáº§n cáº­p nháº­t.')
+    throw createHttpError(400, 'Không có thông tin nhà cung cấp cần cập nhật.')
   }
   return data
 }
@@ -52,21 +52,21 @@ function parsePagination(query) {
   const page = query.page === undefined ? 1 : Number(query.page)
   const limit = query.limit === undefined ? 50 : Number(query.limit)
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
-    throw createHttpError(400, 'Tham sá»‘ page/limit khÃ´ng há»£p lá»‡; limit pháº£i tá»« 1 Ä‘áº¿n 100.')
+    throw createHttpError(400, 'Tham số page/limit không hợp lệ; limit phải từ 1 đến 100.')
   }
   return { page, limit, skip: (page - 1) * limit }
 }
 
 async function findSupplier(farmId, supplierId) {
-  validateUuid(supplierId, 'MÃ£ nhÃ  cung cáº¥p')
+  validateUuid(supplierId, 'Mã nhà cung cấp')
   const supplier = await prisma.seedSupplier.findFirst({ where: { id: supplierId, farmId } })
-  if (!supplier) throw createHttpError(404, 'KhÃ´ng tÃ¬m tháº¥y nhÃ  cung cáº¥p trong trang tráº¡i.')
+  if (!supplier) throw createHttpError(404, 'Không tìm thấy nhà cung cấp trong trang trại.')
   return supplier
 }
 
 export async function listSeedSuppliers(context) {
   const q = typeof context.filters.q === 'string' ? context.filters.q.trim() : ''
-  if (q.length > 150) throw createHttpError(400, 'Tá»« khÃ³a tÃ¬m kiáº¿m khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 150 kÃ½ tá»±.')
+  if (q.length > 150) throw createHttpError(400, 'Từ khóa tìm kiếm không được vượt quá 150 ký tự.')
   const { page, limit, skip } = parsePagination(context.filters)
   const where = {
     farmId: context.farmId,
@@ -108,10 +108,10 @@ export async function updateSeedSupplier(context) {
 export async function listSupplierSeedBatches(context) {
   const supplier = await findSupplier(context.farmId, context.supplierId)
   const q = typeof context.filters.q === 'string' ? context.filters.q.trim() : ''
-  if (q.length > 80) throw createHttpError(400, 'Tá»« khÃ³a tÃ¬m kiáº¿m khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 80 kÃ½ tá»±.')
+  if (q.length > 80) throw createHttpError(400, 'Từ khóa tìm kiếm không được vượt quá 80 ký tự.')
   const status = context.filters.status
   const validStatuses = ['active', 'ready_for_sale', 'sold', 'failed', 'cancelled']
-  if (status && !validStatuses.includes(status)) throw createHttpError(400, 'Tráº¡ng thÃ¡i lÃ´ giá»‘ng khÃ´ng há»£p lá»‡.')
+  if (status && !validStatuses.includes(status)) throw createHttpError(400, 'Trạng thái lô giống không hợp lệ.')
   const { page, limit, skip } = parsePagination(context.filters)
   if (context.membership.role === 'AREA_MANAGER' && !context.membership.areaId) {
     return { supplier: { id: supplier.id, name: supplier.name }, items: [], pagination: { page, limit, total: 0, pageCount: 0 } }
