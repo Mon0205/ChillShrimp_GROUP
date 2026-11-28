@@ -49,7 +49,7 @@ const technicianScope = computed(() => {
   if (role.value !== 'TECHNICIAN' || !scope) return ''
   return scope.wholeArea ? 'Chưa phụ trách ao/bể nào, hiển thị toàn khu vực' : `Phụ trách ${scope.tanks} ao/bể, ${scope.batches} lô`
 })
-const infoLine = computed(() => [selectedFarm.value?.code, selectedFarm.value?.name, roleNames[role.value], scopeText.value, technicianScope.value].filter(Boolean).join(' · '))
+const infoLine = computed(() => [selectedFarm.value?.name, roleNames[role.value], scopeText.value, technicianScope.value].filter(Boolean).join(' · '))
 // Names of the empty tanks of the area (as far as the rows shown), for the "ao/bể đang nuôi" tile.
 const emptyTankNames = computed(() => (stats.value.tankRows || []).filter((row) => row.status !== 'active').map((row) => row.code))
 const updatedAt = computed(() => (summary.value ? new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(new Date(summary.value.generatedAt)) : ''))
@@ -87,7 +87,7 @@ const productionTiles = computed(() => {
     value: feedingTotals.value ? feedingTotals.value.units : feedingError.value ? 'Không tải được' : 'Đang tải…',
     sub: feedingTotals.value ? `${count(feedingTotals.value.feedings)} lần · ${count(feedingTotals.value.tanks)} ao/bể · Xem báo cáo →` : '',
     accent: '#1d6fb8',
-    to: '/care-logs?tab=feeding-report',
+    to: '/feeding-report',
   })
   return tiles
 })
@@ -109,7 +109,7 @@ async function loadSummary() {
   }
 }
 
-// One-line feeding summary for the last 30 days; the full report lives in Care logs › Báo cáo cho ăn.
+// One-line feeding summary for the last 30 days; the full report is the "Báo cáo cho ăn" page.
 async function loadFeeding() {
   feedingController?.abort()
   feeding.value = null
@@ -156,8 +156,9 @@ onBeforeUnmount(() => { summaryController?.abort(); feedingController?.abort() }
 <template>
 <AppShell>
   <div class="dashboard">
-    <header class="page-header">
+    <section class="welcome">
       <div class="heading">
+        <span class="page-kicker">{{ selectedFarm?.code || 'CHILLSHRIMP' }}</span>
         <h1>{{ role === 'TECHNICIAN' ? 'Việc hôm nay' : 'Dashboard' }}</h1>
         <p v-if="selectedFarm">{{ infoLine }}</p>
       </div>
@@ -165,7 +166,7 @@ onBeforeUnmount(() => { summaryController?.abort(); feedingController?.abort() }
         <span v-if="updatedAt">Cập nhật lúc {{ updatedAt }}</span>
         <v-btn variant="outlined" color="primary" prepend-icon="mdi-refresh" :loading="summaryLoading" @click="refreshAll">Làm mới</v-btn>
       </div>
-    </header>
+    </section>
 
     <v-progress-linear v-if="contextLoading" indeterminate color="primary" rounded />
     <div v-else-if="contextError" class="notice error-notice" role="alert">Không tải được danh sách trại: {{ contextError }}</div>
@@ -205,7 +206,7 @@ onBeforeUnmount(() => { summaryController?.abort(); feedingController?.abort() }
             <StatTile label="Ao/bể đang nuôi" :value="count(stats.production.tanks.active)" :suffix="`/ ${count(stats.production.tanks.total)}`" :sub="stats.production.tanks.total > stats.production.tanks.active ? `${count(stats.production.tanks.total - stats.production.tanks.active)} ao/bể trống${emptyTankNames.length ? ` (${emptyTankNames.slice(0, 3).join(', ')})` : ''}` : 'Không có ao/bể trống'" />
             <StatTile label="Lô đang ương" :value="`${count(stats.activeBatches.count)} lô`" :sub="`${count(stats.activeBatches.estimatedQuantity)} con (ước tính)`" />
             <StatTile label="Tiến độ hôm nay" :value="`${stats.progress.fed}/${stats.progress.tanks}`" suffix="ao đã cho ăn" :sub="`${stats.progress.waterChecked}/${stats.progress.tanks} ao đã đo nước trong 24 giờ`" accent="#1d6fb8" />
-            <StatTile label="Thức ăn 30 ngày qua" :value="feedingTotals ? feedingTotals.units : feedingError ? 'Không tải được' : 'Đang tải…'" :sub="feedingTotals ? `${count(feedingTotals.feedings)} lần · ${count(feedingTotals.tanks)} ao/bể · Xem báo cáo →` : ''" accent="#1d6fb8" to="/care-logs?tab=feeding-report" />
+            <StatTile label="Thức ăn 30 ngày qua" :value="feedingTotals ? feedingTotals.units : feedingError ? 'Không tải được' : 'Đang tải…'" :sub="feedingTotals ? `${count(feedingTotals.feedings)} lần · ${count(feedingTotals.tanks)} ao/bể · Xem báo cáo →` : ''" accent="#1d6fb8" to="/feeding-report" />
           </div>
         </section>
         <TankTodayTable title="Ao/bể trong khu hôm nay" :rows="stats.tankRows" responsible />
@@ -220,7 +221,7 @@ onBeforeUnmount(() => { summaryController?.abort(); feedingController?.abort() }
 
 <style scoped>
 .dashboard { display: grid; gap: 18px; min-width: 0; color: #1f3a35; }
-.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.welcome { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding: 24px 28px; border: 1px solid #d8e8e2; border-radius: 16px; background: linear-gradient(110deg, #e7f4ee, #f5faf7); color: #175647; }
 .heading { display: grid; gap: 6px; }
 h1 { margin: 0; color: #134e4a; font-size: clamp(1.7rem, 3vw, 1.75rem); }
 .heading p { margin: 0; color: #5f716d; font-size: 14px; }

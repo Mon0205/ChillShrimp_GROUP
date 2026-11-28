@@ -64,38 +64,47 @@ export async function listAiInspections(context) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw createHttpError(400, 'limit phải là số nguyên từ 1 đến 100.')
   }
-  const items = await prisma.aiInspection.findMany({
-    where: { batchId: batch.id },
-    select: {
-      id: true,
-      batchId: true,
-      mediaUrl: true,
-      annotatedImageUrl: true,
-      samplingMethod: true,
-      sampleVolumeMl: true,
-      manualCount: true,
-      detectedCount: true,
-      densityPerMl: true,
-      correctionFactor: true,
-      averageConfidence: true,
-      averageSizeMm: true,
-      uniformityScore: true,
-      detections: true,
-      photoWarnings: true,
-      modelVersion: true,
-      status: true,
-      inspectedAt: true,
-      notes: true,
-      createdAt: true,
-      creator: { select: { id: true, displayName: true } },
-    },
-    orderBy: [
-      { inspectedAt: { sort: 'desc', nulls: 'last' } },
-      { createdAt: 'desc' },
-    ],
-    take: limit,
-  })
-  return { batch, items: items.map(withLowConfidenceRatio) }
+  const page = context.filters.page === undefined ? 1 : Number(context.filters.page)
+  if (!Number.isInteger(page) || page < 1 || (page - 1) * limit > 2147483647) {
+    throw createHttpError(400, 'Trang không hợp lệ.')
+  }
+  const [items, total] = await prisma.$transaction([
+    prisma.aiInspection.findMany({
+      where: { batchId: batch.id },
+      select: {
+        id: true,
+        batchId: true,
+        mediaUrl: true,
+        annotatedImageUrl: true,
+        samplingMethod: true,
+        sampleVolumeMl: true,
+        manualCount: true,
+        detectedCount: true,
+        densityPerMl: true,
+        correctionFactor: true,
+        averageConfidence: true,
+        averageSizeMm: true,
+        uniformityScore: true,
+        detections: true,
+        photoWarnings: true,
+        modelVersion: true,
+        status: true,
+        inspectedAt: true,
+        notes: true,
+        createdAt: true,
+        creator: { select: { id: true, displayName: true } },
+      },
+      orderBy: [
+        { inspectedAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.aiInspection.count({ where: { batchId: batch.id } }),
+  ])
+  return { batch, items: items.map(withLowConfidenceRatio), pagination: { page, limit, total } }
 }
 
 function parseSampleVolume(value) {

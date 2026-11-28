@@ -24,7 +24,7 @@ const max = computed(() => Math.max(1, ...props.areas.map((area) => area.open)))
 </template>
 
 <style scoped>
-.panel { display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; min-width: 0; padding: 18px 20px; border: 1px solid #dce7e4; border-radius: 12px; background: #fff; }
+.panel { display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; min-width: 0; padding: 18px 20px; border: 1px solid #d8e6e3; border-radius: 16px; background: #fff; }
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 h2 { margin: 0; color: #134e4a; font-size: 15px; }
 .link { color: #087f6e; font-size: 13px; font-weight: 500; text-decoration: none; }

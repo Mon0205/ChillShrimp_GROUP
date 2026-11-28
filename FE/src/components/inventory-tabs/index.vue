@@ -11,7 +11,7 @@ const canRecordInventoryUsage = computed(() => ['OWNER', 'FARM_MANAGER', 'WAREHO
 </script>
 
 <template>
-  <v-tabs :model-value="route.path" color="primary" aria-label="Quản lý vật tư" show-arrows>
+  <v-tabs class="workspace-section-tabs" :model-value="route.path" color="primary" aria-label="Quản lý vật tư" show-arrows>
     <v-tab v-if="canViewInventory" value="/inventory-supplies" to="/inventory-supplies">Danh mục vật tư</v-tab>
     <v-tab v-if="canViewRequests" value="/inventory-requests" to="/inventory-requests">Yêu cầu vật tư</v-tab>
     <v-tab v-if="canRecordInventoryUsage" value="/inventory-usage" to="/inventory-usage">Lịch sử cấp vật tư</v-tab>

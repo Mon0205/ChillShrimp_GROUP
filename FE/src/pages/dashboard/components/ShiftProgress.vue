@@ -24,7 +24,7 @@ const bars = computed(() => {
 </template>
 
 <style scoped>
-.progress { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; box-sizing: border-box; padding: 12px 16px; border: 1px solid #dce7e4; border-radius: 10px; background: #fff; }
+.progress { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; box-sizing: border-box; padding: 12px 16px; border: 1px solid #d8e6e3; border-radius: 16px; background: #fff; }
 .title { color: #134e4a; font-size: 13px; }
 .row { display: flex; align-items: center; gap: 8px; flex: 1 1 220px; }
 .text { color: #4f6662; font-size: 12px; white-space: nowrap; }

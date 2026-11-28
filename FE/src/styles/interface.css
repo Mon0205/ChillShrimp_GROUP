@@ -112,3 +112,35 @@
 .app-shell .main-content .care-list-card { background: #fff; border: 1px solid var(--ui-border); }
 .app-shell .main-content .care-list-card .table-wrap,
 .app-shell .main-content .care-list-card .log-table-wrap { border: 0; }
+
+/* Keep form labels above the control, including fields inside dialogs. */
+.v-field:has(> .v-field__field > .v-field-label:not(.v-field-label--floating)) {
+  margin-block-start: 1.45rem;
+}
+.v-field > .v-field__field > .v-field-label:not(.v-field-label--floating) {
+  inset-block-start: -1.4rem;
+  inset-inline-start: 0;
+  margin-inline: 0;
+  max-width: 100%;
+  transform: none;
+  visibility: visible;
+  opacity: 1;
+  color: #48625e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2rem;
+}
+.v-field--error > .v-field__field > .v-field-label:not(.v-field-label--floating) {
+  color: rgb(var(--v-theme-error));
+}
+
+.v-dialog .v-card > .form-dialog-close {
+  position: absolute;
+  inset-block-start: 9px;
+  inset-inline-end: 9px;
+  z-index: 2;
+  color: #48625e;
+}
+.v-dialog .v-card:has(> .form-dialog-close) > :is(.v-card-title, h2, .eyebrow) {
+  padding-inline-end: 44px;
+}

@@ -6,7 +6,7 @@ import { selectFarm, useFarmContext } from '../../../composables/farm-context.js
 import { showToast } from '../../../composables/toast.js'
 import { api } from '../../../services/api.js'
 
-export function useSeedBatches() {
+export function useSeedBatches({ groupByStage = false } = {}) {
   const farmContext = useFarmContext()
   const farms = ref([])
   const batches = ref([])
@@ -130,23 +130,37 @@ export function useSeedBatches() {
     if (!farms.value.some((farm) => farm.id === farmId.value)) selectFarm(farms.value[0]?.id || '')
   }
 
+  let batchRequest = 0
+
   async function loadBatches() {
+    const request = ++batchRequest
     batches.value = []
     pagination.value = { total: 0, pageCount: 0 }
-    if (!farmId.value || !canView.value) return
-    listLoading.value = true
+    listLoading.value = Boolean(farmId.value && canView.value)
+    if (!listLoading.value) return
     error.value = ''
     try {
-      const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
-      if (search.value.trim()) params.set('q', search.value.trim())
+      const params = new URLSearchParams({ page: String(groupByStage ? 1 : page.value), limit: String(groupByStage ? 100 : pageSize.value) })
+      if (search.value?.trim()) params.set('q', search.value.trim())
       if (statusFilter.value) params.set('status', statusFilter.value)
-      const result = await api(`${batchUrl()}?${params}`)
-      batches.value = result.data.items
-      pagination.value = result.data.pagination
+      const url = batchUrl()
+      const { data } = await api(`${url}?${params}`)
+      if (request !== batchRequest) return
+      const items = [...data.items]
+      if (groupByStage) {
+        for (let nextPage = 2; nextPage <= data.pagination.pageCount; nextPage++) {
+          params.set('page', String(nextPage))
+          const { data: next } = await api(`${url}?${params}`)
+          if (request !== batchRequest) return
+          items.push(...next.items)
+        }
+      }
+      batches.value = items
+      pagination.value = data.pagination
     } catch (err) {
-      error.value = err.message
+      if (request === batchRequest) error.value = err.message
     } finally {
-      listLoading.value = false
+      if (request === batchRequest) listLoading.value = false
     }
   }
 
@@ -218,7 +232,7 @@ export function useSeedBatches() {
     }
   }
 
-  const { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection } = useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue })
+  const { inspectionPaging, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection } = useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue })
   const { openCreate, openEdit, saveBatch } = useBatchForm({ saving, error, formDialog, formRef, editingBatch, form, emptyForm, canManage, isTechnician, dateOrderError, batchUrl, loadBatches, loadFormOptions, cleanOptional })
 
   watch(farmId, async () => {
@@ -230,5 +244,5 @@ export function useSeedBatches() {
   watch(pageSize, () => { if (page.value === 1) loadBatches(); else page.value = 1 })
   onMounted(loadPage)
 
-  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection, loadPage, openCreate, openEdit, saveBatch, openDetails, openDetailsById, openStatus, saveStatus, ref }
+  return { farms, batches, suppliers, tanks, loading, listLoading, saving, statusSaving, error, search, statusFilter, page, pageSize, pagination, formDialog, detailDialog, statusDialog, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, formRef, editingBatch, selectedBatch, form, nextStatus, farmId, selectedFarm, role, canView, canManage, isTechnician, pageCount, statusOptions, speciesOptions, statusNames, speciesNames, requiredRule, batchCodeRules, quantityRules, lengthRule, dateOrderError, transitions, formatDate, formatTimestamp, formatQuantity, aiInspectionStatusNames, aiInspectionStatusClasses, formatInspectionValue, inspectionPaging, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, uploadCapturedImage, captureInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection, loadPage, openCreate, openEdit, saveBatch, openDetails, openDetailsById, openStatus, saveStatus, ref }
 }

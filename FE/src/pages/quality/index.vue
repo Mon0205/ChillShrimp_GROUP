@@ -15,6 +15,7 @@ const router = useRouter()
 const model = useSeedBatches()
 const { farmId, canView, role, inspectionDialog, openInspectionUpload, selectedAiInspection, aiInspections, aiInspectionStatusNames, formatTimestamp, formatInspectionValue } = model
 const batchId = ref(''), tankId = ref('')
+const chooseBatch = ref(false)
 // "?status=pending,failed&mine=true" is what the technician dashboard card opens: the same inspections the card counts.
 const INSPECTION_STATUSES = ['pending', 'processing', 'completed', 'failed']
 const fromQuery = () => String(route.query.status || '').split(',').filter(value => INSPECTION_STATUSES.includes(value))
@@ -62,7 +63,6 @@ async function loadRows() {
   loading.value = true
   try {
     const query = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
-    if (batchId.value) query.set('batchId', batchId.value)
     if (tankId.value) query.set('tankId', tankId.value)
     if (statuses.value.length) query.set('status', statuses.value.join(','))
     if (mine.value) query.set('mine', 'true')
@@ -80,9 +80,11 @@ async function openRow(item) {
 }
 const warningCount = (item) => (Array.isArray(item.photoWarnings) ? item.photoWarnings.filter(warning => warning.level === 'warning').length : 0)
 function create() {
-  if (selectedBatch.value) openInspectionUpload(selectedBatch.value)
+  if (!selectedBatch.value) return
+  chooseBatch.value = false
+  openInspectionUpload(selectedBatch.value)
 }
-watch([batchId, tankId, dates, pageSize, statuses, mine], () => { if (page.value !== 1) page.value = 1; else loadRows() }, { deep: true })
+watch([tankId, dates, pageSize, statuses, mine], () => { if (page.value !== 1) page.value = 1; else loadRows() }, { deep: true })
 watch(page, loadRows)
 watch(tankId, () => { if (selectedBatch.value && !batchOptions.value.some(batch => batch.id === batchId.value)) batchId.value = '' })
 watch([statuses, mine], () => {
@@ -93,26 +95,24 @@ watch([statuses, mine], () => {
   else delete query.mine
   router.replace({ query })
 }, { deep: true })
-watch([farmId, canView], () => { batchId.value = ''; tankId.value = ''; statuses.value = []; mine.value = false; page.value = 1; loadOptions(); loadRows() })
+watch([farmId, canView], () => { chooseBatch.value = false; batchId.value = ''; tankId.value = ''; statuses.value = []; mine.value = false; page.value = 1; loadOptions(); loadRows() })
 watch(inspectionDialog, (open, previous) => { if (previous && !open) loadRows() })
 onMounted(() => { loadOptions(); loadRows() })
 </script>
 
 <template>
   <AppShell>
-    <header class="page-header"><div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-clipboard-check-outline" size="25" /></v-avatar><h1>Kiểm tra AI</h1></div></header>
+    <header class="page-header"><div class="section-page-title"><div><span class="page-kicker">CHẤT LƯỢNG</span><h1>Kiểm tra AI</h1></div></div><div v-if="canView" class="page-actions list-actions">
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="batchId = ''; chooseBatch = true">Tải ảnh AI</v-btn>
+      </div>
+</header>
     <p v-if="!canView" class="empty-message">Bạn không có quyền xem kiểm tra AI của trại này.</p>
     <template v-else>
-      <div class="page-actions list-actions">
-        <v-tooltip :text="selectedBatch ? '' : 'Chọn lô giống để tải ảnh AI'" :disabled="!!selectedBatch">
-          <template #activator="{ props }"><span v-bind="props"><v-btn color="primary" prepend-icon="mdi-plus" :disabled="!selectedBatch" @click="create">Tải ảnh AI</v-btn></span></template>
-        </v-tooltip>
-      </div>
-      <v-card class="list-card" elevation="0">
-        <div class="quality-filters">
-          <v-select v-model="tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể" clearable density="compact" variant="outlined" hide-details />
-          <v-select v-model="batchId" :items="batchOptions" item-title="batchCode" item-value="id" label="Lô giống" clearable density="compact" variant="outlined" hide-details />
-          <v-select v-model="statuses" :items="statusOptions" label="Trạng thái" multiple chips closable-chips clearable density="compact" variant="outlined" hide-details />
+      
+      <v-card class="list-card inspection-workspace" elevation="0">
+        <div class="quality-filters list-controls">
+          <v-select :model-value="tankId || null" @update:model-value="tankId = $event ?? ''" :items="tanks" item-title="name" item-value="id" aria-label="Ao/bể" placeholder="Ao/bể" clearable density="compact" variant="outlined" hide-details />
+          <v-select v-model="statuses" :items="statusOptions" aria-label="Trạng thái" placeholder="Trạng thái" multiple chips closable-chips clearable density="compact" variant="outlined" hide-details />
           <v-switch v-if="showMine" v-model="mine" label="Lần của tôi" color="primary" density="compact" hide-details />
           <DateRange v-model="dates" />
         </div>
@@ -128,17 +128,31 @@ onMounted(() => { loadOptions(); loadRows() })
         </section>
         <LoadingIndicator v-if="loading" />
         <p v-else-if="!rows.length" class="empty-message">Chưa có ảnh kiểm tra AI trong phạm vi đã chọn.</p>
-        <v-table v-else class="app-data-table" density="comfortable">
+        <v-table v-else class="mobile-records app-data-table" density="comfortable">
           <thead><tr><th>Lô giống</th><th>Ao/bể</th><th>Thời gian</th><th>Người kiểm tra</th><th>Ảnh</th><th>Số lượng phát hiện</th><th>Cảnh báo ảnh</th><th>Trạng thái</th></tr></thead>
           <tbody><tr v-for="item in rows" :key="item.id" class="quality-row" tabindex="0" @click="openRow(item)" @keydown.enter.self.prevent="openRow(item)" @keydown.space.self.prevent="openRow(item)">
-            <td><strong>{{ item.batch.batchCode }}</strong></td><td>{{ item.batch.tank?.name || '—' }}</td><td>{{ formatTimestamp(item.inspectedAt || item.createdAt) }}</td><td>{{ item.creator?.displayName || '—' }}</td>
+            <td data-label="Lô giống"><strong>{{ item.batch.batchCode }}</strong></td><td data-label="Ao/bể">{{ item.batch.tank?.name || '—' }}</td><td data-label="Thời gian">{{ formatTimestamp(item.inspectedAt || item.createdAt) }}</td><td data-label="Người kiểm tra">{{ item.creator?.displayName || '—' }}</td>
             
-            <td><img class="inspection-thumb" :src="item.mediaUrl" alt="Ảnh mẫu kiểm tra AI" loading="lazy" /></td><td>{{ formatInspectionValue(item.detectedCount, 0) }}</td><td><v-chip v-if="warningCount(item)" size="small" variant="tonal" color="warning" prepend-icon="mdi-alert-outline">{{ warningCount(item) }} cảnh báo</v-chip><span v-else>{{ Array.isArray(item.photoWarnings) ? 'Không' : '—' }}</span></td><td><v-chip size="small" variant="tonal">{{ aiInspectionStatusNames[item.status] || item.status }}</v-chip></td>
+            <td data-label="Ảnh"><img class="inspection-thumb" :src="item.mediaUrl" alt="Ảnh mẫu kiểm tra AI" loading="lazy" /></td><td data-label="Số lượng phát hiện">{{ formatInspectionValue(item.detectedCount, 0) }}</td><td data-label="Cảnh báo ảnh"><v-chip v-if="warningCount(item)" size="small" variant="tonal" color="warning" prepend-icon="mdi-alert-outline">{{ warningCount(item) }} cảnh báo</v-chip><span v-else>{{ Array.isArray(item.photoWarnings) ? 'Không' : '—' }}</span></td><td data-label="Trạng thái"><v-chip size="small" variant="tonal">{{ aiInspectionStatusNames[item.status] || item.status }}</v-chip></td>
           </tr></tbody>
         </v-table>
         <Pagination v-model:page="page" v-model:page-size="pageSize" :total="total" :loading="loading" />
       </v-card>
     </template>
+    <v-dialog v-model="chooseBatch" max-width="440" aria-labelledby="upload-batch-title">
+      <v-card>
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="chooseBatch = false" />
+          <v-card-title id="upload-batch-title">Chọn lô để tải ảnh AI</v-card-title>
+        <v-card-text>
+          <v-autocomplete v-model="batchId" :items="batchOptions" item-title="batchCode" item-value="id" label="Lô giống" no-data-text="Không có lô giống phù hợp" hide-details />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="chooseBatch = false">Hủy</v-btn>
+          <v-btn color="primary" :disabled="!selectedBatch" @click="create">Tiếp tục</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <Inspection :model="model" />
   </AppShell>
 </template>
@@ -148,9 +162,14 @@ onMounted(() => { loadOptions(); loadRows() })
 .list-card { border:1px solid #dce6e2; background:#fff; }
 .quality-filters { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
 .quality-filters > .v-input { flex:0 0 180px; max-width:100%; }
-.quality-filters > .v-switch { flex:0 0 auto; }
 .quality-filters > .date-range { flex-basis:300px; }
 .quality-row { cursor:pointer; }
+.quality-row:focus-visible { outline:2px solid #078575; outline-offset:-2px; }
+.inspection-thumb { display:block; width:64px; height:48px; object-fit:cover; border-radius:6px; }
+.dialog-card { padding:24px; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:8px; }
+@media(max-width:600px) { .quality-filters > .v-input { flex:1 1 160px; } .quality-filters > .date-range { flex-basis:100%; } }
+.quality-filters > .v-switch { flex:0 0 auto; }
 .accuracy-card { margin-bottom:20px; padding:14px 16px; border:1px solid #dce6e2; border-radius:8px; background:#f7faf9; }
 .accuracy-card h3 { margin:0 0 8px; font-size:14px; color:#173d36; }
 .accuracy-card h3 span { font-weight:400; font-size:12px; color:#657873; }
@@ -158,9 +177,4 @@ onMounted(() => { loadOptions(); loadRows() })
 .accuracy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
 .accuracy-grid span { display:block; font-size:12px; color:#657873; }
 .accuracy-grid strong { font-size:16px; color:#173d36; }
-.quality-row:focus-visible { outline:2px solid #078575; outline-offset:-2px; }
-.inspection-thumb { display:block; width:64px; height:48px; object-fit:cover; border-radius:6px; }
-.dialog-card { padding:24px; }
-.dialog-actions { display:flex; justify-content:flex-end; gap:8px; }
-@media(max-width:600px) { .quality-filters > .v-input { flex:1 1 160px; } .quality-filters > .date-range { flex-basis:100%; } }
 </style>

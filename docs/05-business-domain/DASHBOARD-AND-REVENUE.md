@@ -15,7 +15,7 @@ Trạng thái ghi theo nhánh `feature/dashboard`, ngày 22/11/2026. Bố cục 
 | Khối Kinh doanh trên Dashboard | "Tháng này bán được bao nhiêu, chi vật tư bao nhiêu, còn bị nợ bao nhiêu?" | Chủ trại, Quản lý trại |
 | Tab Doanh thu | "Doanh thu theo từng tháng, từng lô, từng trại; chọn khoảng tháng tùy ý." | Chủ trại, Quản lý trại |
 
-Dashboard là **bảng vận hành**: việc cần làm ở trên, số liệu kinh doanh và sản xuất bên dưới. Phân tích sâu đặt ở trang riêng (tab Doanh thu, tab Báo cáo cho ăn).
+Dashboard là **bảng vận hành**: việc cần làm ở trên, số liệu kinh doanh và sản xuất bên dưới. Phân tích sâu đặt ở trang riêng (tab Doanh thu, trang Báo cáo cho ăn).
 
 ## 2. Dashboard theo vai trò
 
@@ -89,7 +89,7 @@ Chân khối ghi rõ: chi phí chỉ gồm vật tư đã xuất dùng, chưa g�
 | Giống còn bán được | Lô `ready_for_sale`: Σ (số con ước tính − đã giữ cho đơn); dòng phụ số con đã giữ | Cả hai |
 | Giá trị tồn kho | Σ số lượng × đơn giá nhập gần nhất (vốn nằm trong kho, không phải chi phí) | Chủ trại |
 | Xử lý cảnh báo trung bình | Trung bình (`handledAt` − `createdAt`) của cảnh báo đã xử lý trong 30 ngày | Quản lý trại |
-| Thức ăn 30 ngày qua | Tổng lượng theo đơn vị, số lần, số ao/bể; bấm mở tab Báo cáo cho ăn | Cả hai |
+| Thức ăn 30 ngày qua | Tổng lượng theo đơn vị, số lần, số ao/bể; bấm mở trang Báo cáo cho ăn (`/feeding-report`) | Cả hai |
 
 ### 2.6 Các bảng chính
 
@@ -186,7 +186,7 @@ Tham số tháng sai định dạng, khoảng ngược hoặc quá 24 tháng tr�
 | Trang Dashboard và component | [pages/dashboard/index.vue](../../FE/src/pages/dashboard/index.vue), [components/](../../FE/src/pages/dashboard/components/), [format.js](../../FE/src/pages/dashboard/format.js) |
 | Trang Doanh thu | [pages/sales-revenue/index.vue](../../FE/src/pages/sales-revenue/index.vue) |
 | Trang Cảnh báo, Kiểm tra AI | [pages/alerts/index.vue](../../FE/src/pages/alerts/index.vue), [pages/quality/index.vue](../../FE/src/pages/quality/index.vue) |
-| Tab Báo cáo cho ăn | [FeedingReport.vue](../../FE/src/pages/care/components/FeedingReport.vue) |
+| Trang Báo cáo cho ăn | [pages/feeding-report/index.vue](../../FE/src/pages/feeding-report/index.vue) |
 | Test backend | [dashboard-summary.test.js](../../BE/test/dashboard-summary.test.js), [revenue-report.test.js](../../BE/test/revenue-report.test.js), [sales-order-status-filter.test.js](../../BE/test/sales-order-status-filter.test.js), [alert-list-filters.test.js](../../BE/test/alert-list-filters.test.js), [quality-history-filters.test.js](../../BE/test/quality-history-filters.test.js) |
 | Test frontend | [format.test.js](../../FE/src/pages/dashboard/format.test.js) |
 

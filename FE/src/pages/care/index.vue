@@ -7,7 +7,6 @@ import WaterChangeLogsPage from './components/WaterChanges.vue'
 import WaterParameterLogsPage from './components/WaterParameters.vue'
 import EnvironmentThresholdsPage from './components/WaterThresholds.vue'
 import TreatmentLogsPage from './components/TreatmentLogs.vue'
-import FeedingReportPage from './components/FeedingReport.vue'
 import { loadFarmContext, selectFarm, useFarmContext } from '../../composables/farm-context.js'
 import { api } from '../../services/api.js'
 
@@ -16,7 +15,6 @@ const router = useRouter()
 const farmContext = useFarmContext()
 const tankId = ref(typeof route.query.tankId === 'string' ? route.query.tankId : '')
 const tanks = ref([])
-const tankSelectWidth = computed(() => Math.min(320, Math.max(150, (tanks.value.find(tank => tank.id === tankId.value)?.name?.length || 5) * 8 + 90)))
 const loadingTanks = ref(false)
 const tankError = ref('')
 let tankRequest = 0
@@ -26,7 +24,6 @@ const tabs = [
   { value: 'water-parameters', title: 'Môi trường nước', icon: 'mdi-water-thermometer-outline', component: WaterParameterLogsPage },
   { value: 'thresholds', title: 'Ngưỡng môi trường', icon: 'mdi-chart-bell-curve-cumulative', component: EnvironmentThresholdsPage },
   { value: 'treatments', title: 'Thuốc/chế phẩm', icon: 'mdi-flask-outline', component: TreatmentLogsPage },
-  { value: 'feeding-report', title: 'Báo cáo cho ăn', icon: 'mdi-chart-box-outline', component: FeedingReportPage },
 ]
 const activeTab = computed({
   get: () => tabs.some(tab => tab.value === route.query.tab) ? route.query.tab : 'feeding',
@@ -53,7 +50,18 @@ async function loadTanks() {
   }
 }
 watch(() => route.query.tankId, id => { tankId.value = typeof id === 'string' ? id : '' })
-watch([farmId, canView], () => { tankId.value = ''; loadTanks() })
+watch(farmId, (id, previousId) => {
+  if (previousId) {
+    tankId.value = ''
+    router.replace({ query: { ...route.query, tankId: undefined } })
+  }
+  loadTanks()
+})
+watch(canView, loadTanks)
+function selectTank(id) {
+  tankId.value = id || ''
+  router.replace({ query: { ...route.query, tankId: id || undefined } })
+}
 onMounted(async () => {
   try { await loadFarmContext(); await loadTanks() }
   catch (error) { tankError.value = error.message }
@@ -63,41 +71,57 @@ onMounted(async () => {
 <template>
 <AppShell>
     <section class="care-page">
-      <header>
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-notebook-outline" size="25" /></v-avatar><h1>Nhật ký chăm sóc</h1></div>
+      <header class="page-header">
+        <div class="section-page-title"><div><span class="page-kicker">VẬN HÀNH</span><h1>Nhật kí chăm sóc</h1></div></div>
       </header>
       <v-alert v-if="tankError" type="error" variant="tonal" class="mb-4">{{ tankError }}</v-alert>
-      <template v-if="canView">
+      <div v-if="canView" class="care-workspace">
         <v-tabs v-model="activeTab" color="primary" show-arrows class="care-tabs" aria-label="Loại nhật ký chăm sóc">
-          <v-tab v-for="tab in tabs" :key="tab.value" :value="tab.value" rounded="0">{{ tab.title }}</v-tab>
+          <v-tab v-for="tab in tabs" :id="`care-tab-${tab.value}`" :key="tab.value" :value="tab.value" aria-controls="care-panel" rounded="0"><v-icon :icon="tab.icon" size="19" class="mr-2" />{{ tab.title }}</v-tab>
         </v-tabs>
-        <div class="care-content" role="tabpanel" :aria-label="tabs.find(tab => tab.value === activeTab).title">
+        <div id="care-panel" class="care-content" role="tabpanel" :aria-labelledby="`care-tab-${activeTab}`">
           <component :is="activeComponent" :key="`${farmId}:${activeTab}`" v-bind="activeTab === 'thresholds' ? {} : { tankId: tankId || '' }">
-            <template #filters><v-select :style="{ width: tankSelectWidth + 'px' }" v-model="tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể" clearable :loading="loadingTanks" :disabled="!canView" variant="outlined" density="compact" hide-details /></template>
+            <template #filters><v-select :model-value="tankId || null" @update:model-value="selectTank" :items="tanks" item-title="name" item-value="id" aria-label="Ao/bể" placeholder="Ao/bể" clearable :loading="loadingTanks" :disabled="!canView" variant="outlined" density="compact" hide-details /></template>
           </component>
         </div>
-      </template>
+      </div>
       <v-alert v-else-if="farmContext.ready" type="info" variant="tonal">{{ farmId ? 'Bạn không có quyền xem nhật ký chăm sóc của trang trại này.' : 'Chọn trang trại để xem nhật ký chăm sóc.' }}</v-alert>
     </section>
   </AppShell>
 </template>
 
 <style scoped>
-.care-page { display: grid; gap: 24px; }
-h1 { font-size: 28px; margin: 0 0 8px; }
-header p { color: #64748b; margin: 0; }
-.care-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 420px; }
-.care-tabs { border-bottom: 1px solid #dce6e2; }
-.care-tabs :deep(.v-tab) { font-size: 14px; padding-inline: 20px; }
+.care-page { display: grid; gap: 22px; min-width: 0; }
+h1 { margin: 0; font-size: 27px; letter-spacing: -.6px; }
+.care-workspace { min-width: 0; }
+.care-tabs { max-width: 100%; margin-bottom: 20px; border-bottom: 1px solid #dce7e8; }
+.care-tabs :deep(.v-tab) { min-height: 48px; font-size: 13px; padding-inline: 18px; letter-spacing: 0; }
 .care-tabs :deep(.v-tab--selected) { font-weight: 700; }
 .care-tabs :deep(.v-tab__overlay) { opacity: 0; }
-.care-content :deep(.page-heading) { margin-bottom: 20px; }
-.care-content :deep(.page-heading h2) { font-size: 20px; }
-.care-content :deep(.page-heading .subtitle) { max-width: 700px; }
-.care-content :deep(.filter-row) { display: flex; flex-wrap: wrap; max-width: none; }
-.care-content :deep(.filter-row > .v-input) { flex: 0 0 auto; width: 175px; max-width: 100%; }
-.care-content :deep(.filter-row .date-range) { width: 300px; }
-@media (max-width: 760px) { .care-content :deep(.filter-row) { grid-template-columns: repeat(2, minmax(0, 1fr)); } .care-content :deep(.filter-row > .v-select) { grid-column: 1 / -1; } }
 .care-content { min-width: 0; }
-@media (max-width: 600px) { .care-filters { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
+.care-content :deep(section) { min-width: 0; }
+.care-content :deep(.list-actions) { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.care-content :deep(.care-list-card) { padding: 20px; border: 1px solid #dce7e8; border-radius: 12px; background: #fff; box-shadow: 0 3px 14px #173f3a04; }
+.care-content :deep(.filter-row) { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid #edf2f3; }
+.care-content :deep(.filter-row > .v-input) { flex: 0 1 220px; min-width: 0; max-width: 100%; }
+.care-content :deep(.filter-row .date-range) { flex-basis: 300px; }
+.care-content :deep(.table-wrap), .care-content :deep(.log-table-wrap) { min-width: 0; max-width: 100%; border-color: #e2ebed; }
+.care-content :deep(.app-data-table th) { background: #f6fafb; color: #617d86; font-size: 11px; letter-spacing: .25px; }
+.care-content :deep(.app-data-table td) { overflow-wrap: anywhere; font-size: 13px; }
+@media (max-width: 760px) {
+  h1 { font-size: 23px; }
+  .care-page { gap: 18px; }
+  .care-content :deep(.care-list-card) { padding: 16px; }
+  .care-content :deep(.filter-row > .v-input) { flex: 1 1 100%; }
+  .care-content :deep(.app-data-table), .care-content :deep(.app-data-table table) { width: 100%; min-width: 0; }
+  .care-content :deep(.app-data-table thead) { display: none; }
+  .care-content :deep(.app-data-table tbody) { display: block; }
+  .care-content :deep(.app-data-table tbody tr) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px 14px; border-bottom: 1px solid #e2ebed; }
+  .care-content :deep(.app-data-table tbody tr:last-child) { border-bottom: 0; }
+  .care-content :deep(.app-data-table tbody td) { display: block; min-width: 0; max-width: 100%; height: auto; padding: 0; border: 0; white-space: normal; }
+  .care-content :deep(.app-data-table tbody td:first-child) { grid-column: 1 / -1; }
+  .care-content :deep(.app-data-table tbody td::before) { content: attr(data-label); display: block; margin-bottom: 5px; color: #617d86; font-size: 10px; font-weight: 600; }
+  .care-content :deep(.cell-note) { max-width: 100%; white-space: normal; }
+  .care-content :deep(.summary-item) { flex: 1 1 140px; min-width: 0; }
+}
 </style>

@@ -1,3 +1,5 @@
+import { sampleWaterChart } from '../../utils/water-chart-sample.js'
+import { resolveWaterChartThresholds } from '../../utils/water-chart-thresholds.js'
 import { publishAlertEvents } from '../../realtime/alert-events.js'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma.js'
@@ -35,6 +37,16 @@ function scopedTankWhere(operation, extra = {}) {
   }
 }
 
+async function waterChartThresholdContext(operation, tankId) {
+    const tank = await prisma.pondTank.findFirst({
+      where: scopedTankWhere(operation, { id: tankId }),
+      include: { seedBatches: { where: { status: { notIn: ['sold', 'failed', 'cancelled'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { species: true, developmentStage: true } } },
+    })
+    if (!tank) throw createHttpError(404, 'Không tìm thấy ao/bể trong phạm vi được phép xem.')
+    const thresholds = await prisma.environmentThreshold.findMany({ where: { farmId: operation.farmId, isActive: true, approvedAt: { not: null }, approvedBy: { not: null } } })
+    return resolveWaterChartThresholds(thresholds, { tankType: tank.tankType, ...tank.seedBatches[0] })
+}
+
 export async function listWaterParameterLogs(operation) {
   const { page, limit, skip } = parsePagination(operation.filters)
   const tankId = operation.filters.tankId || null
@@ -45,6 +57,14 @@ export async function listWaterParameterLogs(operation) {
   const where = {
     tank: { is: scopedTankWhere(operation, tankId ? { id: tankId } : {}) },
     ...(from || to ? { recordedAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+  }
+  if (operation.filters.chartMetric) {
+    if (!tankId) throw createHttpError(400, 'Chọn ao/bể để xem biểu đồ.')
+    const thresholdContext = await waterChartThresholdContext(operation, tankId)
+    const chart = await sampleWaterChart(prisma, {farmId:operation.farmId,tankId,
+      areaId:['OWNER','FARM_MANAGER'].includes(operation.membership.role)?null:operation.membership.areaId,
+      metric:operation.filters.chartMetric,from,to})
+    return {items:chart.items,chartMeta:{total:chart.total,displayed:chart.items.length,from,to},thresholdContext}
   }
   const [items, total] = await prisma.$transaction([
     prisma.waterParameterLog.findMany({
@@ -59,7 +79,12 @@ export async function listWaterParameterLogs(operation) {
     }),
     prisma.waterParameterLog.count({ where }),
   ])
-  return { items, pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } }
+  const result = { items, pagination: { page, limit, total, pageCount: Math.ceil(total / limit) } }
+  if (operation.filters.includeThresholds === 'true') {
+    if (!tankId) throw createHttpError(400, 'Chọn ao/bể để xem ngưỡng trên biểu đồ.')
+    result.thresholdContext = await waterChartThresholdContext(operation, tankId)
+  }
+  return result
 }
 
 export async function createWaterParameterLog(operation) {

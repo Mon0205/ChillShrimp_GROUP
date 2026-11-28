@@ -148,10 +148,10 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
 
 <template>
 <section class="water-change-page">
-      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-plus" :disabled="!canRecord || !tanks.length" @click="openCreate">Ghi lần thay nước</v-btn></div>
+      <header class="care-panel-heading water-change-heading"><div class="care-panel-title"><span class="care-panel-icon"><v-icon icon="mdi-water-sync" size="24" /></span><h2>Nhật kí thay nước</h2></div>      <div class="page-actions list-actions"><v-btn color="primary" prepend-icon="mdi-plus" :disabled="!canRecord || !tanks.length" @click="openCreate">Ghi lần thay nước</v-btn></div></header>
       <v-card class="list-card care-list-card" elevation="0">
 
-      <div class="filter-row">
+      <div class="filter-row list-controls">
         <slot name="filters" />
         <DateRange v-model="filters" />
       </div>
@@ -167,15 +167,15 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
       <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem nhật ký.</div>
       <p v-else-if="!listLoading && !logs.length" class="empty-message">Chưa có nhật ký thay nước phù hợp.</p>
       <div v-else class="table-wrap">
-        <v-table class="app-data-table log-table" density="comfortable">
+        <v-table class="mobile-records app-data-table log-table" density="comfortable">
           <thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Tỷ lệ thay</th><th>Người ghi</th><th>Ghi chú</th></tr></thead>
           <tbody>
             <tr v-for="item in logs" :key="item.id">
-              <td>{{ formatDateTime(item.performedAt) }}</td>
-              <td><strong>{{ item.tank.name }}</strong><small>{{ item.tank.code }}</small></td>
-              <td><strong>{{ formatNumber(item.waterChangePercentage) }}%</strong></td>
-              <td>{{ item.performer.displayName || item.performer.email }}</td>
-              <td class="note-cell">{{ item.notes || '—' }}</td>
+              <td data-label="Thời gian">{{ formatDateTime(item.performedAt) }}</td>
+              <td data-label="Ao/bể"><strong>{{ item.tank.name }}</strong><small>{{ item.tank.code }}</small></td>
+              <td data-label="Tỷ lệ thay"><div class="water-change-rate"><strong>{{ formatNumber(item.waterChangePercentage) }}%</strong><v-progress-linear :model-value="Number(item.waterChangePercentage)" color="primary" height="5" rounded :aria-label="`Tỷ lệ thay nước ${formatNumber(item.waterChangePercentage)}%`" /></div></td>
+              <td data-label="Người ghi">{{ item.performer.displayName || item.performer.email }}</td>
+              <td data-label="Ghi chú" class="note-cell">{{ item.notes || '—' }}</td>
             </tr>
           </tbody>
         </v-table>
@@ -186,6 +186,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
 
       <v-dialog v-model="dialog" max-width="560">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>Ghi nhật ký thay nước</v-card-title>
           <v-card-text>
             <v-form ref="formRef" @submit.prevent="saveLog">
@@ -204,30 +205,6 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
 </template>
 
 <style scoped>
-.water-change-page { color:#173f3a; }
-.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }
-.eyebrow { margin:0 0 8px; color:#078575; font-size:10px; font-weight:800; letter-spacing:1px; }
-h2 { margin:0; font-size:29px; line-height:1.2; font-weight:800; }
-.subtitle { margin:8px 0 0; color:#71827e; font-size:13px; }
-.filter-row { display:grid; grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto; align-items:center; gap:12px; margin-bottom:16px; }
-.summary-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:13px 16px; border:1px solid #d7e8e3; border-radius:8px; background:#fff; color:#71827e; font-size:12px; }
-.summary-row strong { color:#173f3a; font-size:18px; }
-.state-message { padding:34px 20px; border:1px solid #dbe9e5; border-radius:8px; color:#71827e; background:#fff; text-align:center; }
-.error-state { color:#a33b3b; }
-.table-wrap { overflow:hidden; border:1px solid #dbe9e5; border-radius:8px; background:#fff; }
-.log-table :deep(th) { color:#71827e; font-size:10px; font-weight:800; text-transform:uppercase; white-space:nowrap; }
-.log-table :deep(td) { color:#34514c; font-size:12px; }
-.log-table small { display:block; color:#83918e; font-size:10px; }
-.note-cell { max-width:300px; }
-.empty-row { height:100px; color:#83918e !important; text-align:center; }
-.table-footer { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:0 14px; border-top:1px solid #e5eeeb; color:#71827e; font-size:11px; }
-.pager { display:flex; align-items:center; gap:8px; }
-.form-card { border-radius:8px !important; }
-.form-card :deep(.v-card-title) { padding:20px 22px 8px; font-size:18px; font-weight:800; }
-.form-card :deep(.v-card-text) { padding:12px 22px; }
-@media(max-width:760px) { .page-heading { align-items:flex-start; flex-direction:column; }.filter-row { grid-template-columns:1fr 1fr; }.filter-row .v-btn { grid-column:1/-1; }.table-wrap { overflow-x:auto; } }
-.empty-message { margin: 12px 0; color: #71827e; font-size: 13px; }
-
 .water-change-page { color:#173f3a; }
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }
 .eyebrow { margin:0 0 8px; color:#078575; font-size:10px; font-weight:800; letter-spacing:1px; }

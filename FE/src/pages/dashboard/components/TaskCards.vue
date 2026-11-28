@@ -31,7 +31,7 @@ defineProps({
 .block { display: grid; gap: 10px; }
 h2 { margin: 0; color: #134e4a; font-size: 15px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.card { display: flex; flex-direction: column; gap: 4px; min-height: 108px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #dce7e4; border-left: 4px solid #b9c9c4; border-radius: 10px; background: #fff; color: inherit; text-decoration: none; transition: box-shadow .15s; }
+.card { display: flex; flex-direction: column; gap: 4px; min-height: 108px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #d8e6e3; border-left: 4px solid #b9c9c4; border-radius: 16px; background: #fff; color: inherit; text-decoration: none; transition: box-shadow .15s; }
 .card:hover { box-shadow: 0 2px 10px rgba(8, 127, 110, .1); }
 .card:focus-visible { outline: 2px solid #087f6e; outline-offset: 2px; }
 .label { color: #5f716d; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.35; }

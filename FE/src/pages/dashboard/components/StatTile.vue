@@ -19,7 +19,7 @@ defineProps({
 </template>
 
 <style scoped>
-.tile { display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #dce7e4; border-left: 4px solid #087f6e; border-radius: 10px; background: #fff; color: inherit; text-decoration: none; min-width: 0; }
+.tile { display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #d8e6e3; border-left: 4px solid #087f6e; border-radius: 16px; background: #fff; color: inherit; text-decoration: none; min-width: 0; }
 a.tile:hover, .tile.router-link-active:hover { box-shadow: 0 2px 10px rgba(8, 127, 110, .1); }
 a.tile:focus-visible { outline: 2px solid #087f6e; outline-offset: 2px; }
 .label { color: #5f716d; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }

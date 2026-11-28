@@ -165,7 +165,7 @@ onBeforeUnmount(() => controller?.abort())
 </template>
 
 <style scoped>
-.business { display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; min-width: 0; padding: 18px 20px; border: 1px solid #dce7e4; border-radius: 12px; background: #fff; }
+.business { display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; min-width: 0; padding: 18px 20px; border: 1px solid #d8e6e3; border-radius: 16px; background: #fff; }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 h2 { margin: 0; color: #134e4a; font-size: 15px; }
 .head-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
@@ -178,7 +178,7 @@ h2 { margin: 0; color: #134e4a; font-size: 15px; }
 .switch button.on { background: #087f6e; color: #fff; font-weight: 700; }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.tile { display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #dce7e4; border-radius: 10px; background: #fff; color: inherit; text-decoration: none; min-width: 0; }
+.tile { display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #d8e6e3; border-radius: 16px; background: #fff; color: inherit; text-decoration: none; min-width: 0; }
 .tile strong { color: #134e4a; font-size: 24px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .label { color: #5f716d; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .sub { color: #5f716d; font-size: 12px; }
