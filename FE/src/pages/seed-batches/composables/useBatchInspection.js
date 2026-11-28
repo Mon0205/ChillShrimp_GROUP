@@ -1,10 +1,15 @@
+import { ref } from 'vue'
 import { showToast } from '../../../composables/toast.js'
 import { api } from '../../../services/api.js'
 import { uploadCloudinaryFile } from '../../../services/cloudinary.js'
 import { checkPhotoFile } from '../../../utils/photo-precheck.js'
 
 export function useBatchInspection({ error, inspectionDialog, aiInspections, selectedAiInspection, inspectionUploading, inspectionSaving, inspectionAnalyzingId, aiInspectionLoading, inspectionBatch, aiInspectionError, inspectionForm, form, emptyInspectionForm, inspectionUrl, formatInspectionValue }) {
+  const inspectionPaging = ref({ page: 1, size: 10, total: 0 })
+  let historyRequest = 0
+
   function openInspectionUpload(batch) {
+    inspectionPaging.value = { page: 1, size: 10, total: 0 }
     inspectionBatch.value = batch
     inspectionForm.value = emptyInspectionForm()
     aiInspections.value = []
@@ -14,17 +19,20 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     return loadAiInspectionHistory(batch)
   }
 
-  async function loadAiInspectionHistory(batch) {
+  async function loadAiInspectionHistory(batch, page = inspectionPaging.value.page, size = inspectionPaging.value.size) {
+    const request = ++historyRequest
     aiInspectionLoading.value = true
     try {
-      const response = await api(`${inspectionUrl(batch.id)}?limit=100`)
+      const response = await api(`${inspectionUrl(batch.id)}?page=${page}&limit=${size}`)
+      if (request !== historyRequest || inspectionBatch.value?.id !== batch.id) return
+      inspectionPaging.value = { page, size, total: response.data.pagination?.total ?? response.data.items.length }
       aiInspections.value = response.data.items
       selectedAiInspection.value = aiInspections.value.find((item) => item.id === selectedAiInspection.value?.id) || aiInspections.value[0] || null
       aiInspectionError.value = ''
     } catch (err) {
-      aiInspectionError.value = err.message
+      if (request === historyRequest) aiInspectionError.value = err.message
     } finally {
-      aiInspectionLoading.value = false
+      if (request === historyRequest) aiInspectionLoading.value = false
     }
   }
 
@@ -127,7 +135,7 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
           notes: form.notes.trim() || null,
         }),
       })
-      aiInspections.value = [response.data, ...aiInspections.value.filter((item) => item.id !== response.data.id)]
+      await loadAiInspectionHistory(inspectionBatch.value, 1)
       selectedAiInspection.value = response.data
       inspectionForm.value = emptyInspectionForm()
       aiInspectionError.value = ''
@@ -163,6 +171,8 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
       await api(`${inspectionUrl(inspectionBatch.value.id)}/${inspection.id}`, { method: 'DELETE' })
       aiInspections.value = aiInspections.value.filter((item) => item.id !== inspection.id)
       if (selectedAiInspection.value?.id === inspection.id) selectedAiInspection.value = aiInspections.value[0] || null
+      const { page, size, total } = inspectionPaging.value
+      await loadAiInspectionHistory(inspectionBatch.value, Math.min(page, Math.max(1, Math.ceil((total - 1) / size))))
       showToast('Đã xóa lần kiểm tra.', 'success')
     } catch (err) {
       showToast(err.message, 'error')
@@ -170,5 +180,5 @@ export function useBatchInspection({ error, inspectionDialog, aiInspections, sel
     }
   }
 
-  return { openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection }
+  return { inspectionPaging, openInspectionUpload, loadAiInspectionHistory, runAiInspection, uploadInspectionImage, confirmPendingUpload, discardPendingUpload, saveInspectionImage, saveInspectionReview, deleteAiInspection }
 }

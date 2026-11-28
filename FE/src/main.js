@@ -5,6 +5,7 @@ import { createVuetify } from 'vuetify'
 import App from './App.vue'
 import './styles/interface.css'
 import './styles/tables.css'
+import './styles/workspace.css'
 import router from './router/index.js'
 import { installSessionHandling } from './composables/auth.js'
 
@@ -23,8 +24,11 @@ const vuetify = createVuetify({
   },
   defaults: {
     VBtn: { rounded: 'lg', elevation: 0 },
-    VTextField: { variant: 'outlined', density: 'comfortable', color: 'primary' },
-    VSelect: { variant: 'outlined', density: 'comfortable', color: 'primary' },
+    VTextField: { singleLine: true, variant: 'outlined', density: 'comfortable', color: 'primary' },
+    VSelect: { singleLine: true, variant: 'outlined', density: 'comfortable', color: 'primary' },
+    VAutocomplete: { singleLine: true },
+    VCombobox: { singleLine: true },
+    VTextarea: { singleLine: true },
     VCard: { rounded: 'lg' },
   },
 })

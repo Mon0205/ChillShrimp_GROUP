@@ -144,7 +144,7 @@ onMounted(load)
 <AppShell>
     <section class="requests-page">
       <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-clipboard-list-outline" size="25" /></v-avatar><h1>{{ canApprove ? 'Danh sách yêu cầu vật tư' : 'Yêu cầu cấp vật tư' }}</h1></div>
+        <div class="section-page-title"><div><span class="page-kicker">KHO VẬT TƯ</span><h1>{{ canApprove ? 'Danh sách yêu cầu vật tư' : 'Yêu cầu cấp vật tư' }}</h1></div></div>
       </header>
       <InventoryTabs />
       <LoadingIndicator v-if="loading" />
@@ -166,13 +166,13 @@ onMounted(load)
         </section>
         <section class="request-list">
           <h2>Danh sách yêu cầu</h2>
-          <div class="table-wrap"><v-table class="app-data-table" density="comfortable">
+          <div class="table-wrap"><v-table class="mobile-records app-data-table" density="comfortable">
             <thead><tr><th>Ngày gửi</th><th>Vật tư</th><th>Khu vực</th><th>Ao/bể nhận</th><th>Số lượng</th><th>Người yêu cầu</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
             <tbody>
               <tr v-for="item in requests" :key="item.id" class="request-row" tabindex="0" :aria-label="`Xem yêu cầu ${item.supply.name}`" @click="openDetails(item)" @keydown.enter.self.prevent="openDetails(item)" @keydown.space.self.prevent="openDetails(item)">
-                <td>{{ dateTime(item.createdAt) }}</td><td><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
-                <td>{{ item.area?.name || 'Toàn trại' }}</td><td>{{ item.tank ? `${item.tank.code} · ${item.tank.name}` : 'Chưa chỉ định' }}</td><td>{{ quantity(item.quantity) }} {{ item.supply.unit }}</td>
-                <td>{{ item.requester.displayName || item.requester.email }}</td><td><v-chip size="small" :color="statusColors[item.status]" variant="tonal">{{ statusLabels[item.status] || item.status }}</v-chip></td><td>{{ item.notes || '—' }}</td>
+                <td data-label="Ngày gửi">{{ dateTime(item.createdAt) }}</td><td data-label="Vật tư"><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
+                <td data-label="Khu vực">{{ item.area?.name || 'Toàn trại' }}</td><td data-label="Ao/bể nhận">{{ item.tank ? `${item.tank.code} · ${item.tank.name}` : 'Chưa chỉ định' }}</td><td data-label="Số lượng">{{ quantity(item.quantity) }} {{ item.supply.unit }}</td>
+                <td data-label="Người yêu cầu">{{ item.requester.displayName || item.requester.email }}</td><td data-label="Trạng thái"><v-chip size="small" :color="statusColors[item.status]" variant="tonal">{{ statusLabels[item.status] || item.status }}</v-chip></td><td data-label="Ghi chú">{{ item.notes || '—' }}</td>
               </tr>
               <tr v-if="!requests.length"><td colspan="8" class="empty-row">Chưa có yêu cầu cấp vật tư.</td></tr>
             </tbody>
@@ -182,6 +182,7 @@ onMounted(load)
       </template>
       <v-dialog v-model="detailDialog" max-width="640" :persistent="processing" scrollable>
         <v-card v-if="selectedRequest" class="request-detail">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="processing" @click="detailDialog = false" />
           <v-card-title>Chi tiết yêu cầu vật tư</v-card-title>
           <v-card-text>
             <dl class="detail-grid">

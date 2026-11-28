@@ -69,16 +69,18 @@ async function resetPassword(event) {
 
 <template>
   <main class="auth-page">
-    <div class="landscape" aria-hidden="true"><div class="sun"></div><div class="cloud"></div></div>
-    <div class="brand" aria-label="Shrimp Group"><span class="brand-symbol"><img src="../../assets/login/logo.svg" alt="" /></span><span class="brand-name">Shrimp<span> Group</span></span></div>
-    <section class="story-copy" aria-label="Giới thiệu Shrimp Group">
-      <h1>Số hóa trại giống <em>- Tối ưu vận hành.</em></h1>
-      <p>Theo dõi, quản lý và phân tích dữ liệu trại giống tập trung trên một nền tảng duy nhất.</p>
-    </section>
+    <div class="landscape" aria-hidden="true"><img src="../../assets/login/hatchery-background.webp" alt="" width="1536" height="1024" fetchpriority="high" /></div>
+    <header class="auth-header"><a class="brand" href="/login" aria-label="ChillShrimp" translate="no"><span class="brand-symbol">CS</span><span class="brand-name">ChillShrimp</span></a></header>
+    <div class="auth-layout">
+      <section class="story-copy" aria-label="Giới thiệu ChillShrimp">
+        <span class="story-eyebrow">QUẢN LÝ TRẠI GIỐNG</span>
+        <h1>Kết nối vận hành.<br />Vững từng mùa nuôi.</h1>
+        <p>Trại giống, con giống và đội ngũ.<br />Một không gian làm việc.</p>
+      </section>
     <v-card class="auth-card" elevation="0">
-      <p class="welcome">Chào mừng trở lại</p>
-      <h2>Đăng nhập vào trại.</h2>
-      <p class="muted intro">Tiếp tục chăm sóc những vụ giống của bạn.</p>
+      <span class="card-brand" aria-hidden="true">CS</span>
+      <h2>Chào mừng trở lại</h2>
+      <p class="muted intro">Đăng nhập vào không gian của bạn.</p>
       <v-form class="auth-form" @submit.prevent="submit">
         <label class="auth-field-label" for="login-email">Email</label>
         <v-text-field id="login-email" :rules="[required('email'), emailRule]" v-model="email" type="email" autocomplete="email" prepend-inner-icon="mdi-email-outline" placeholder="Nhập email của bạn" density="comfortable" variant="outlined" hide-details="auto" required />
@@ -91,9 +93,9 @@ async function resetPassword(event) {
         <v-btn type="submit" color="primary" size="large" block append-icon="mdi-arrow-right" :loading="loading">Đăng nhập</v-btn>
       </v-form>
       <div class="invite-note"><v-icon icon="mdi-account-group-outline" size="20" aria-hidden="true" /><p><strong>Chưa có tài khoản?</strong> Liên hệ quản trị viên trại để nhận lời mời.</p></div>
-      <footer class="card-footer"><span>© {{ new Date().getFullYear() }} Shrimp Group</span><span><v-icon icon="mdi-shield-check-outline" size="14" aria-hidden="true" /> Dành riêng cho đội ngũ của trại</span></footer>
     </v-card>
-    <p class="farm-note"><v-icon icon="mdi-shield-check-outline" size="17" aria-hidden="true" /> Chăm từng con giống. Vững từng vụ nuôi.</p>
+    </div>
+    <footer class="auth-footer"><span>© {{ new Date().getFullYear() }} ChillShrimp</span><span>Ảnh AI minh họa</span></footer>
     <v-dialog v-model="forgotDialog" max-width="480" aria-labelledby="forgot-title">
       <v-card class="forgot-card" elevation="0">
         <div class="forgot-heading"><div><span>KHÔI PHỤC TÀI KHOẢN</span><h2 id="forgot-title">Quên mật khẩu</h2></div><v-btn variant="text" type="button" aria-label="Đóng" @click="forgotDialog = false" icon="mdi-close" /></div>
@@ -121,18 +123,33 @@ async function resetPassword(event) {
 </template>
 
 <style scoped>
-.auth-page{position:relative;isolation:isolate;min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,29vw,410px);grid-template-rows:auto auto 1fr auto;gap:20px 32px;padding:24px 7vw 16px 5vw;color:#134e4a;font-family:var(--app-font);background:#edf5ee;box-sizing:border-box}
-.landscape{position:absolute;z-index:-1;inset:0;overflow:hidden;pointer-events:none;background:#edf5ee url('../../assets/login/farm.svg') center/100% 100% no-repeat}
-.sun{position:absolute;top:13%;left:44%;width:94px;height:94px;border-radius:50%;background:#f1e7ba80;box-shadow:0 0 0 24px #f1e7ba24}.cloud{position:absolute;top:12%;left:30%;width:140px;height:27px;background:#ffffff70;filter:blur(2px);border-radius:100%}.cloud::before{content:'';position:absolute;left:40px;bottom:0;width:65px;height:45px;border-radius:50%;background:#ffffff70}
-.brand{grid-column:1/-1;display:flex;align-items:center;gap:12px;width:max-content}.brand-symbol{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:#087f6e;box-shadow:0 6px 18px #087f6e20}.brand-symbol img{width:54px;height:54px}.brand-name{font-size:24px;letter-spacing:-.8px;font-weight:750}.brand-name span{font-weight:450}
-.story-copy{grid-column:1/-1;margin-top:8px}.story-copy h1{font-size:clamp(24px,2.5vw,38px);line-height:1.2;font-weight:600;letter-spacing:-1.3px;margin:0 0 12px;white-space:nowrap}.story-copy em{font-style:normal;color:#087f6e}.story-copy p{font-size:13px;line-height:1.6;color:#516c62;margin:0;max-width:630px}
-.auth-card{grid-column:2;align-self:center;width:100%;padding:26px 28px 20px;border:1px solid #fff!important;border-radius:24px!important;background:#fffffff2!important;box-shadow:0 24px 90px #285d3f1a,0 3px 16px #285d3f08!important;backdrop-filter:blur(16px)}
-.welcome{font-size:10px;font-weight:650;letter-spacing:1.5px;color:#087f6e;text-transform:uppercase;margin:0 0 5px}.password-label{display:flex;align-items:center;justify-content:space-between;gap:8px}.auth-card h2{font-size:27px;line-height:1.25;letter-spacing:-1px;margin:0 0 7px}.muted{color:#60756f}.intro{font-size:13px;margin:0 0 22px}.auth-form{display:grid;gap:8px}.auth-field-label{color:#365752;font-size:13px;font-weight:600;margin-top:3px}.auth-form>.v-btn[type="submit"]{height:48px;margin-top:4px;border-radius:9px}.auth-form :deep(.v-field){border-radius:9px;background:#fff}.auth-form :deep(input){font-size:16px}.auth-form :deep(input::placeholder){color:#71877e;opacity:1}
-.forgot-link,.resend-link{justify-self:end;padding:3px 0;color:#087f6e;font-size:12px;font-weight:600}.auth-form .forgot-link{min-height:36px;margin-top:0}.invite-note{display:flex;gap:10px;border-top:1px solid #dce6e2;margin-top:18px;padding-top:15px;color:#60756f;font-size:11px;line-height:1.6}.invite-note>.v-icon{margin-top:2px;color:#648477}.invite-note p{margin:0}.invite-note strong{color:#456457;font-weight:600}.card-footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid #e1e9e3;margin-top:16px;padding-top:12px;color:#60756f;font-size:9px}.card-footer span:last-child{display:flex;gap:4px;align-items:center}.farm-note{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:11px;color:#416350;margin:0}
-.forgot-card{padding:28px;border-radius:20px!important}.forgot-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.forgot-heading span{color:#087f6e;font-size:10px;font-weight:800;letter-spacing:.12em}.forgot-heading h2{margin:5px 0 0;color:#134e4a;font-size:1.55rem}.forgot-form{display:grid;gap:9px;margin-top:22px}.forgot-form>.v-btn{height:48px;margin-top:10px}.sent-to{padding:11px 13px;border-radius:10px;color:#5e7470;background:#edf8f5;font-size:12px;overflow-wrap:anywhere}
-.auth-form :deep(input:-webkit-autofill){-webkit-text-fill-color:#134e4a;-webkit-box-shadow:0 0 0 1000px #eaf4ff inset!important;box-shadow:0 0 0 1000px #eaf4ff inset!important}
-@media(min-width:1600px){.auth-page{padding-right:12vw}.story-copy{margin-top:8px}}
-@media(min-width:801px) and (max-height:800px){.auth-page{gap:16px 28px}.brand-symbol{width:44px;height:44px;border-radius:14px}.brand-symbol img{width:42px;height:42px}.story-copy{margin-top:0}.story-copy h1{font-size:clamp(23px,2.3vw,34px);margin-bottom:8px}.story-copy p{font-size:12px}.auth-card{padding:20px 24px 16px}.intro{margin-bottom:16px}}
-@media(max-width:800px){.auth-page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;padding:16px 20px;gap:18px}.brand{grid-column:1}.brand-symbol{width:40px;height:40px;border-radius:12px}.brand-symbol img{width:38px;height:38px}.brand-name{font-size:22px}.story-copy{grid-column:1;margin:0;text-align:center}.story-copy h1{font-size:clamp(13px,3.6vw,27px);letter-spacing:-.45px;margin-bottom:8px}.story-copy p{font-size:11px;line-height:1.5;max-width:440px;margin:auto}.auth-card{grid-column:1;justify-self:center;max-width:400px;align-self:center;padding:22px 23px 17px}.auth-card h2{font-size:25px}.intro{margin-bottom:18px}.farm-note{grid-column:1;justify-content:center;font-size:10px}.landscape{background-size:190% 64%;background-position:35% bottom}.sun{top:8%;left:75%;width:70px;height:70px}.cloud{top:4%;left:50%}}
-@media(max-height:620px){.auth-page{min-height:100svh;grid-template-rows:auto auto auto auto}.auth-card{align-self:start}}
+@font-face{font-family:ChillLoginManrope;src:url('../../assets/login/fonts/manrope-regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:ChillLoginManrope;src:url('../../assets/login/fonts/manrope-semibold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:ChillLoginManrope;src:url('../../assets/login/fonts/manrope-bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap}
+.auth-page{position:relative;isolation:isolate;min-height:100svh;display:flex;flex-direction:column;background:#123e35;color:#fff;font-family:ChillLoginManrope,'Segoe UI',sans-serif;box-sizing:border-box}
+.landscape{position:absolute;inset:0;z-index:-1;overflow:hidden;background:#123e35;pointer-events:none}
+.landscape img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.landscape:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#0b352ded 0%,#0c382db8 37%,#123e3538 76%),linear-gradient(0deg,#0b30295c,transparent 55%)}
+.auth-header{display:flex;align-items:center;padding:35px 5vw}
+.brand{display:flex;align-items:center;gap:10px;width:max-content;color:#f5f8f0;text-decoration:none;font-size:25px;font-weight:700;letter-spacing:-.9px}
+.brand-symbol{display:grid;place-items:center;width:33px;height:36px;border-radius:10px 10px 10px 3px;background:#b9dcc5;color:#173f32;font-size:13px;font-weight:700;letter-spacing:-.7px;box-shadow:inset 0 1px #f6fff07a}
+.auth-layout{display:grid;grid-template-columns:minmax(0,1fr) 425px;align-items:center;gap:60px;max-width:1400px;width:100%;margin:auto;padding:30px 5vw 55px;box-sizing:border-box}
+.story-eyebrow{display:block;font-size:9px;letter-spacing:2px;color:#c4dfc8;margin-bottom:23px}
+.story-copy h1{font-size:clamp(34px,4vw,57px);line-height:1.25;font-weight:600;color:#f4f9ed;letter-spacing:-2px;margin:0;text-wrap:balance}
+.story-copy p{font-size:13px;line-height:1.9;color:#d0e3d0;margin:25px 0 0}
+.auth-card{width:100%;min-width:0;padding:35px;border:1px solid #ffffffc2!important;border-radius:17px!important;background:#fffffff7!important;color:#193d30;box-shadow:0 24px 80px #082a2b38!important;backdrop-filter:blur(14px)}
+.card-brand{display:grid;place-items:center;width:42px;height:44px;border:1px solid #d8e6cf;border-radius:11px;background:#eaf3e3;color:#40693f;font-size:14px;font-weight:700;margin-bottom:24px}
+.auth-card h2{font-size:25px;line-height:1.4;font-weight:700;letter-spacing:-.9px;margin:0}
+.muted{color:#61775c}.intro{font-size:11px;margin:8px 0 27px}
+.auth-form{display:grid;gap:8px}.auth-field-label{color:#3e5d42;font-size:11px;font-weight:600;margin-top:3px}
+.password-label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.auth-form>.v-btn[type="submit"]{height:46px;margin-top:9px;border-radius:8px;font-size:12px;justify-content:space-between;padding-inline:16px;box-shadow:0 3px 8px #087f6e1c}
+.auth-form :deep(.v-field){border-radius:7px;background:#fff}.auth-form :deep(.v-field__outline){color:#dbe5d3}.auth-form :deep(.v-field--focused .v-field__outline){color:#087f6e}.auth-form :deep(input){font-family:inherit;font-size:13px;min-width:0}.auth-form :deep(input::placeholder){color:#63765c;opacity:1}.auth-form :deep(.v-input__prepend),.auth-form :deep(.v-field__prepend-inner),.auth-form :deep(.v-field__append-inner){color:#64835b}.auth-form :deep(.v-input){font-family:inherit}
+.forgot-link,.resend-link{color:#087f6e;font-size:10px;font-weight:600}.auth-form .forgot-link{min-width:0;min-height:28px;height:auto;padding:0;letter-spacing:0}
+.invite-note{display:flex;gap:10px;border-top:1px solid #e0e8d9;margin-top:25px;padding-top:21px;color:#61775c;font-size:10px;line-height:1.7}.invite-note>.v-icon{display:none}.invite-note p{margin:0}.invite-note strong{display:block;color:#3c5e40;font-weight:600;margin-bottom:3px}
+.auth-footer{display:flex;justify-content:space-between;gap:20px;padding:15px 5vw 22px;color:#e0eadf;font-size:9px}
+.forgot-card{padding:28px;border-radius:16px!important;font-family:ChillLoginManrope,'Segoe UI',sans-serif}.forgot-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.forgot-heading span{color:#087f6e;font-size:10px;font-weight:700;letter-spacing:.12em}.forgot-heading h2{margin:5px 0 0;color:#193d30;font-size:24px}.forgot-form{display:grid;gap:9px;margin-top:22px}.forgot-form>.v-btn{height:46px;margin-top:10px}.sent-to{padding:11px 13px;border-radius:8px;color:#45674f;background:#edf5e9;font-size:12px;overflow-wrap:anywhere}.forgot-form :deep(.v-input){font-family:inherit}.forgot-card>.muted,.forgot-form>p{font-size:12px}
+.auth-form :deep(input:-webkit-autofill){-webkit-text-fill-color:#193d30;-webkit-box-shadow:0 0 0 1000px #f4f8ed inset!important;box-shadow:0 0 0 1000px #f4f8ed inset!important}
+@media(max-width:1000px){.auth-layout{grid-template-columns:minmax(0,1fr) 385px;gap:35px}.auth-card{padding:29px}.story-copy h1{font-size:37px;letter-spacing:-1.4px}}
+@media(max-width:760px){.auth-header{padding:24px 22px}.brand{font-size:21px}.auth-layout{grid-template-columns:minmax(0,1fr);max-width:490px;padding:22px 20px 30px;gap:28px}.story-eyebrow{font-size:8px;margin-bottom:13px}.story-copy h1{font-size:32px;letter-spacing:-1px}.story-copy p{display:none}.auth-card{padding:27px;border-radius:13px!important}.card-brand{display:none}.auth-card h2{font-size:24px}.auth-form :deep(input){font-size:16px}.intro{margin-bottom:23px}.landscape:after{background:linear-gradient(180deg,#0b352de0,#0d3c2cb0)}.auth-footer{padding:16px 22px}.forgot-card{padding:22px}}
 </style>

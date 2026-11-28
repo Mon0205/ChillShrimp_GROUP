@@ -11,7 +11,7 @@ const canViewBusiness = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER']
 </script>
 
 <template>
-  <v-tabs :model-value="route.path" color="primary" :aria-label="props.section === 'farms' ? 'Trại giống' : 'Kinh doanh'" show-arrows>
+  <v-tabs class="workspace-section-tabs" :model-value="route.path" color="primary" :aria-label="props.section === 'farms' ? 'Trại giống' : 'Kinh doanh'" show-arrows>
     <template v-if="props.section === 'farms'">
       <v-tab value="/farms" to="/farms">Trang trại</v-tab>
       <v-tab v-if="canViewPonds" value="/ponds-tanks" to="/ponds-tanks">Ao/bể</v-tab>

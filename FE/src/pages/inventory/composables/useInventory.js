@@ -32,6 +32,7 @@ export function useInventory() {
   const importForm = ref(emptyImportForm())
   const importHistoryDialog = ref(false)
   const importHistoryLoading = ref(false)
+  const importHistoryPaging = ref({ page: 1, size: 10, total: 0 })
   const importHistory = ref([])
   const adjustmentDialog = ref(false)
   const adjustmentFormRef = ref(null)
@@ -40,6 +41,7 @@ export function useInventory() {
   const adjustmentForm = ref(emptyAdjustmentForm())
   const adjustmentHistoryDialog = ref(false)
   const adjustmentHistoryLoading = ref(false)
+  const adjustmentHistoryPaging = ref({ page: 1, size: 10, total: 0 })
   const adjustmentHistory = ref([])
 
   const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
@@ -214,14 +216,16 @@ async function submitImport() {
   finally { importing.value = false }
 }
 
-async function openImportHistory(supply) {
+async function openImportHistory(supply, requestedPage = 1, requestedSize = 10) {
+    importHistoryPaging.value = { ...importHistoryPaging.value, page: requestedPage, size: requestedSize }
   importTarget.value = supply
   importHistory.value = []
   importHistoryDialog.value = true
   importHistoryLoading.value = true
   try {
-    const result = await api(farmUrl(`/inventory-transactions/imports?supplyId=${encodeURIComponent(supply.id)}&page=1&limit=100`))
+    const result = await api(farmUrl(`/inventory-transactions/imports?supplyId=${encodeURIComponent(supply.id)}&page=${requestedPage}&limit=${requestedSize}`))
     importHistory.value = result.data.items
+      importHistoryPaging.value.total = result.data.pagination.total
   } catch (err) {
     importHistoryDialog.value = false
     showToast(err.message, 'error')
@@ -253,14 +257,16 @@ async function openImportHistory(supply) {
     finally { adjusting.value = false }
   }
 
-  async function openAdjustmentHistory(supply) {
+  async function openAdjustmentHistory(supply, requestedPage = 1, requestedSize = 10) {
+    adjustmentHistoryPaging.value = { ...adjustmentHistoryPaging.value, page: requestedPage, size: requestedSize }
     adjustmentTarget.value = supply
     adjustmentHistory.value = []
     adjustmentHistoryDialog.value = true
     adjustmentHistoryLoading.value = true
     try {
-      const result = await api(farmUrl(`/inventory-transactions/adjustments?supplyId=${encodeURIComponent(supply.id)}&page=1&limit=100`))
+      const result = await api(farmUrl(`/inventory-transactions/adjustments?supplyId=${encodeURIComponent(supply.id)}&page=${requestedPage}&limit=${requestedSize}`))
       adjustmentHistory.value = result.data.items
+      adjustmentHistoryPaging.value.total = result.data.pagination.total
     } catch (err) {
       adjustmentHistoryDialog.value = false
       showToast(err.message, 'error')
@@ -280,5 +286,5 @@ async function openImportHistory(supply) {
   })
   onMounted(loadPage)
 
-  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, farmId, canManage, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
+  return { supplies, loading, listLoading, saving, deleting, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, dialog, formRef, editingSupply, deletingSupply, form, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistoryPaging, importHistory, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistoryPaging, adjustmentHistory, farmId, canManage, pageCount, categoryOptions, categoryNames, requiredRule, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, importQuantityRule, importPriceRule, importDateRule, adjustmentQuantityRule, adjustmentDateRule, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, submitImport, openImportHistory, openAdjustment, submitAdjustment, openAdjustmentHistory, formatDateTime, saveSupply, deleteSupply, ref }
 }

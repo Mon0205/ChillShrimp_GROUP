@@ -7,7 +7,7 @@ import AppShell from '../../components/shell/index.vue'
 import { useInventory } from './composables/useInventory.js'
 
 const model = useInventory()
-const { supplies, loading, listLoading, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, deletingSupply, farmId, canManage, pageCount, categoryOptions, categoryNames, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, openImportHistory, openAdjustment, openAdjustmentHistory, deleting, deleteSupply, saving, dialog, formRef, editingSupply, form, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, saveSupply, ref, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistory, requiredRule, importQuantityRule, importPriceRule, importDateRule, submitImport, formatDateTime, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistory, adjustmentQuantityRule, adjustmentDateRule, submitAdjustment } = model
+const { supplies, loading, listLoading, error, query, categoryFilter, lowStockOnly, page, pageSize, pagination, deletingSupply, farmId, canManage, pageCount, categoryOptions, categoryNames, formatNumber, loadSupplies, applyFilters, openCreate, openEdit, openImport, openImportHistory, openAdjustment, openAdjustmentHistory, deleting, deleteSupply, saving, dialog, formRef, editingSupply, form, nameRules, unitRules, categoryRules, priceRules, thresholdRules, descriptionRules, saveSupply, ref, importDialog, importFormRef, importing, importTarget, importForm, importHistoryDialog, importHistoryLoading, importHistoryPaging, importHistory, requiredRule, importQuantityRule, importPriceRule, importDateRule, submitImport, formatDateTime, adjustmentDialog, adjustmentFormRef, adjusting, adjustmentTarget, adjustmentForm, adjustmentHistoryDialog, adjustmentHistoryLoading, adjustmentHistoryPaging, adjustmentHistory, adjustmentQuantityRule, adjustmentDateRule, submitAdjustment } = model
 const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable":false},{"title":"Nhóm","key":"category","sortable":false},{"title":"Đơn vị","key":"unit","sortable":false},{"title":"Tồn hiện tại","key":"quantity","sortable":false},{"title":"Đơn giá","key":"unitPrice","sortable":false},{"title":"Ngưỡng cảnh báo","key":"minThreshold","sortable":false},{"title":"Thao tác","key":"actions","sortable":false,"align":"end"}].filter(header => canManage.value || header.key !== 'actions'))
 </script>
 
@@ -16,35 +16,34 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
   <AppShell>
     <section class="supplies-page">
       <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-archive-outline" size="25" /></v-avatar><h1>Danh mục vật tư</h1></div>
-      </header>
-      <InventoryTabs />
+        <div class="section-page-title"><div><span class="page-kicker">KHO VẬT TƯ</span><h1>Kho vật tư</h1></div></div>
       <div class="page-actions list-actions">
           <v-btn v-if="canManage && farmId" color="primary" prepend-icon="mdi-plus" @click="openCreate">Thêm vật tư</v-btn></div>
+</header>
+      <InventoryTabs />
+
 
       <v-card class="list-card" elevation="0">
-      <div class="list-toolbar">
-        <div class="list-filters"><v-select v-model="categoryFilter" :items="categoryOptions" label="Nhóm vật tư" clearable density="compact" variant="outlined" hide-details />
-        <v-select v-model="lowStockOnly" :items="[{ title: 'Tất cả', value: false }, { title: 'Sắp hết', value: true }]" label="Cảnh báo số lượng" density="compact" variant="outlined" hide-details />
-        </div>
-        <v-text-field label="Tìm vật tư" class="list-search" v-model="query" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+      <div class="list-controls">
+        <v-text-field class="list-filter-search" aria-label="Tìm vật tư" placeholder="Tìm vật tư" v-model="query" prepend-inner-icon="mdi-magnify" clearable density="compact" variant="outlined" hide-details />
+        <v-select :model-value="categoryFilter || null" @update:model-value="categoryFilter = $event ?? ''" :items="categoryOptions" aria-label="Nhóm vật tư" placeholder="Nhóm vật tư" clearable density="compact" variant="outlined" hide-details />
+        <v-select v-model="lowStockOnly" :items="[{ title: 'Tất cả mức tồn kho', value: false }, { title: 'Sắp hết', value: true }]" aria-label="Cảnh báo số lượng" placeholder="Cảnh báo số lượng" density="compact" variant="outlined" hide-details />
       </div>
 
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
       <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem vật tư.</div>
       <div v-else class="supplies-list">
-        <v-data-table-server class="app-data-table supplies-table" density="comfortable" :headers="tableHeaders" :items="supplies" :items-length="pagination.total" :loading="listLoading" v-model:page="page" v-model:items-per-page="pageSize" :items-per-page-options="[10, 25, 50, 100]" items-per-page-text="Số dòng" page-text="{0}–{1} / {2}">
+        <v-data-table-server class="mobile-records app-data-table supplies-table" density="comfortable" :headers="tableHeaders" :items="supplies" :items-length="pagination.total" :loading="listLoading" v-model:page="page" v-model:items-per-page="pageSize" :items-per-page-options="[10, 25, 50, 100]" items-per-page-text="Số dòng" page-text="{0}–{1} / {2}">
           <template #body>
-          <tbody>
             <tr v-for="item in supplies" :key="item.id">
-              <td><strong>{{ item.name }}</strong><small v-if="item.description" class="description">{{ item.description }}</small></td>
-              <td>{{ categoryNames[item.category] || item.category }}</td>
-              <td>{{ item.unit }}</td>
-              <td><span :class="['quantity', { low: item.isBelowThreshold }]">{{ formatNumber(item.quantity) }} {{ item.unit }}</span><small v-if="item.isBelowThreshold" class="low-note">Sắp hết</small></td>
-              <td>{{ formatNumber(item.unitPrice, 2) }}</td>
-              <td>{{ formatNumber(item.minThreshold) }} {{ item.unit }}</td>
-              <td v-if="canManage" class="action-col">
+              <td data-label="Vật tư"><strong>{{ item.name }}</strong><small v-if="item.description" class="description">{{ item.description }}</small></td>
+              <td data-label="Nhóm">{{ categoryNames[item.category] || item.category }}</td>
+              <td data-label="Đơn vị">{{ item.unit }}</td>
+              <td data-label="Tồn hiện tại"><span :class="['quantity', { low: item.isBelowThreshold }]">{{ formatNumber(item.quantity) }} {{ item.unit }}</span><small v-if="item.isBelowThreshold" class="low-note">Sắp hết</small></td>
+              <td data-label="Đơn giá">{{ formatNumber(item.unitPrice, 2) }}</td>
+              <td data-label="Ngưỡng cảnh báo">{{ formatNumber(item.minThreshold) }} {{ item.unit }}</td>
+              <td v-if="canManage" class="action-col" data-label="Thao tác">
                 <v-btn icon="mdi-tray-arrow-down" variant="text" size="small" :aria-label="`Nhập kho ${item.name}`" title="Nhập kho" @click="openImport(item)" />
                 <v-btn icon="mdi-history" variant="text" size="small" :aria-label="`Lịch sử nhập kho ${item.name}`" title="Lịch sử nhập kho" @click="openImportHistory(item)" />
                 <v-btn icon="mdi-swap-vertical" variant="text" size="small" :aria-label="`Điều chỉnh tồn ${item.name}`" title="Điều chỉnh tồn kho" @click="openAdjustment(item)" />
@@ -54,7 +53,6 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
               </td>
             </tr>
             <tr v-if="!listLoading && !supplies.length"><td :colspan="canManage ? 7 : 6" class="empty-row">{{ lowStockOnly ? 'Không có vật tư nào sắp hết.' : 'Chưa có vật tư phù hợp.' }}</td></tr>
-          </tbody>
         </template><template #bottom /></v-data-table-server>
         <Pagination v-model:page="page" v-model:page-size="pageSize" :total="pagination.total" :loading="listLoading" />
 </div>
@@ -63,6 +61,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
 
       <v-dialog v-model="dialog" max-width="650">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="saving" @click="dialog = false" />
           <v-card-title>{{ editingSupply ? 'Cập nhật vật tư' : 'Thêm vật tư' }}</v-card-title>
           <v-card-text>
             <v-form ref="formRef" @submit.prevent="saveSupply">
@@ -82,6 +81,7 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
       </v-dialog>
     <v-dialog v-model="importDialog" max-width="580">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="importing" @click="importDialog = false" />
           <v-card-title>Nhập kho{{ importTarget ? ` · ${importTarget.name}` : '' }}</v-card-title>
           <v-card-text>
             <v-form ref="importFormRef" @submit.prevent="submitImport">
@@ -104,16 +104,19 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-card-text>
             <LoadingIndicator v-if="importHistoryLoading" />
             <div v-else-if="!importHistory.length" class="state-message">Chưa có giao dịch nhập kho.</div>
-            <div v-else class="history-table-wrap"><v-table class="app-data-table" density="comfortable">
+            <div v-else class="history-table-wrap"><v-table class="mobile-records app-data-table" density="comfortable">
               <thead><tr><th>Thời gian</th><th>Số lượng</th><th>Đơn giá</th><th>Người nhập</th><th>Ghi chú</th></tr></thead>
-              <tbody><tr v-for="item in importHistory" :key="item.id"><td>{{ formatDateTime(item.transactionDate) }}</td><td>{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td><td>{{ formatNumber(item.unitPrice, 2) }}</td><td>{{ item.creator.displayName || item.creator.email }}</td><td>{{ item.notes || '—' }}</td></tr></tbody>
-            </v-table></div>
+              <tbody><tr v-for="item in importHistory" :key="item.id"><td data-label="Thời gian">{{ formatDateTime(item.transactionDate) }}</td><td data-label="Số lượng">{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td><td data-label="Đơn giá">{{ formatNumber(item.unitPrice, 2) }}</td><td data-label="Người nhập">{{ item.creator.displayName || item.creator.email }}</td><td data-label="Ghi chú">{{ item.notes || '—' }}</td></tr></tbody>
+            </v-table>
+</div>
+            <Pagination :page="importHistoryPaging.page" :page-size="importHistoryPaging.size" :total="importHistoryPaging.total" :loading="importHistoryLoading" @update:page="openImportHistory(importTarget, $event, importHistoryPaging.size)" @update:page-size="openImportHistory(importTarget, 1, $event)" />
           </v-card-text>
           <v-card-actions><v-spacer /><v-btn variant="text" @click="importHistoryDialog = false">Đóng</v-btn></v-card-actions>
         </v-card>
       </v-dialog>
     <v-dialog v-model="adjustmentDialog" max-width="580">
         <v-card class="form-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" :disabled="adjusting" @click="adjustmentDialog = false" />
           <v-card-title>Điều chỉnh tồn kho{{ adjustmentTarget ? ` · ${adjustmentTarget.name}` : '' }}</v-card-title>
           <v-card-text>
             <p class="adjustment-stock">Tồn hiện tại: <strong>{{ formatNumber(adjustmentTarget?.quantity) }} {{ adjustmentTarget?.unit }}</strong></p>
@@ -136,10 +139,12 @@ const tableHeaders = computed(() => [{"title":"Vật tư","key":"name","sortable
           <v-card-text>
             <LoadingIndicator v-if="adjustmentHistoryLoading" />
             <div v-else-if="!adjustmentHistory.length" class="state-message">Chưa có giao dịch điều chỉnh.</div>
-            <div v-else class="history-table-wrap"><v-table class="app-data-table" density="comfortable">
+            <div v-else class="history-table-wrap"><v-table class="mobile-records app-data-table" density="comfortable">
               <thead><tr><th>Thời gian</th><th>Biến động</th><th>Tồn thay đổi</th><th>Người ghi</th><th>Lý do</th></tr></thead>
-              <tbody><tr v-for="item in adjustmentHistory" :key="item.id"><td>{{ formatDateTime(item.transactionDate) }}</td><td>{{ Number(item.quantity) > 0 ? 'Tăng' : 'Giảm' }}</td><td>{{ formatNumber(Math.abs(Number(item.quantity))) }} {{ item.supply.unit }}</td><td>{{ item.creator.displayName || item.creator.email }}</td><td>{{ item.notes }}</td></tr></tbody>
-            </v-table></div>
+              <tbody><tr v-for="item in adjustmentHistory" :key="item.id"><td data-label="Thời gian">{{ formatDateTime(item.transactionDate) }}</td><td data-label="Biến động">{{ Number(item.quantity) > 0 ? 'Tăng' : 'Giảm' }}</td><td data-label="Tồn thay đổi">{{ formatNumber(Math.abs(Number(item.quantity))) }} {{ item.supply.unit }}</td><td data-label="Người ghi">{{ item.creator.displayName || item.creator.email }}</td><td data-label="Lý do">{{ item.notes }}</td></tr></tbody>
+            </v-table>
+</div>
+            <Pagination :page="adjustmentHistoryPaging.page" :page-size="adjustmentHistoryPaging.size" :total="adjustmentHistoryPaging.total" :loading="adjustmentHistoryLoading" @update:page="openAdjustmentHistory(adjustmentTarget, $event, adjustmentHistoryPaging.size)" @update:page-size="openAdjustmentHistory(adjustmentTarget, 1, $event)" />
           </v-card-text>
           <v-card-actions><v-spacer /><v-btn variant="text" @click="adjustmentHistoryDialog = false">Đóng</v-btn></v-card-actions>
         </v-card>

@@ -1,0 +1,178 @@
+<script setup>
+import LocalPages from '../../components/pagination/LocalPages.vue'
+import AppShell from '../../components/shell/index.vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { loadFarmContext, useFarmContext } from '../../composables/farm-context.js'
+import { showToast } from '../../composables/toast.js'
+import { api } from '../../services/api.js'
+
+const farmContext = useFarmContext()
+const loading = ref(true)
+const error = ref('')
+const reportLoading = ref(false)
+const reportError = ref('')
+const feedingReport = ref(null)
+const reportTanks = ref([])
+const reportFilters = ref(defaultReportFilters())
+let reportRequest = 0
+let tankRequest = 0
+let disposed = false
+onUnmounted(() => { disposed = true; reportRequest++; tankRequest++ })
+const farms = computed(() => farmContext.farms)
+const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmContext.farmId))
+const canViewFeedingReport = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(selectedFarm.value?.role))
+const selectedScope = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm.value?.role) ? 'Toàn trại' : selectedFarm.value?.area?.name || 'Khu vực được gán')
+
+function localDateString(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+function defaultReportFilters() {
+  const to = new Date()
+  const from = new Date(to)
+  from.setDate(from.getDate() - 29)
+  return { from: localDateString(from), to: localDateString(to), tankId: '' }
+}
+
+function reportDate(value, endOfDay = false) {
+  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`).toISOString()
+}
+
+function formatReportAmount(value, digits = 3) {
+  return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: digits })
+}
+
+function formatReportTime(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+}
+
+function formatReportDay(value) {
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(`${value}T12:00:00`))
+}
+
+async function loadFeedingTanks() {
+  const request = ++tankRequest
+  const farmId = farmContext.farmId
+  reportTanks.value = []
+  if (!farmId || !canViewFeedingReport.value) return
+  try {
+    const response = await api(`/farms/${encodeURIComponent(farmId)}/ponds-tanks`)
+    if (!disposed && request === tankRequest && farmId === farmContext.farmId) reportTanks.value = response.data
+  } catch (err) {
+    if (!disposed && request === tankRequest && farmId === farmContext.farmId) reportError.value = err.message
+  }
+}
+
+async function loadFeedingReport() {
+  const request = ++reportRequest
+  const farmId = farmContext.farmId
+  feedingReport.value = null
+  reportError.value = ''
+  reportLoading.value = false
+  if (!farmId || !canViewFeedingReport.value) return
+  if (!reportFilters.value.from || !reportFilters.value.to || reportFilters.value.from > reportFilters.value.to) {
+    reportError.value = 'Chọn khoảng ngày hợp lệ.'
+    return
+  }
+  reportLoading.value = true
+  const current = () => !disposed && request === reportRequest && farmId === farmContext.farmId
+  try {
+    const params = new URLSearchParams({ from: reportDate(reportFilters.value.from), to: reportDate(reportFilters.value.to, true) })
+    if (reportFilters.value.tankId) params.set('tankId', reportFilters.value.tankId)
+    const response = await api(`/farms/${encodeURIComponent(farmId)}/reports/feeding?${params}`)
+    if (current()) feedingReport.value = response.data
+  } catch (err) {
+    if (current()) { reportError.value = err.message; showToast(err.message, 'error') }
+  } finally { if (current()) reportLoading.value = false }
+}
+
+async function loadDashboard() {
+  try {
+    await loadFarmContext()
+    if (disposed) return
+    loading.value = false
+    await Promise.all([loadFeedingTanks(), loadFeedingReport()])
+  }
+  catch (err) { error.value = err.message; showToast(err.message, 'error') }
+  finally { loading.value = false }
+}
+
+watch(() => [farmContext.farmId, selectedFarm.value?.role, selectedFarm.value?.area?.id], () => {
+  reportFilters.value = defaultReportFilters()
+  reportTanks.value = []
+  if (!loading.value) Promise.all([loadFeedingTanks(), loadFeedingReport()])
+}, { flush: 'sync' })
+
+onMounted(loadDashboard)
+</script>
+
+<template>
+<AppShell>
+<header class="page-header"><div class="section-page-title"><div><span class="page-kicker">BÁO CÁO</span><h1>Báo cáo cho ăn</h1></div></div></header>
+<v-progress-linear v-if="loading" indeterminate color="primary" />
+<div v-else-if="error" class="notice error-notice">{{ error }}</div>
+<template v-else-if="farms.length">
+      <v-card v-if="canViewFeedingReport" class="overview-card feeding-report" elevation="0">
+        <div class="report-heading">
+          <div><span class="eyebrow">BÁO CÁO VẬN HÀNH</span><h2>Thức ăn đã ghi nhận</h2><p>{{ selectedScope }} · Nhật ký cho ăn đã lưu</p></div>
+          <v-btn to="/feeding-logs" color="primary" variant="outlined">Mở nhật ký</v-btn>
+        </div>
+        <div class="report-filters list-controls">
+          <v-text-field v-model="reportFilters.from" type="date" aria-label="Từ ngày" prefix="Từ ngày" density="compact" variant="outlined" hide-details />
+          <v-text-field v-model="reportFilters.to" type="date" aria-label="Đến ngày" prefix="Đến ngày" density="compact" variant="outlined" hide-details />
+          <v-select :model-value="reportFilters.tankId || null" @update:model-value="reportFilters.tankId = $event ?? ''" :items="reportTanks" item-title="name" item-value="id" aria-label="Ao/bể" placeholder="Ao/bể" clearable density="compact" variant="outlined" hide-details />
+          <v-btn color="primary" :loading="reportLoading" @click="loadFeedingReport">Cập nhật</v-btn>
+        </div>
+        <v-progress-linear v-if="reportLoading" indeterminate color="primary" />
+        <div v-else-if="reportError" class="notice error-notice">{{ reportError }}</div>
+        <template v-else-if="feedingReport">
+          <div class="report-meta">{{ feedingReport.totalFeedings }} lần ghi nhận trong khoảng đã chọn</div>
+          <div v-if="feedingReport.amountsByUnit.length" class="report-summary">
+            <article v-for="item in feedingReport.amountsByUnit" :key="item.unit" class="report-stat">
+              <span>Tổng lượng thực tế · {{ item.unit }}</span><strong>{{ formatReportAmount(item.actualAmount) }} {{ item.unit }}</strong>
+              <small>{{ item.feedingCount }} lần cho ăn</small>
+            </article>
+          </div>
+          <div v-else class="report-empty">Chưa có nhật ký cho ăn trong khoảng thời gian này.</div>
+
+          <div class="report-comparison">
+          <div v-if="feedingReport.byTank.length" class="report-block">
+            <h3>Theo ao/bể và đơn vị</h3>
+            <LocalPages :items="feedingReport.byTank || []" v-slot="{ rows: pageRows }">
+<v-table class="mobile-records app-data-table" density="comfortable"><thead><tr><th>Ao/bể</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
+              <tbody><tr v-for="row in pageRows" :key="`${row.tankId}-${row.unit}`"><td data-label="Ao/bể">{{ row.tankCode }} · {{ row.tankName }}</td><td data-label="Đơn vị">{{ row.unit }}</td><td data-label="Thực tế">{{ formatReportAmount(row.actualAmount) }}</td><td data-label="Số lần">{{ row.feedingCount }}</td></tr></tbody>
+            </v-table>
+</LocalPages>
+          </div>
+
+          <div v-if="feedingReport.daily.length" class="report-block">
+            <h3>Theo ngày</h3>
+            <LocalPages :items="feedingReport.daily || []" v-slot="{ rows: pageRows }">
+<v-table class="mobile-records app-data-table" density="comfortable"><thead><tr><th>Ngày</th><th>Đơn vị</th><th>Thực tế</th><th>Số lần</th></tr></thead>
+              <tbody><tr v-for="row in pageRows" :key="`${row.date}-${row.unit}`"><td data-label="Ngày">{{ formatReportDay(row.date) }}</td><td data-label="Đơn vị">{{ row.unit }}</td><td data-label="Thực tế">{{ formatReportAmount(row.actualAmount) }}</td><td data-label="Số lần">{{ row.feedingCount }}</td></tr></tbody>
+            </v-table>
+</LocalPages>
+          </div>
+
+          </div>
+          <div v-if="feedingReport.recent.length" class="report-block">
+            <h3>12 nhật ký gần đây nhất trong khoảng đã chọn</h3>
+            <LocalPages :items="feedingReport.recent || []" v-slot="{ rows: pageRows }">
+<v-table class="mobile-records app-data-table" density="comfortable"><thead><tr><th>Thời gian</th><th>Ao/bể</th><th>Thức ăn</th><th>Lượng ghi nhận</th><th>Sàng ăn</th></tr></thead>
+              <tbody><tr v-for="row in pageRows" :key="row.id"><td data-label="Thời gian">{{ formatReportTime(row.feedingTime) }}</td><td data-label="Ao/bể">{{ row.tankCode }} · {{ row.tankName }}</td><td data-label="Thức ăn">{{ row.feedName }}</td><td data-label="Lượng ghi nhận">{{ formatReportAmount(row.amount) }} {{ row.unit }}</td><td data-label="Sàng ăn">{{ ({ consumed: 'Đã ăn hết', leftover: 'Còn thức ăn', not_checked: 'Chưa kiểm tra' })[row.feedCheckStatus] || '—' }}</td></tr></tbody>
+            </v-table>
+</LocalPages>
+          </div>
+        </template>
+      </v-card>
+<div v-if="!canViewFeedingReport" class="notice">Vai trò hiện tại không có quyền xem báo cáo cho ăn.</div>
+</template>
+<v-card v-else class="empty-card" elevation="0"><h2>Chưa có trang trại</h2><p>Chọn hoặc tạo trang trại để xem báo cáo.</p><v-btn to="/farms" color="primary">Quản lý trang trại</v-btn></v-card>
+</AppShell>
+</template>
+<style scoped>
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px}.page-header p{margin:0;color:#70817e;font-size:13px}.page-actions{display:flex;gap:10px}.eyebrow{display:block;margin-bottom:8px;color:#087f6e;font-size:10px;font-weight:800;letter-spacing:.13em}h1{margin:0 0 9px;color:#134e4a;font-size:clamp(1.85rem,3vw,2.55rem)}h2{margin:0;color:#134e4a;font-size:1.25rem}.notice{padding:16px;border-radius:12px;font-size:13px}.error-notice{color:#9b3e3e;background:#fff0ef}.metrics-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.metric-card,.overview-card,.empty-card{border:1px solid #dce7e4!important;border-radius:18px!important;background:white!important}.metric-card{display:grid;gap:8px;padding:22px}.metric-card span,.detail-label{color:#82908d;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.metric-card strong{color:#087f6e;font-size:28px}.metric-card small{color:#74837f;font-size:11px}.metric-role{font-size:18px!important}.overview-card{margin-top:20px;padding:26px}.overview-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:20px;border-bottom:1px solid #e5ecea}.farm-code{padding:6px 10px;border-radius:8px;color:#087f6e;background:#e7f4f1;font-size:11px;font-weight:800}.overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:22px 0}.overview-grid div{display:grid;gap:7px}.overview-grid strong{color:#365751;font-size:13px}.overview-actions{display:flex;justify-content:flex-end;gap:4px}.empty-card{padding:46px;text-align:center}.empty-icon{width:48px;height:48px;display:grid;place-items:center;margin:0 auto 14px;border-radius:14px;color:#087f6e;background:#e7f4f1;font-size:25px}.empty-card p{margin:8px 0 20px;color:#70817e;font-size:13px}@media(max-width:760px){.page-header{align-items:stretch;flex-direction:column}.page-actions .v-btn{flex:1}.metrics-grid,.overview-grid{grid-template-columns:1fr}.overview-actions{justify-content:stretch;flex-direction:column}.empty-card{padding:34px 22px}}
+.feeding-report{display:grid;gap:18px}.report-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.report-heading p{margin:7px 0 0;color:#71827e;font-size:12px}.report-filters{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid #e5ecea}.report-meta{color:#71827e;font-size:11px}.report-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.report-stat{display:grid;gap:5px;padding:15px;border:1px solid #dce7e4;border-radius:9px;background:#fff}.report-stat span,.report-stat small{color:#71827e;font-size:10px}.report-stat strong{color:#087f6e;font-size:20px}.report-block{overflow:hidden;border:1px solid #e1eae7;border-radius:8px}.report-block h3{margin:0;padding:13px 15px;border-bottom:1px solid #e5ecea;color:#315650;font-size:13px}.report-block :deep(th){color:#71827e;font-size:10px;font-weight:800;text-transform:uppercase;white-space:nowrap}.report-block :deep(td){color:#34514c;font-size:11px;white-space:nowrap}.report-empty{margin:0;color:#71827e;font-size:12px}@media(max-width:760px){.report-heading{align-items:stretch;flex-direction:column}.report-filters{grid-template-columns:1fr 1fr}.report-filters .v-btn{grid-column:1/-1}.report-block{overflow-x:auto}}
+</style>

@@ -75,12 +75,12 @@ async function resetWithOtp(event) {
 
 <template>
 <AppShell>
-    <div class="page-heading"><span>HỒ SƠ TÀI KHOẢN</span><h1>Thông tin cá nhân</h1><p>Cập nhật thông tin liên hệ và bảo vệ tài khoản của bạn.</p></div>
+    <header class="page-header"><div><span class="page-kicker">CÁ NHÂN</span><h1>Thông tin cá nhân</h1></div></header>
     <v-progress-linear v-if="loading" indeterminate color="primary" rounded />
     <template v-else-if="profile">
       <div class="profile-grid">
         <v-card class="profile-card" elevation="0">
-          <h2>Thông tin tài khoản</h2><p>Email và chức vụ do hệ thống quản lý nên không thể chỉnh sửa.</p>
+          <div class="settings-heading"><v-icon icon="mdi-account-outline" /><h2>Thông tin tài khoản</h2><p>Email và chức vụ do hệ thống quản lý.</p></div>
           <v-form class="profile-form" @submit.prevent="saveProfile">
             <label>Họ và tên</label><v-text-field :rules="[required('họ tên'), maxLength(100)]" v-model="form.displayName" hide-details="auto" required />
             <label>Email</label><v-text-field :model-value="profile.email" disabled hide-details="auto" />
@@ -91,7 +91,7 @@ async function resetWithOtp(event) {
         </v-card>
 
         <v-card class="profile-card" elevation="0">
-          <h2>Bảo mật</h2><p>Đổi bằng mật khẩu hiện tại hoặc xác nhận OTP gửi về email.</p>
+          <div class="settings-heading"><v-icon icon="mdi-shield-lock-outline" /><h2>Bảo mật</h2><p>Đổi mật khẩu hoặc xác nhận qua email.</p></div><div class="settings-security">
           <v-tabs v-model="tab" color="primary" grow><v-tab value="current">Có mật khẩu cũ</v-tab><v-tab value="otp">Quên mật khẩu</v-tab></v-tabs>
           <v-window v-model="tab">
             <v-window-item value="current">
@@ -113,6 +113,7 @@ async function resetWithOtp(event) {
               </v-form>
             </v-window-item>
           </v-window>
+          </div>
         </v-card>
       </div>
     </template>

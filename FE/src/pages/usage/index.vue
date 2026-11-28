@@ -71,28 +71,27 @@ watch(pageSize, () => { if (page.value === 1) loadTransactions(); else page.valu
 <AppShell>
     <section class="usage-page">
       <header class="page-heading">
-        <div class="section-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-archive-outline" size="25" /></v-avatar><h1>Danh mục vật tư</h1></div>
+        <div class="section-page-title"><div><span class="page-kicker">KHO VẬT TƯ</span><h1>Lịch sử cấp vật tư</h1></div></div>
       </header>
       <InventoryTabs />
-      <p class="subtitle">Yêu cầu được duyệt sẽ tự động ghi vào lịch sử và trừ tồn kho. Các giao dịch cũ vẫn được giữ lại.</p>
 
 
       <LoadingIndicator v-if="loading" />
       <div v-else-if="error" class="state-message error-state">{{ error }}</div>
       <div v-else-if="!farmId" class="state-message">Chọn trang trại để xem giao dịch.</div>
       <div v-else class="table-wrap">
-        <v-table class="app-data-table usage-table" density="comfortable">
+        <v-table class="mobile-records app-data-table usage-table" density="comfortable">
           <thead><tr><th>Thời gian</th><th>Vật tư</th><th>Số lượng cấp</th><th>Khu vực / lô</th><th>Người duyệt / ghi</th><th>Ghi chú</th></tr></thead>
           <tbody>
             <tr v-for="item in transactions" :key="item.id">
-              <td>{{ formatDateTime(item.transactionDate) }}</td>
-              <td><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
-              <td>{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td>
-              <td v-if="item.supplyRequest">{{ item.supplyRequest.area?.name || 'Toàn trại' }}<small v-if="item.supplyRequest.tank">{{ item.supplyRequest.tank.code }} · {{ item.supplyRequest.tank.name }}</small><small>Người yêu cầu: {{ item.supplyRequest.requester.displayName || item.supplyRequest.requester.email }}</small></td>
-              <td v-else-if="item.batch"><strong>{{ item.batch.batchCode }}</strong><small>{{ item.batch.tank.name }} · {{ item.batch.tank.code }}</small></td>
-              <td v-else>Trang trại</td>
-              <td>{{ item.creator.displayName || item.creator.email }}</td>
-              <td class="notes-cell">{{ item.notes || '—' }}</td>
+              <td data-label="Thời gian">{{ formatDateTime(item.transactionDate) }}</td>
+              <td data-label="Vật tư"><strong>{{ item.supply.name }}</strong><small>{{ item.supply.category }}</small></td>
+              <td data-label="Số lượng cấp">{{ formatNumber(item.quantity) }} {{ item.supply.unit }}</td>
+              <td v-if="item.supplyRequest" data-label="Khu vực / lô">{{ item.supplyRequest.area?.name || 'Toàn trại' }}<small v-if="item.supplyRequest.tank">{{ item.supplyRequest.tank.code }} · {{ item.supplyRequest.tank.name }}</small><small>Người yêu cầu: {{ item.supplyRequest.requester.displayName || item.supplyRequest.requester.email }}</small></td>
+              <td v-else-if="item.batch" data-label="Khu vực / lô"><strong>{{ item.batch.batchCode }}</strong><small>{{ item.batch.tank.name }} · {{ item.batch.tank.code }}</small></td>
+              <td v-else data-label="Khu vực / lô">Trang trại</td>
+              <td data-label="Người duyệt / ghi">{{ item.creator.displayName || item.creator.email }}</td>
+              <td class="notes-cell" data-label="Ghi chú">{{ item.notes || '—' }}</td>
             </tr>
             <tr v-if="!listLoading && !transactions.length"><td colspan="6" class="empty-row">Chưa có lịch sử cấp vật tư.</td></tr>
           </tbody>

@@ -5,6 +5,7 @@ import SelectFarmPage from '../pages/select-farm/index.vue'
 import AlertsPage from '../pages/alerts/index.vue'
 import CareLogsPage from '../pages/care/index.vue'
 import DashboardPage from '../pages/dashboard/index.vue'
+import FeedingReportPage from '../pages/feeding-report/index.vue'
 import FarmsPage from '../pages/farms/index.vue'
 import PondsTanksPage from '../pages/ponds-tanks/index.vue'
 import SeedSuppliersPage from '../pages/seed-suppliers/index.vue'
@@ -26,6 +27,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage, meta: { guest: true } },
     { path: '/set-password', component: SetPasswordPage, meta: { public: true } },
     { path: '/dashboard', component: DashboardPage, meta: { auth: true } },
+    { path: '/feeding-report', component: FeedingReportPage, meta: { auth: true, feedingReport: true } },
     { path: '/select-farm', component: SelectFarmPage, meta: { auth: true } },
     { path: '/users', component: UsersPage, meta: { auth: true } },
     { path: '/farms', component: FarmsPage, meta: { auth: true } },
@@ -63,6 +65,10 @@ router.beforeEach(async (to) => {
         return { path: '/select-farm', query: { redirect: to.fullPath } }
       }
       if (context.farms.length === 1) confirmFarmSelection(context.farms[0].id)
+      if (to.meta.feedingReport) {
+        const role = context.farms.find(farm => farm.id === context.farmId)?.role
+        if (!['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(role)) return '/dashboard'
+      }
       if (to.path === '/select-farm' && context.farms.length < 2) return '/dashboard'
     } catch {
       if (to.path !== '/select-farm') return { path: '/select-farm', query: { redirect: to.fullPath } }

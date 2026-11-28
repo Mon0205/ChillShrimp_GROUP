@@ -1,4 +1,5 @@
 <script setup>
+import LocalPages from '../../components/pagination/LocalPages.vue'
 import SectionTabs from '../../components/section-tabs/index.vue'
 import AppShell from '../../components/shell/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
@@ -180,11 +181,12 @@ onMounted(loadPage)
 <template>
 <AppShell>
     <header class="page-header">
-      <div class="farm-page-title"><v-avatar color="primary" variant="tonal" rounded="lg" size="44"><v-icon icon="mdi-home-city-outline" size="25" /></v-avatar><h1>Trang trại</h1></div>
+      <div class="farm-page-title"><div><span class="page-kicker">TỔ CHỨC</span><h1>Trang trại</h1></div></div>
 
-    </header>
+    <div class="page-actions list-actions"><v-btn v-if="canCreateFarm" color="primary" variant="outlined" prepend-icon="mdi-home-plus-outline" @click="createDialog = true">Tạo trại</v-btn></div>
+</header>
     <SectionTabs section="farms" />
-      <div class="page-actions list-actions"><v-btn v-if="canCreateFarm" color="primary" variant="outlined" prepend-icon="mdi-home-plus-outline" @click="createDialog = true">Tạo trại</v-btn></div>
+      
 
     <LoadingIndicator v-if="loading" />
     <template v-else-if="!farms.length">
@@ -193,20 +195,22 @@ onMounted(loadPage)
     <template v-else>
       <v-card class="farm-card" elevation="0">
         <div class="table-wrap">
-          <v-table class="app-data-table farms-table">
+          <LocalPages :items="farms || []" v-slot="{ rows: pageRows }">
+<v-table class="mobile-records app-data-table farms-table">
             <thead><tr><th>Mã trại</th><th>Trang trại</th><th>Địa chỉ</th><th>Vai trò</th><th>Phạm vi</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
-              <tr v-for="farm in farms" :key="farm.id" class="farm-clickable-row" tabindex="0" :aria-label="`Xem khu vực của ${farm.name}`" @click="openFarmAreas(farm)" @keydown.enter.self.prevent="openFarmAreas(farm)" @keydown.space.self.prevent="openFarmAreas(farm)">
-                <td><strong>{{ farm.code }}</strong></td>
-                <td><div class="farm-name-cell"><strong>{{ farm.name }}</strong></div></td>
-                <td class="farm-address-cell">{{ farm.address || 'Chưa cập nhật địa chỉ' }}</td>
-                <td>{{ roleNames[farm.role] || 'Chưa xác định' }}</td>
-                <td>{{ farm.area?.name || 'Toàn trại' }}</td>
-                <td><v-chip :color="farm.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ farm.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
-                <td><div class="farm-row-actions"><v-btn v-if="['OWNER', 'FARM_MANAGER'].includes(farm.role)" icon="mdi-pencil-outline" variant="text" color="primary" size="small" :aria-label="`Chỉnh sửa ${farm.name}`" :title="`Chỉnh sửa ${farm.name}`" @click.stop="openEditFarm(farm)" /></div></td>
+              <tr v-for="farm in pageRows" :key="farm.id" class="farm-clickable-row" tabindex="0" :aria-label="`Xem khu vực của ${farm.name}`" @click="openFarmAreas(farm)" @keydown.enter.self.prevent="openFarmAreas(farm)" @keydown.space.self.prevent="openFarmAreas(farm)">
+                <td data-label="Mã trại"><strong>{{ farm.code }}</strong></td>
+                <td data-label="Trang trại"><div class="farm-name-cell"><strong>{{ farm.name }}</strong></div></td>
+                <td class="farm-address-cell" data-label="Địa chỉ">{{ farm.address || 'Chưa cập nhật địa chỉ' }}</td>
+                <td data-label="Vai trò">{{ roleNames[farm.role] || 'Chưa xác định' }}</td>
+                <td data-label="Phạm vi">{{ farm.area?.name || 'Toàn trại' }}</td>
+                <td data-label="Trạng thái"><v-chip :color="farm.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ farm.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
+                <td data-label="Thao tác"><div class="farm-row-actions"><v-btn v-if="['OWNER', 'FARM_MANAGER'].includes(farm.role)" icon="mdi-pencil-outline" variant="text" color="primary" size="small" :aria-label="`Chỉnh sửa ${farm.name}`" :title="`Chỉnh sửa ${farm.name}`" @click.stop="openEditFarm(farm)" /></div></td>
               </tr>
             </tbody>
           </v-table>
+</LocalPages>
         </div>
       </v-card>
 
@@ -221,25 +225,33 @@ onMounted(loadPage)
         <div class="section-heading"><div><span class="eyebrow">{{ selectedFarm?.name }}</span><h2>Khu vực</h2></div><v-btn v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)" color="primary" size="small" @click="openCreateArea">Tạo khu vực</v-btn></div>
         <LoadingIndicator v-if="areasLoading" />
         <div v-else-if="!areas.length" class="inline-empty">Chưa có khu vực trong trang trại này.</div>
-        <v-table v-else class="app-data-table areas-table">
+        <LocalPages v-else :items="areas || []" v-slot="{ rows: pageRows }">
+<v-table class="mobile-records app-data-table areas-table">
           <thead><tr><th>Mã khu vực</th><th>Tên khu vực</th><th>Trạng thái</th><th v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)">Thao tác</th></tr></thead>
-          <tbody><tr v-for="area in areas" :key="area.id">
-            <td><strong>{{ area.code }}</strong></td><td>{{ area.name }}</td>
-            <td><v-chip :color="area.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ area.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
-            <td v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)"><div class="farm-row-actions">
+          <tbody><tr v-for="area in pageRows" :key="area.id">
+            <td data-label="Mã khu vực"><strong>{{ area.code }}</strong></td><td data-label="Tên khu vực">{{ area.name }}</td>
+            <td data-label="Trạng thái"><v-chip :color="area.status === 'active' ? 'success' : 'default'" variant="tonal" size="small">{{ area.status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}</v-chip></td>
+            <td v-if="['OWNER', 'FARM_MANAGER'].includes(selectedRole)" data-label="Thao tác"><div class="farm-row-actions">
               <v-btn icon="mdi-pencil-outline" variant="text" size="small" :aria-label="`Sửa ${area.name}`" :title="`Sửa ${area.name}`" @click="openEditArea(area)" />
               <v-btn :icon="area.status === 'active' ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'" variant="text" size="small" :aria-label="area.status === 'active' ? 'Ngừng hoạt động khu vực' : 'Kích hoạt khu vực'" :title="area.status === 'active' ? 'Ngừng hoạt động' : 'Kích hoạt'" @click="openAreaStatus(area)" />
               <v-btn v-if="area.status === 'inactive'" icon="mdi-delete-outline" color="error" variant="text" size="small" aria-label="Xóa khu vực" title="Xóa khu vực" @click="openDeleteArea(area)" />
             </div></td>
           </tr></tbody>
         </v-table>
+</LocalPages>
         </template>
         </v-card-text>
       </v-card>
     </v-dialog>
-<v-dialog v-model="createDialog" max-width="520"><v-card class="dialog-card"><span class="eyebrow">THIẾT LẬP TRẠI</span><h2>Tạo trại mới</h2><v-form class="dialog-form" @submit.prevent="createFarm"><label>Mã trại</label><v-text-field :rules="[codeRule]" v-model="newFarm.code" @update:model-value="newFarm.code = newFarm.code.toUpperCase()" required/><label>Tên trại</label><v-text-field :rules="[required('tên'), maxLength(120)]" v-model="newFarm.name" hide-details="auto" required/><label>Địa chỉ <small>(không bắt buộc)</small></label><v-text-field v-model="newFarm.address" hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="createDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="creatingFarm">Tạo trại</v-btn></div></v-form></v-card></v-dialog>
-<v-dialog v-model="farmDialog" max-width="520"><v-card class="dialog-card"><span class="eyebrow">CẬP NHẬT TRANG TRẠI</span><h2>Chỉnh sửa thông tin</h2><v-form class="dialog-form" @submit.prevent="saveFarm"><label>Mã trang trại</label><v-text-field v-model="farmForm.code" disabled @update:model-value="farmForm.code = farmForm.code.toUpperCase()" required hide-details="auto"/><label>Tên trang trại</label><v-text-field v-model="farmForm.name" required hide-details="auto"/><label>Địa chỉ</label><v-text-field v-model="farmForm.address" hide-details="auto"/><label>Trạng thái</label><v-select v-model="farmForm.status" :items="[{ title: 'Đang hoạt động', value: 'active' }, { title: 'Ngừng hoạt động', value: 'inactive' }]" hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="farmDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">Lưu thay đổi</v-btn></div></v-form></v-card></v-dialog>
-<v-dialog v-model="areaDialog" max-width="500"><v-card class="dialog-card"><span class="eyebrow">PHẠM VI PHÂN QUYỀN</span><h2>{{ editingArea ? 'Chỉnh sửa khu vực' : 'Tạo khu vực' }}</h2><v-form class="dialog-form" @submit.prevent="saveArea"><label>Mã khu vực</label><v-text-field v-model="areaForm.code" @update:model-value="areaForm.code = areaForm.code.toUpperCase()" required hide-details="auto"/><label>Tên khu vực</label><v-text-field v-model="areaForm.name" required hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="areaDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="areaSaving">{{ editingArea ? 'Lưu thay đổi' : 'Tạo khu vực' }}</v-btn></div></v-form></v-card></v-dialog>
+<v-dialog v-model="createDialog" max-width="520"><v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="createDialog = false" />
+          <span class="eyebrow">THIẾT LẬP TRẠI</span><h2>Tạo trại mới</h2><v-form class="dialog-form" @submit.prevent="createFarm"><label>Mã trại</label><v-text-field :rules="[codeRule]" v-model="newFarm.code" @update:model-value="newFarm.code = newFarm.code.toUpperCase()" required/><label>Tên trại</label><v-text-field :rules="[required('tên'), maxLength(120)]" v-model="newFarm.name" hide-details="auto" required/><label>Địa chỉ <small>(không bắt buộc)</small></label><v-text-field v-model="newFarm.address" hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="createDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="creatingFarm">Tạo trại</v-btn></div></v-form></v-card></v-dialog>
+<v-dialog v-model="farmDialog" max-width="520"><v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="farmDialog = false" />
+          <span class="eyebrow">CẬP NHẬT TRANG TRẠI</span><h2>Chỉnh sửa thông tin</h2><v-form class="dialog-form" @submit.prevent="saveFarm"><label>Mã trang trại</label><v-text-field v-model="farmForm.code" disabled @update:model-value="farmForm.code = farmForm.code.toUpperCase()" required hide-details="auto"/><label>Tên trang trại</label><v-text-field v-model="farmForm.name" required hide-details="auto"/><label>Địa chỉ</label><v-text-field v-model="farmForm.address" hide-details="auto"/><label>Trạng thái</label><v-select v-model="farmForm.status" :items="[{ title: 'Đang hoạt động', value: 'active' }, { title: 'Ngừng hoạt động', value: 'inactive' }]" hide-details="auto" /><div class="dialog-actions"><v-btn variant="text" @click="farmDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="saving">Lưu thay đổi</v-btn></div></v-form></v-card></v-dialog>
+<v-dialog v-model="areaDialog" max-width="500"><v-card class="dialog-card">
+          <v-btn class="form-dialog-close" type="button" icon="mdi-close" size="small" variant="text" aria-label="Đóng form" @click="areaDialog = false" />
+          <span class="eyebrow">PHẠM VI PHÂN QUYỀN</span><h2>{{ editingArea ? 'Chỉnh sửa khu vực' : 'Tạo khu vực' }}</h2><v-form class="dialog-form" @submit.prevent="saveArea"><label>Mã khu vực</label><v-text-field v-model="areaForm.code" @update:model-value="areaForm.code = areaForm.code.toUpperCase()" required hide-details="auto"/><label>Tên khu vực</label><v-text-field v-model="areaForm.name" required hide-details="auto"/><div class="dialog-actions"><v-btn variant="text" @click="areaDialog = false">Hủy</v-btn><v-btn type="submit" color="primary" :loading="areaSaving">{{ editingArea ? 'Lưu thay đổi' : 'Tạo khu vực' }}</v-btn></div></v-form></v-card></v-dialog>
 <v-dialog v-model="areaStatusDialog" max-width="500">
       <v-card class="dialog-card">
         <span class="eyebrow">TRẠNG THÁI KHU VỰC</span>
