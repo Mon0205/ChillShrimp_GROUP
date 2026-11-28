@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '../../utils/datetime.js'
 import { singleFlight } from '../../utils/single-flight.js'
 import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
@@ -44,7 +45,7 @@ const required = (value) => Boolean(value) || 'Trường này là bắt buộc.'
 
 function farmUrl(path) { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
 function quantity(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) }
-function dateTime(value) { return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) }
+function dateTime(value) { return formatDateTime(value) }
 
 async function load() {
   loading.value = true

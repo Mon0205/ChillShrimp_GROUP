@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime, toDateTimeInput, fromDateTimeInput, startOfDay, endOfDay } from '../../../utils/datetime.js'
 import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
@@ -42,7 +43,7 @@ function emptyForm() {
   return {
     tankId: '', supplyId: '', feedName: '', amount: '', unit: 'kg',
     feedCheckStatus: '',
-    feedingTime: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), notes: '',
+    feedingTime: toDateTimeInput(), notes: '',
   }
 }
 
@@ -54,10 +55,6 @@ function formatAmount(value, maximumFractionDigits = 3) {
   return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits })
 }
 
-function formatDateTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
 
 function statusLabel(value) {
   return ({ consumed: 'Đã ăn hết', leftover: 'Còn thức ăn', not_checked: 'Chưa kiểm tra' })[value] || '—'
@@ -96,8 +93,8 @@ function selectFeedSupply(supplyId) {
 function buildQuery() {
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
-  if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
-  if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
+  if (filters.value.from) params.set('from', startOfDay(filters.value.from).toISOString())
+  if (filters.value.to) params.set('to', endOfDay(filters.value.to).toISOString())
   return params.toString()
 }
 
@@ -151,7 +148,7 @@ async function saveLog() {
       supplyId: form.value.supplyId || null,
       feedName: feedSupplies.value.find((item) => item.id === form.value.supplyId)?.name || form.value.feedName,
       amount: Number(form.value.amount),
-      feedingTime: new Date(form.value.feedingTime).toISOString(),
+      feedingTime: fromDateTimeInput(form.value.feedingTime).toISOString(),
       notes: form.value.notes.trim() || null,
     }
     await api(farmUrl('/feeding-logs'), { method: 'POST', body: JSON.stringify(payload) })

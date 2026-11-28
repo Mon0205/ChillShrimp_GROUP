@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime, toDateInput } from '../../../utils/datetime.js'
 import { useBatchInspection } from './useBatchInspection.js'
 import { useBatchForm } from './useBatchForm.js'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -45,7 +46,7 @@ export function useSeedBatches({ groupByStage = false } = {}) {
     return {
       tankId: '', batchCode: '', supplierId: '', species: '',
       developmentStage: '', initialQuantity: '', currentEstimatedQuantity: '',
-      stockedDate: new Date().toISOString().slice(0, 10), expectedSaleDate: '', notes: '',
+      stockedDate: toDateInput(), expectedSaleDate: '', notes: '',
     }
   }
 
@@ -89,17 +90,7 @@ export function useSeedBatches({ groupByStage = false } = {}) {
     return batchId ? `${base}/${encodeURIComponent(batchId)}` : base
   }
 
-  function formatDate(value) {
-    if (!value) return '—'
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
-  }
-
-  function formatTimestamp(value) {
-    if (!value) return '—'
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-  }
+  const formatTimestamp = (value) => formatDateTime(value)
 
   function formatQuantity(value) {
     return Number(value || 0).toLocaleString('vi-VN')

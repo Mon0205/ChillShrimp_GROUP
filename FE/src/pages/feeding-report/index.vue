@@ -1,4 +1,5 @@
 <script setup>
+import { formatDate, formatDateTime, toDateInput, startOfDay, endOfDay } from '../../utils/datetime.js'
 import LocalPages from '../../components/pagination/LocalPages.vue'
 import AppShell from '../../components/shell/index.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -23,20 +24,13 @@ const selectedFarm = computed(() => farms.value.find((farm) => farm.id === farmC
 const canViewFeedingReport = computed(() => ['OWNER', 'FARM_MANAGER', 'AREA_MANAGER', 'TECHNICIAN'].includes(selectedFarm.value?.role))
 const selectedScope = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm.value?.role) ? 'Toàn trại' : selectedFarm.value?.area?.name || 'Khu vực được gán')
 
-function localDateString(date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 10)
-}
-
 function defaultReportFilters() {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - 29)
-  return { from: localDateString(from), to: localDateString(to), tankId: '' }
+  const from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+  return { from: toDateInput(from), to: toDateInput(), tankId: '' }
 }
 
-function reportDate(value, endOfDay = false) {
-  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`).toISOString()
+function reportDate(value, isEnd = false) {
+  return (isEnd ? endOfDay(value) : startOfDay(value)).toISOString()
 }
 
 function formatReportAmount(value, digits = 3) {
@@ -44,12 +38,11 @@ function formatReportAmount(value, digits = 3) {
 }
 
 function formatReportTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+  return formatDateTime(value)
 }
 
 function formatReportDay(value) {
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(`${value}T12:00:00`))
+  return formatDate(value)
 }
 
 async function loadFeedingTanks() {

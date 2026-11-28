@@ -1,4 +1,5 @@
 <script setup>
+import { formatTime } from '../../utils/datetime.js'
 import AppShell from '../../components/shell/index.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -52,7 +53,7 @@ const technicianScope = computed(() => {
 const infoLine = computed(() => [selectedFarm.value?.name, roleNames[role.value], scopeText.value, technicianScope.value].filter(Boolean).join(' · '))
 // Names of the empty tanks of the area (as far as the rows shown), for the "ao/bể đang nuôi" tile.
 const emptyTankNames = computed(() => (stats.value.tankRows || []).filter((row) => row.status !== 'active').map((row) => row.code))
-const updatedAt = computed(() => (summary.value ? new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short' }).format(new Date(summary.value.generatedAt)) : ''))
+const updatedAt = computed(() => (summary.value ? formatTime(summary.value.generatedAt) : ''))
 const stats = computed(() => summary.value?.stats || {})
 
 const feedingTotals = computed(() => {

@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime, toDateTimeInput, fromDateTimeInput, startOfDay, endOfDay } from '../../../utils/datetime.js'
 import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
@@ -39,17 +40,13 @@ function emptyForm() {
   return {
     tankId: '',
     waterChangePercentage: '',
-    performedAt: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+    performedAt: toDateTimeInput(),
     notes: '',
   }
 }
 
 function farmUrl(suffix = '') { return `/farms/${encodeURIComponent(farmId.value)}${suffix}` }
 function formatNumber(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) }
-function formatDateTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
 
 async function loadFarms() {
   farms.value = (await api('/farms')).data
@@ -67,8 +64,8 @@ async function loadTanks() {
 function buildQuery() {
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
-  if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
-  if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
+  if (filters.value.from) params.set('from', startOfDay(filters.value.from).toISOString())
+  if (filters.value.to) params.set('to', endOfDay(filters.value.to).toISOString())
   return params.toString()
 }
 
@@ -117,7 +114,7 @@ async function saveLog() {
       body: JSON.stringify({
         tankId: form.value.tankId,
         waterChangePercentage: Number(form.value.waterChangePercentage),
-        performedAt: new Date(form.value.performedAt).toISOString(),
+        performedAt: fromDateTimeInput(form.value.performedAt).toISOString(),
         notes: form.value.notes.trim() || null,
       }),
     })

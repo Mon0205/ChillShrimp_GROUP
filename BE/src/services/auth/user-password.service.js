@@ -2,10 +2,11 @@ import { sendPasswordOtp, resetPasswordOtp } from './password-otp.service.js'
 import { neonAuth } from '../../config/neon-auth.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
+import { isAcceptablePassword, PASSWORD_RULE_MESSAGE } from '../../utils/password.validation.js'
 import { passwordProviderMessage } from '../../utils/auth-provider-message.js'
 
 function validateNewPassword(password, confirmPassword) {
-  if (typeof password !== 'string' || password.length < 8) throw createHttpError(400, 'Mật khẩu mới cần ít nhất 8 ký tự.')
+  if (!isAcceptablePassword(password)) throw createHttpError(400, PASSWORD_RULE_MESSAGE)
   if (password !== confirmPassword) throw createHttpError(400, 'Mật khẩu xác nhận không khớp.')
 }
 

@@ -1,3 +1,4 @@
+import { formatDateTime, toDateTimeInput, fromDateTimeInput } from '../../../utils/datetime.js'
 
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -81,12 +82,12 @@ export function useInventory() {
   }
 
   function emptyImportForm() {
-    const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    const localNow = toDateTimeInput()
     return { quantity: '', unitPrice: '', transactionDate: localNow, notes: '' }
   }
 
   function emptyAdjustmentForm() {
-    const localNow = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    const localNow = toDateTimeInput()
     return { direction: '', quantity: '', transactionDate: localNow, reason: '' }
   }
 
@@ -148,10 +149,6 @@ export function useInventory() {
     dialog.value = true
   }
 
-  function formatDateTime(value) {
-    return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
-  }
-
   async function saveSupply() {
     const validation = await formRef.value?.validate()
     if (!validation?.valid) return showToast('Vui lòng kiểm tra các trường chưa hợp lệ.', 'error')
@@ -205,7 +202,7 @@ async function submitImport() {
         supplyId: importTarget.value.id,
         quantity: Number(importForm.value.quantity),
         unitPrice: Number(importForm.value.unitPrice),
-        transactionDate: new Date(importForm.value.transactionDate).toISOString(),
+        transactionDate: fromDateTimeInput(importForm.value.transactionDate).toISOString(),
         notes: importForm.value.notes.trim() || null,
       }),
     })
@@ -248,7 +245,7 @@ async function openImportHistory(supply, requestedPage = 1, requestedSize = 10) 
     try {
       await api(farmUrl('/inventory-transactions/adjustments'), {
         method: 'POST',
-        body: JSON.stringify({ supplyId: adjustmentTarget.value.id, direction: adjustmentForm.value.direction, quantity: Number(adjustmentForm.value.quantity), transactionDate: new Date(adjustmentForm.value.transactionDate).toISOString(), reason }),
+        body: JSON.stringify({ supplyId: adjustmentTarget.value.id, direction: adjustmentForm.value.direction, quantity: Number(adjustmentForm.value.quantity), transactionDate: fromDateTimeInput(adjustmentForm.value.transactionDate).toISOString(), reason }),
       })
       adjustmentDialog.value = false
       showToast('Đã điều chỉnh tồn kho và ghi lịch sử.', 'success')

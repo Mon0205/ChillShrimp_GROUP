@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { vietnamDay } from '../dashboard/summary.service.js'
 import { prisma } from '../../config/prisma.js'
 import { createHttpError } from '../../utils/http.js'
 import { isSeedBatchEditable } from '../../utils/seed-batch-lifecycle.js'
@@ -13,6 +14,8 @@ const BATCH_STATUS_TRANSITIONS = {
 }
 const SPECIES = ['white_leg_shrimp', 'black_tiger_shrimp']
 const TECHNICAL_FIELDS = ['species', 'developmentStage', 'notes']
+// A batch may be planned ahead, but not indefinitely.
+const MAX_STOCKING_LEAD_DAYS = 30
 const EDITABLE_FIELDS = ['batchCode', 'supplierId', 'species', 'developmentStage', 'currentEstimatedQuantity', 'stockedDate', 'expectedSaleDate', 'notes']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -104,6 +107,12 @@ function validateDateOrder(data, existing = {}) {
   const stockedDate = data.stockedDate ?? existing.stockedDate
   const expectedSaleDate = data.expectedSaleDate ?? existing.expectedSaleDate
   if (expectedSaleDate < stockedDate) throw createHttpError(400, 'Ngày dự kiến bán không được trước ngày thả.')
+  // Only a new or changed date is limited, so an older record can still be edited.
+  const changed = data.stockedDate && data.stockedDate.getTime() !== existing.stockedDate?.getTime()
+  const latest = vietnamDay().today.getTime() + MAX_STOCKING_LEAD_DAYS * 24 * 60 * 60 * 1000
+  if (changed && data.stockedDate.getTime() > latest) {
+    throw createHttpError(400, `Ngày thả không được quá ${MAX_STOCKING_LEAD_DAYS} ngày so với hôm nay.`)
+  }
 }
 
 function scopedBatchWhere(context) {

@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '../../utils/datetime.js'
 import InventoryTabs from '../../components/inventory-tabs/index.vue'
 import Pagination from '../../components/pagination/index.vue'
 import LoadingIndicator from '../../components/loading/index.vue'
@@ -21,10 +22,6 @@ const pagination = ref({ total: 0, pageCount: 1 })
 const farmId = computed({ get: () => farmContext.farmId, set: selectFarm })
 function farmUrl(path = '') { return `/farms/${encodeURIComponent(farmId.value)}${path}` }
 function formatNumber(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) }
-function formatDateTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
 
 async function loadFarms() {
   farms.value = (await api('/farms')).data

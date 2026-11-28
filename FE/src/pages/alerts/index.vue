@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '../../utils/datetime.js'
 import { singleFlight } from '../../utils/single-flight.js'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -57,7 +58,7 @@ let detailController
 let optionsController
 let actionController
 const url = (farmId, suffix = '') => `/farms/${encodeURIComponent(farmId)}/environment-thresholds/alerts${suffix}`
-const dateTime = value => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—'
+const dateTime = value => formatDateTime(value)
 const valueText = value => value === null || value === undefined ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 3 })
 function notifyRefresh() { window.dispatchEvent(new Event('alerts:refresh')) }
 

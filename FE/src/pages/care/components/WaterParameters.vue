@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime, toDateTimeInput, fromDateTimeInput, startOfDay, endOfDay, formatChartTime } from '../../../utils/datetime.js'
 import { singleFlight } from '../../../utils/single-flight.js'
 import { waterChartWindow } from './water-chart-window.js'
 import { buildWaterChart } from './water-chart.js'
@@ -109,7 +110,7 @@ const chartTimes = computed(() => {
   return from === to ? [from] : [from, from + (to - from) / 2, to]
 })
 function chartTime(value) {
-  return new Intl.DateTimeFormat('vi-VN', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}).format(new Date(value))
+  return formatChartTime(value)
 }
 const pageCount = computed(() => Math.max(1, pagination.value.pageCount || 1))
 const tankRule = (value) => Boolean(value) || 'Vui lòng chọn ao/bể.'
@@ -134,16 +135,12 @@ function emptyForm() {
     ...Object.fromEntries(measurements.map(({ key }) => [key, ''])),
     measurementMethod: '',
     measurementDevice: '',
-    recordedAt: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+    recordedAt: toDateTimeInput(),
     notes: '',
   }
 }
 
 function farmUrl(suffix = '') { return `/farms/${encodeURIComponent(farmId.value)}${suffix}` }
-function formatDateTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
 function formatValue(value) { return value === null || value === undefined ? null : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) }
 function measuredValues(log) {
   return measurements.filter(({ key }) => log[key] !== null && log[key] !== undefined && log[key] !== '').map((metric) => `${metric.title}: ${formatValue(log[metric.key])}${metric.unit ? ` ${metric.unit}` : ''}`)
@@ -164,8 +161,8 @@ async function loadTanks() {
 function buildQuery() {
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
-  if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
-  if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
+  if (filters.value.from) params.set('from', startOfDay(filters.value.from).toISOString())
+  if (filters.value.to) params.set('to', endOfDay(filters.value.to).toISOString())
   return params.toString()
 }
 
@@ -244,7 +241,7 @@ async function saveLog() {
       ...Object.fromEntries(measurements.map(({ key }) => [key, form.value[key] === '' ? null : Number(form.value[key])])),
       measurementMethod: form.value.measurementMethod,
       measurementDevice: form.value.measurementDevice.trim() || null,
-      recordedAt: new Date(form.value.recordedAt).toISOString(),
+      recordedAt: fromDateTimeInput(form.value.recordedAt).toISOString(),
       notes: form.value.notes.trim() || null,
     }
     const result = await api(farmUrl('/water-parameter-logs'), { method: 'POST', body: JSON.stringify(payload) })

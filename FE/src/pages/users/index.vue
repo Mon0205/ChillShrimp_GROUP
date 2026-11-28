@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '../../utils/datetime.js'
 import { singleFlight } from '../../utils/single-flight.js'
 import Pagination from '../../components/pagination/index.vue'
 const page = ref(1), pageSize = ref(10)
@@ -150,14 +151,7 @@ async function createArea(event) {
   creatingArea.value = true
   try { const result = await api(`/farms/${encodeURIComponent(targetFarm.id)}/areas`, { method: 'POST', body: JSON.stringify({ code, name }) }); targetFarm.areas = [...(targetFarm.areas || []), result.data].sort((a, b) => a.name.localeCompare(b.name, 'vi')); if (inviteFarmId.value === targetFarm.id) { inviteAreas.value = [...inviteAreas.value, result.data].sort((a, b) => a.name.localeCompare(b.name, 'vi')); areaId.value = result.data.id } newArea.value = { code: '', name: '' }; areaDialog.value = false } catch (err) { error.value = err.message } finally { creatingArea.value = false }
 }
-const formatDate = (value) => {
-  const date = new Date(value)
-  const parts = new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(date)
-  const get = (type) => parts.find((part) => part.type === type)?.value || ''
-  return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`
-}
+const formatDate = (value) => formatDateTime(value)
 const filteredTotal = computed(() => { const term = (search.value || '').toLocaleLowerCase(); return userRows.value.filter(item => [item.email, item.displayName, item.roleLabel].some(value => String(value || '').toLocaleLowerCase().includes(term))).length })
 watch([search, farmId, pageSize], () => { page.value = 1 })
 </script>

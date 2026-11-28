@@ -4,6 +4,7 @@ import { neonAuth } from '../../config/neon-auth.js'
 import { createHttpError } from '../../utils/http.js'
 import { assertInvitationEmailAvailable, sendInvitationEmail } from '../notifications/email.service.js'
 import { normalizePhone } from '../../utils/phone.validation.js'
+import { isAcceptablePassword, PASSWORD_RULE_MESSAGE } from '../../utils/password.validation.js'
 import { loadMembership } from './membership.service.js'
 import { isSystemAdmin } from '../auth/account-access.service.js'
 
@@ -140,7 +141,7 @@ export async function createInvitation({ input = {}, membership, actor }) {
 
 export async function acceptInvitation({ input = {} }) {
   const { token, password, confirmPassword } = input
-  if (typeof token !== 'string' || typeof password !== 'string' || password.length < 8) throw createHttpError(400, 'Liên kết hoặc mật khẩu không hợp lệ. Mật khẩu cần ít nhất 8 ký tự.')
+  if (typeof token !== 'string' || !isAcceptablePassword(password)) throw createHttpError(400, `Liên kết hoặc mật khẩu không hợp lệ. ${PASSWORD_RULE_MESSAGE}`)
   if (password !== confirmPassword) throw createHttpError(400, 'Mật khẩu xác nhận không khớp.')
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
   const invitation = await prisma.farmInvitation.findUnique({ where: { tokenHash } })

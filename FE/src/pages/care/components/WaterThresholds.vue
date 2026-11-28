@@ -1,4 +1,5 @@
 <script setup>
+import { formatDate, toDateInput } from '../../../utils/datetime.js'
 import { singleFlight } from '../../../utils/single-flight.js'
 import LocalPages from '../../../components/pagination/LocalPages.vue'
 import LoadingIndicator from '../../../components/loading/index.vue'
@@ -39,7 +40,7 @@ const canManage = computed(() => ['OWNER', 'FARM_MANAGER'].includes(selectedFarm
 const parameterTitle = (code) => parameters.find((item) => item.value === code)?.title || code
 const tankTypeTitle = (code) => tankTypes.find((item) => item.value === code)?.title || code
 const speciesTitle = (code) => speciesOptions.find((item) => item.value === code)?.title || code
-const dateText = (value) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(new Date(value)) : 'Không giới hạn'
+const dateText = (value) => formatDate(value, 'Không giới hạn')
 const boundText = (item) => [
   item.warningMin !== null ? `Cảnh báo dưới ${item.warningMin}` : '',
   item.warningMax !== null ? `Cảnh báo trên ${item.warningMax}` : '',
@@ -49,7 +50,7 @@ const boundText = (item) => [
 const blankForm = () => ({
   species: '', developmentStage: '', tankType: '', parameterCode: '', unit: '',
   optimalMin: '', optimalMax: '', warningMin: '', warningMax: '', dangerMin: '', dangerMax: '',
-  effectiveFrom: new Date().toISOString().slice(0, 10), effectiveTo: '',
+  effectiveFrom: toDateInput(), effectiveTo: '',
 })
 const form = ref(blankForm())
 const requiredRule = (value) => Boolean(String(value ?? '').trim()) || 'Trường này là bắt buộc.'

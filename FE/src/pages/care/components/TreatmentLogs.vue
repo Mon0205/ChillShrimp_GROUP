@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime, toDateTimeInput, fromDateTimeInput, startOfDay, endOfDay } from '../../../utils/datetime.js'
 import { singleFlight } from '../../../utils/single-flight.js'
 import Pagination from '../../../components/pagination/index.vue'
 import DateRange from './DateRange.vue'
@@ -36,14 +37,10 @@ const amountRule = (value) => Number.isFinite(Number(value)) && Number(value) > 
 const dateRule = (value) => Boolean(value) && !Number.isNaN(new Date(value).getTime()) || 'Thời điểm thực hiện không hợp lệ.'
 
 function emptyForm() {
-  return { tankId: '', supplyId: '', productName: '', amount: '', unit: '', purpose: '', performedAt: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16), notes: '' }
+  return { tankId: '', supplyId: '', productName: '', amount: '', unit: '', purpose: '', performedAt: toDateTimeInput(), notes: '' }
 }
 function farmUrl(suffix = '') { return `/farms/${encodeURIComponent(farmId.value)}${suffix}` }
 function formatNumber(value) { return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) }
-function formatDateTime(value) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date)
-}
 
 async function loadFarms() {
   farms.value = (await api('/farms')).data
@@ -68,8 +65,8 @@ async function loadReferenceData() {
 function buildQuery() {
   const params = new URLSearchParams({ page: String(page.value), limit: String(pageSize.value) })
   if (filters.value.tankId) params.set('tankId', filters.value.tankId)
-  if (filters.value.from) params.set('from', new Date(`${filters.value.from}T00:00:00`).toISOString())
-  if (filters.value.to) params.set('to', new Date(`${filters.value.to}T23:59:59.999`).toISOString())
+  if (filters.value.from) params.set('from', startOfDay(filters.value.from).toISOString())
+  if (filters.value.to) params.set('to', endOfDay(filters.value.to).toISOString())
   return params.toString()
 }
 
@@ -111,7 +108,7 @@ async function saveLog() {
       body: JSON.stringify({
         tankId: form.value.tankId, supplyId: form.value.supplyId || null,
         productName: form.value.productName.trim(), amount: Number(form.value.amount), unit: form.value.unit.trim(),
-        purpose: form.value.purpose.trim(), performedAt: new Date(form.value.performedAt).toISOString(),
+        purpose: form.value.purpose.trim(), performedAt: fromDateTimeInput(form.value.performedAt).toISOString(),
         notes: form.value.notes.trim() || null,
       }),
     })
