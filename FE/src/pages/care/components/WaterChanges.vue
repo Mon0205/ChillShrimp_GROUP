@@ -190,9 +190,7 @@ watch(pageSize, () => { if (page.value === 1) loadLogs(); else page.value = 1 })
           <v-card-title>Ghi nhật ký thay nước</v-card-title>
           <v-card-text>
             <v-form ref="formRef" @submit.prevent="saveLog">
-              <v-select v-model="form.tankId" :items="tanks" item-title="name" item-value="id" label="Ao/bể *" :rules="[tankRule]">
-                <template #item="{ props, item }"><v-list-item v-bind="props" :subtitle="item.raw.code" /></template>
-              </v-select>
+              <v-select v-model="form.tankId" :items="tanks" :item-title="tank => [tank?.name, tank?.code].filter(Boolean).join(' · ')" item-value="id" label="Ao/bể *" :rules="[tankRule]" />
               <v-text-field v-model="form.waterChangePercentage" type="number" min="0" max="100" step="0.01" suffix="%" label="Tỷ lệ nước thay *" :rules="[percentageRule]" />
               <v-text-field v-model="form.performedAt" type="datetime-local" label="Thời điểm thực hiện *" :rules="[dateRule]" />
               <v-textarea v-model="form.notes" label="Ghi chú" rows="3" maxlength="4000" counter="4000" />

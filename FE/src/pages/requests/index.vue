@@ -157,7 +157,7 @@ onMounted(load)
               <v-select v-model="form.supplyId" :items="supplies" item-title="name" item-value="id" label="Vật tư *" :rules="[required]" />
               <v-select v-if="['OWNER', 'FARM_MANAGER'].includes(role)" v-model="form.areaId" :items="areas" item-title="name" item-value="id" label="Khu vực *" :rules="[required]" />
               <v-text-field v-else :model-value="areas.find(area => area.id === selectedAreaId)?.name || ''" label="Khu vực" readonly />
-              <v-select v-model="form.tankId" :items="tankOptions" :item-title="tank => [tank?.code, tank?.name].filter(Boolean).join(' · ')" item-value="id" label="Ao/bể nhận vật tư *" :disabled="!selectedAreaId" :rules="[required]" no-data-text="Khu vực chưa có ao/bể phù hợp" />
+              <v-select v-model="form.tankId" :items="tankOptions" :item-title="tank => [tank?.code, tank?.name].filter(Boolean).join(' · ')" item-value="id" label="Ao/bể nhận vật tư *" :disabled="!selectedAreaId" :placeholder="!selectedAreaId ? 'Chọn khu vực trước' : undefined" persistent-placeholder :rules="[required]" no-data-text="Khu vực chưa có ao/bể phù hợp" />
               <v-text-field v-model="form.quantity" type="number" min="0.001" step="0.001" label="Số lượng *" :rules="[required, positiveQuantity]" />
               <v-textarea v-model="form.notes" label="Ghi chú" rows="1" maxlength="4000" counter="4000" />
               <v-btn color="primary" prepend-icon="mdi-send-outline" :loading="submitting" @click="submit">Gửi yêu cầu</v-btn>

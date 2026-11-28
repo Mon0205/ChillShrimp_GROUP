@@ -358,6 +358,7 @@ onMounted(loadPage)
             :items="technicianOptions"
             :loading="techniciansLoading"
             :disabled="!form.areaId || techniciansLoading"
+            :placeholder="!form.areaId ? 'Chọn khu vực trước' : undefined"
             no-data-text="Không có nhân viên kỹ thuật còn chỗ trong khu vực này."
           />
           <div v-if="technicianError" class="error-notice" role="alert">{{ technicianError }}</div>
