@@ -18,10 +18,12 @@ import { environmentThresholdRouter } from './routes/environment/environment-thr
 import { treatmentLogRouter } from './routes/care/treatment-log/index.js'
 import { inventoryTransactionRouter } from './routes/inventory/inventory-transaction/index.js'
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js'
+import { rejectUnsafeInput } from './middlewares/input-guard.middleware.js'
 
 export const app = express()
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
 app.use(express.json())
+app.use(rejectUnsafeInput)
 app.get('/api/health', (_req, res) => res.json({ data: { status: 'ok' } }))
 app.use('/api/auth', authRouter)
 app.use('/api/users', userRouter)
